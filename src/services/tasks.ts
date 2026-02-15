@@ -1,5 +1,5 @@
 import { JSONContent } from '@tiptap/react';
-import { DailyNote, Task, getDaysAgo } from '../types/note';
+import { getDaysAgo } from '../types/note';
 import { loadDailyNote, saveDailyNote, getOrCreateDailyNote } from './storage';
 import { nanoid } from 'nanoid';
 

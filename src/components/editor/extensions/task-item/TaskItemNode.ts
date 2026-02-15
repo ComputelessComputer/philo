@@ -83,6 +83,7 @@ export const CustomTaskItem = TaskItem.extend({
         if (typeof getPos === 'function') {
           editor.commands.command(({ tr }) => {
             const pos = getPos();
+            if (pos == null) return false;
             tr.setNodeMarkup(pos, undefined, {
               ...node.attrs,
               checked: checkbox.checked,

@@ -8,7 +8,7 @@ export default function Editor() {
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class: 'prose dark:prose-invert max-w-none focus:outline-none min-h-[200px]',
+        class: 'prose dark:prose-invert max-w-none focus:outline-hidden min-h-[200px]',
       },
     },
   });

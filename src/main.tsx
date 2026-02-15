@@ -1,5 +1,8 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import "@ibm/plex-mono/css/ibm-plex-mono-all.css";
+import "@fontsource/instrument-serif/latin.css";
+import "@fontsource/instrument-serif/latin-italic.css";
 import App from "./App";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

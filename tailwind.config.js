@@ -5,7 +5,12 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        sans: ['"IBM Plex Mono"', 'monospace'],
+        mono: ['"IBM Plex Mono"', 'monospace'],
+      },
+    },
   },
   plugins: [
     require('@tailwindcss/typography'),

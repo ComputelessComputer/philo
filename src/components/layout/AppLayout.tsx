@@ -1,63 +1,148 @@
-import { useState } from 'react';
-import TimelineView from '../journal/TimelineView';
+import { useState, useEffect, useCallback } from "react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Placeholder from "@tiptap/extension-placeholder";
+import { Markdown } from "@tiptap/markdown";
+import "../editor/Editor.css";
+import { DailyNote, formatDate, isToday, getToday, getDaysFromNow } from "../../types/note";
+import { getOrCreateDailyNote, saveDailyNote, loadPastNotes, loadDailyNote } from "../../services/storage";
+import PastNote from "../journal/PastNote";
+import EditableNote from "../journal/EditableNote";
 
-export default function AppLayout() {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+function DateHeader({ date }: { date: string }) {
+  const showToday = isToday(date);
+  const showTomorrow = isTomorrow(date);
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Sidebar */}
-      {sidebarOpen && (
-        <aside className="w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
-          <div className="h-full flex flex-col">
-            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-              <h1 className="text-xl font-semibold text-gray-900 dark:text-white">
-                Philo
-              </h1>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              <div className="space-y-2">
-                <div className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
-                  Library
-                </div>
-                <div className="text-sm text-gray-400 dark:text-gray-500 italic">
-                  No saved widgets yet
-                </div>
-              </div>
-            </div>
-          </div>
-        </aside>
+    <div className="flex items-center gap-4">
+      <h1
+        className="text-2xl italic text-gray-900 dark:text-white"
+        style={{ fontFamily: '"Instrument Serif", serif' }}
+      >
+        {formatDate(date)}
+      </h1>
+      {showToday && (
+        <span
+          className="text-xs font-medium uppercase tracking-wide px-3 py-px rounded-full text-white font-sans"
+          style={{ background: "linear-gradient(to bottom, #4b5563, #1f2937)" }}
+        >
+          today
+        </span>
       )}
+      {showTomorrow && (
+        <span
+          className="text-xs font-medium uppercase tracking-wide px-3 py-px rounded-full text-white font-sans"
+          style={{ background: "linear-gradient(to bottom, #6366f1, #4338ca)" }}
+        >
+          tomorrow
+        </span>
+      )}
+    </div>
+  );
+}
 
-      {/* Main editor area */}
-      <main className="flex-1 flex flex-col">
-        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-4 py-3 flex items-center gap-2">
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md text-gray-600 dark:text-gray-300"
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M4 6h16M4 12h16M4 18h16"
-              />
-            </svg>
-          </button>
-          <div className="text-sm text-gray-500 dark:text-gray-400">
-            Untitled Note
+function isTomorrow(dateStr: string): boolean {
+  return dateStr === getDaysFromNow(1);
+}
+
+export default function AppLayout() {
+  const today = getToday();
+  const tomorrow = getDaysFromNow(1);
+  const [tomorrowNote, setTomorrowNote] = useState<DailyNote | null>(null);
+  const [todayNote, setTodayNote] = useState<DailyNote | null>(null);
+  const [pastNotes, setPastNotes] = useState<DailyNote[]>([]);
+
+  // Load tomorrow (if exists), today, and past notes on mount
+  useEffect(() => {
+    async function load() {
+      const [tmrw, note, past] = await Promise.all([
+        loadDailyNote(tomorrow),
+        getOrCreateDailyNote(today),
+        loadPastNotes(30),
+      ]);
+      setTomorrowNote(tmrw);
+      setTodayNote(note);
+      setPastNotes(past);
+    }
+    load();
+  }, [today, tomorrow]);
+
+  const handleTodaySave = useCallback(
+    (note: DailyNote) => {
+      saveDailyNote(note).catch(console.error);
+      setTodayNote(note);
+    },
+    [],
+  );
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit,
+      Placeholder.configure({
+        placeholder: "Start writing...",
+      }),
+      Markdown,
+    ],
+    content: todayNote?.content || "",
+    immediatelyRender: false,
+    editorProps: {
+      attributes: {
+        class: "max-w-none focus:outline-hidden px-16 text-gray-900 dark:text-gray-100",
+      },
+    },
+    onUpdate: ({ editor }) => {
+      if (!todayNote) return;
+      handleTodaySave({ ...todayNote, content: editor.getJSON() });
+    },
+  });
+
+  // Sync editor content when todayNote loads from disk
+  useEffect(() => {
+    if (editor && todayNote) {
+      const current = JSON.stringify(editor.getJSON());
+      if (current !== JSON.stringify(todayNote.content)) {
+        editor.commands.setContent(todayNote.content);
+      }
+    }
+  }, [editor, todayNote]);
+
+  return (
+    <div
+      className="h-screen bg-white dark:bg-gray-900 overflow-y-auto"
+      onClick={() => editor?.commands.focus()}
+    >
+      <div className="w-full max-w-3xl mx-auto">
+        {/* Tomorrow (only if note exists) */}
+        {tomorrowNote && (
+          <div className="mt-12">
+            <div className="px-16 pt-12 pb-4">
+              <DateHeader date={tomorrow} />
+            </div>
+            <EditableNote note={tomorrowNote} />
           </div>
+        )}
+
+        {/* Today */}
+        <div className={`min-h-screen ${tomorrowNote ? "mt-12" : ""}`}>
+          <div className="px-16 pt-12 pb-4">
+            <DateHeader date={today} />
+          </div>
+          <EditorContent editor={editor} />
         </div>
-        <div className="flex-1 overflow-y-auto">
-          <TimelineView />
-        </div>
-      </main>
+
+        {/* Past notes */}
+        {pastNotes.map((note) => (
+          <div key={note.date}>
+            <div className="mx-16 border-t border-gray-200 dark:border-gray-700" />
+            <div className="min-h-screen">
+              <div className="px-16 pt-12 pb-4">
+                <DateHeader date={note.date} />
+              </div>
+              <PastNote note={note} />
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

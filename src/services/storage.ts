@@ -5,7 +5,7 @@ import {
   writeTextFile,
   BaseDirectory 
 } from '@tauri-apps/plugin-fs';
-import { DailyNote } from '../types/note';
+import { DailyNote, getDaysAgo } from '../types/note';
 
 const JOURNAL_DIR = 'journal';
 
@@ -19,8 +19,7 @@ async function ensureJournalDir() {
 export async function saveDailyNote(note: DailyNote): Promise<void> {
   await ensureJournalDir();
   const filename = `${JOURNAL_DIR}/${note.date}.json`;
-  const content = JSON.stringify(note, null, 2);
-  await writeTextFile(filename, content, { baseDir: BaseDirectory.AppData });
+  await writeTextFile(filename, JSON.stringify(note.content), { baseDir: BaseDirectory.AppData });
 }
 
 export async function loadDailyNote(date: string): Promise<DailyNote | null> {
@@ -32,22 +31,15 @@ export async function loadDailyNote(date: string): Promise<DailyNote | null> {
     return null;
   }
   
-  const content = await readTextFile(filename, { baseDir: BaseDirectory.AppData });
-  return JSON.parse(content) as DailyNote;
+  const raw = await readTextFile(filename, { baseDir: BaseDirectory.AppData });
+  const content = JSON.parse(raw);
+  return { date, content };
 }
 
 export async function createEmptyDailyNote(date: string): Promise<DailyNote> {
   const note: DailyNote = {
     date,
-    content: {
-      type: 'doc',
-      content: [
-        {
-          type: 'paragraph',
-        },
-      ],
-    },
-    tasks: [],
+    content: { type: 'doc', content: [] },
   };
   
   await saveDailyNote(note);
@@ -60,4 +52,15 @@ export async function getOrCreateDailyNote(date: string): Promise<DailyNote> {
     return existing;
   }
   return createEmptyDailyNote(date);
+}
+
+/**
+ * Load existing past notes (does NOT create missing ones).
+ * Checks the past `days` days and returns only notes that exist on disk.
+ */
+export async function loadPastNotes(days: number = 30): Promise<DailyNote[]> {
+  const results = await Promise.all(
+    Array.from({ length: days }, (_, i) => loadDailyNote(getDaysAgo(i + 1)))
+  );
+  return results.filter((note): note is DailyNote => note !== null);
 }

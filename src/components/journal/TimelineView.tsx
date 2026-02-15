@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import DailyNote from './DailyNote';
-import { DailyNote as DailyNoteType, getToday, getDaysAgo } from '../../types/note';
+import { DailyNote as DailyNoteType, getToday, getDaysAgo, getDaysFromNow } from '../../types/note';
 import { getOrCreateDailyNote } from '../../services/storage';
 import { checkAndRunRollover } from '../../services/tasks';
 
@@ -20,8 +20,9 @@ export default function TimelineView() {
       // Run task rollover first
       await checkAndRunRollover(today);
       
-      // Load today + past 7 days
-      const dates = [today];
+      // Load tomorrow + today + past 7 days
+      const tomorrow = getDaysFromNow(1);
+      const dates = [tomorrow, today];
       for (let i = 1; i <= 7; i++) {
         dates.push(getDaysAgo(i));
       }
