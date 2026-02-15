@@ -25,9 +25,13 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
   if (!open) return null;
 
   const handleSave = async () => {
-    await setApiKey(apiKey.trim());
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      await setApiKey(apiKey.trim());
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      console.error('Failed to save API key:', err);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

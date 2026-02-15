@@ -3,6 +3,8 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Image from "@tiptap/extension-image";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
 import { Markdown } from "@tiptap/markdown";
 import type { EditorView } from "@tiptap/pm/view";
 import "../editor/Editor.css";
@@ -16,6 +18,7 @@ import { listen } from "@tauri-apps/api/event";
 import { SettingsModal } from "../settings/SettingsModal";
 import { LibraryDrawer } from "../library/LibraryDrawer";
 import type { LibraryItem } from "../../services/library";
+import { rolloverTasks } from "../../services/tasks";
 
 function insertImageViaView(file: File, view: EditorView) {
   saveImage(file).then(async (relativePath) => {
@@ -83,9 +86,12 @@ export default function AppLayout() {
     };
   }, []);
 
-  // Load tomorrow, today, and past notes on mount
+  // Roll over unchecked tasks from past days, then load all notes
   useEffect(() => {
     async function load() {
+      // Move unchecked tasks from past notes into today before loading
+      await rolloverTasks(30);
+
       const [tmrw, note, past] = await Promise.all([
         getOrCreateDailyNote(tomorrow),
         getOrCreateDailyNote(today),
@@ -116,6 +122,8 @@ export default function AppLayout() {
         inline: false,
         allowBase64: false,
       }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
       WidgetExtension,
       Markdown,
     ],
@@ -154,6 +162,17 @@ export default function AppLayout() {
         }
         return false;
       },
+      handleKeyDown: (view, event) => {
+        if (event.key === 'Backspace') {
+          const { $from, empty } = view.state.selection;
+          if (empty && $from.parentOffset === 0 && $from.parent.type.name === 'heading') {
+            const tr = view.state.tr.setBlockType($from.before(), $from.after(), view.state.schema.nodes.paragraph);
+            view.dispatch(tr);
+            return true;
+          }
+        }
+        return false;
+      },
     },
     onUpdate: ({ editor }) => {
       if (!todayNote) return;
@@ -171,9 +190,19 @@ export default function AppLayout() {
     }
   }, [editor, todayNote]);
 
-  // "Go to Today" badge when scrolled away
+  // Scroll to today on startup (after notes render)
   const todayRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const didScrollToToday = useRef(false);
+
+  useEffect(() => {
+    if (todayNote && todayRef.current && !didScrollToToday.current) {
+      didScrollToToday.current = true;
+      todayRef.current.scrollIntoView({ block: "start" });
+    }
+  }, [todayNote]);
+
+  // "Go to Today" badge when scrolled away
   const [todayDirection, setTodayDirection] = useState<"above" | "below" | null>(null);
 
   useEffect(() => {

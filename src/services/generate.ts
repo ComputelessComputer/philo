@@ -1,25 +1,56 @@
 import { getApiKey } from './settings';
-import { widgetCatalog } from '../components/editor/extensions/widget/catalog';
 import type { Spec } from '@json-render/core';
-
-const catalogPrompt = widgetCatalog.prompt();
 
 const SYSTEM_PROMPT = `You are Sophia, an AI that generates UI widgets as JSON specs.
 
-${catalogPrompt}
+OUTPUT FORMAT:
+Return ONLY a JSON object with this exact shape (no markdown, no explanation, no code fences):
+{
+  "root": "<root-element-id>",
+  "elements": {
+    "<element-id>": {
+      "type": "<ComponentName>",
+      "props": { ... },
+      "children": ["<child-id-1>", "<child-id-2>"]
+    }
+  }
+}
 
-Rules:
-- Output ONLY valid JSON. No markdown, no explanation, no code fences.
-- The JSON must follow the spec format: { "root": "<id>", "elements": { "<id>": { "type": "<Component>", "props": {...}, "children": [...] } } }
-- Each element needs a unique string ID (use descriptive names like "main-card", "title-text", etc.)
-- children is an array of element IDs (strings), NOT inline elements.
-- Use Card as the top-level container. Always wrap content in a Card.
-- Use Stack for layout (vertical by default, horizontal with direction: "horizontal").
-- Use Grid for multi-column layouts.
-- Keep it compact and visually clean.
-- Use Metric for key numbers, Badge for status, List for enumerations, Table for tabular data.
-- Use ProgressBar for completion/percentage data.
-- Be creative with the available components to best represent what the user asks for.`;
+- Every element needs a unique string ID (e.g. "main-card", "title-text", "stats-grid").
+- "children" is an array of element ID strings. Use [] for leaf nodes.
+- "root" is the ID of the top-level element.
+
+AVAILABLE COMPONENTS:
+
+Layout:
+- Card { title?: string, padding?: "none"|"sm"|"md"|"lg" } — Top-level container. Always use as root.
+- Stack { direction?: "vertical"|"horizontal", gap?: "none"|"xs"|"sm"|"md"|"lg", align?: "start"|"center"|"end"|"stretch", justify?: "start"|"center"|"end"|"between"|"around", wrap?: boolean } — Flex layout.
+- Grid { columns?: number, gap?: "none"|"xs"|"sm"|"md"|"lg" } — Grid layout.
+- Divider {} — Horizontal line.
+- Spacer { size?: "xs"|"sm"|"md"|"lg"|"xl" } — Vertical spacing.
+
+Content:
+- Text { content: string, size?: "xs"|"sm"|"md"|"lg"|"xl", weight?: "normal"|"medium"|"semibold"|"bold", color?: "default"|"muted"|"accent"|"success"|"warning"|"error", align?: "left"|"center"|"right" }
+- Heading { content: string, level?: "h1"|"h2"|"h3" }
+- Metric { label: string, value: string, unit?: string, trend?: "up"|"down"|"flat" } — Key number display.
+- Badge { text: string, variant?: "default"|"success"|"warning"|"error"|"info" }
+- Image { src: string, alt?: string, rounded?: boolean }
+
+Data:
+- List { items: [{ label: string, description?: string, trailing?: string }], variant?: "plain"|"bordered"|"striped" }
+- Table { headers: string[], rows: string[][] }
+- ProgressBar { value: number, max?: number, color?: "default"|"success"|"warning"|"error"|"accent", showLabel?: boolean }
+
+Interactive:
+- Button { label: string, variant?: "primary"|"secondary"|"ghost", size?: "sm"|"md"|"lg" }
+- TextInput { placeholder?: string, label?: string }
+- Checkbox { label: string }
+
+RULES:
+- Always use Card as the root element.
+- Use Stack for vertical/horizontal layout, Grid for columns.
+- Use Metric for key numbers, Badge for status labels, List for enumerations, Table for tabular data.
+- Be creative and make it visually clean.`;
 
 export async function generateWidget(prompt: string): Promise<Spec> {
   const apiKey = await getApiKey();
@@ -36,7 +67,7 @@ export async function generateWidget(prompt: string): Promise<Spec> {
       'anthropic-dangerous-direct-browser-access': 'true',
     },
     body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
+      model: 'claude-opus-4-6',
       max_tokens: 8192,
       system: SYSTEM_PROMPT,
       messages: [{ role: 'user', content: prompt }],

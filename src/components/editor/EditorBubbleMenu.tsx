@@ -102,7 +102,7 @@ export function EditorBubbleMenu({ editor }: EditorBubbleMenuProps) {
           className={`bubble-btn bubble-btn-build ${building ? 'bubble-btn-building' : ''}`}
           disabled={building}
         >
-          {building ? 'Building...' : '⌘↵ Build'}
+          {building ? 'Building...' : 'Build ⌘↵'}
         </button>
       </div>
     </BubbleMenu>

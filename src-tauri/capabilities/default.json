@@ -31,6 +31,9 @@
     {
       "identifier": "fs:allow-exists",
       "allow": [
+        { "path": "$APPDATA" },
+        { "path": "$APPDATA/*" },
+        { "path": "$APPDATA/**" },
         { "path": "$HOME/Library/Application Support/com.philo.dev" },
         { "path": "$HOME/Library/Application Support/com.philo.dev/*" },
         { "path": "$HOME/Library/Application Support/com.philo.dev/**" }
@@ -39,6 +42,8 @@
     {
       "identifier": "fs:allow-read-text-file",
       "allow": [
+        { "path": "$APPDATA/*" },
+        { "path": "$APPDATA/**" },
         { "path": "$HOME/Library/Application Support/com.philo.dev/*" },
         { "path": "$HOME/Library/Application Support/com.philo.dev/**" }
       ]

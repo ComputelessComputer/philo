@@ -3,6 +3,8 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Image from "@tiptap/extension-image";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
 import { Markdown } from "@tiptap/markdown";
 import type { EditorView } from "@tiptap/pm/view";
 import "../editor/Editor.css";
@@ -37,6 +39,8 @@ export default function EditableNote({ note, placeholder = "Start writing..." }:
         inline: false,
         allowBase64: false,
       }),
+      TaskList,
+      TaskItem.configure({ nested: true }),
       WidgetExtension,
       Markdown,
     ],
@@ -71,6 +75,17 @@ export default function EditableNote({ note, placeholder = "Start writing..." }:
           if (file.type.startsWith("image/")) {
             event.preventDefault();
             insertImageViaView(file, view);
+            return true;
+          }
+        }
+        return false;
+      },
+      handleKeyDown: (view, event) => {
+        if (event.key === 'Backspace') {
+          const { $from, empty } = view.state.selection;
+          if (empty && $from.parentOffset === 0 && $from.parent.type.name === 'heading') {
+            const tr = view.state.tr.setBlockType($from.before(), $from.after(), view.state.schema.nodes.paragraph);
+            view.dispatch(tr);
             return true;
           }
         }

@@ -1,11 +1,36 @@
-import { useMemo } from 'react';
+import { useMemo, Component } from 'react';
+import type { ReactNode, ErrorInfo } from 'react';
 import { NodeViewWrapper } from '@tiptap/react';
 import type { NodeViewProps } from '@tiptap/react';
-import { Renderer } from '@json-render/react';
+import { Renderer, JSONUIProvider } from '@json-render/react';
 import type { Spec } from '@json-render/core';
 import { addToLibrary } from '../../../../services/library';
 import { generateWidget } from '../../../../services/generate';
 import { registry } from './registry';
+
+class RendererBoundary extends Component<{ children: ReactNode }, { error: string | null }> {
+  state = { error: null as string | null };
+
+  static getDerivedStateFromError(err: Error) {
+    return { error: err.message };
+  }
+
+  componentDidCatch(err: Error, info: ErrorInfo) {
+    console.error('Widget render error:', err, info);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="widget-error">
+          <p className="widget-error-title">Sophia couldn't render this</p>
+          <p className="widget-error-message">{this.state.error}</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 /**
  * Derive a short title from the prompt — first sentence or first ~40 chars.
@@ -44,9 +69,10 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected }: Nod
       const newSpec = await generateWidget(prompt);
       updateAttributes({ spec: JSON.stringify(newSpec), loading: false });
     } catch (err) {
-      const msg = err instanceof Error && err.message === 'API_KEY_MISSING'
+      const errMsg = err instanceof Error ? err.message : typeof err === 'string' ? err : 'Something went wrong.';
+      const msg = errMsg === 'API_KEY_MISSING'
         ? 'No API key. Add your Anthropic key in Settings (⌘,).'
-        : err instanceof Error ? err.message : 'Something went wrong.';
+        : errMsg;
       updateAttributes({ loading: false, error: msg });
     }
   };
@@ -93,7 +119,11 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected }: Nod
           </div>
         ) : spec ? (
           <div className="widget-render">
-            <Renderer spec={spec} registry={registry} />
+            <RendererBoundary>
+              <JSONUIProvider registry={registry}>
+                <Renderer spec={spec} registry={registry} />
+              </JSONUIProvider>
+            </RendererBoundary>
           </div>
         ) : (
           <div className="widget-error">
