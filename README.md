@@ -21,7 +21,7 @@ Write your notes, then hit **⇧⌘↵** to generate a custom mini-app — a cal
 
 ## Inspiration
 
-Inspired by [@omer_vexler](https://x.com/omer_vexler/status/1939756227749347615).
+Inspired by [Logseq](https://logseq.com) and [@omer_vexler](https://x.com/omer_vexler/status/1939756227749347615).
 
 ## Stack
 

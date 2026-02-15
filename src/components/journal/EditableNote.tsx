@@ -1,36 +1,101 @@
+import { useEffect } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
+import Image from "@tiptap/extension-image";
 import { Markdown } from "@tiptap/markdown";
+import type { EditorView } from "@tiptap/pm/view";
 import "../editor/Editor.css";
 import { DailyNote } from "../../types/note";
 import { saveDailyNote } from "../../services/storage";
+import { saveImage, resolveAssetUrl } from "../../services/images";
+import { WidgetExtension } from "../editor/extensions/widget/WidgetExtension";
+import { EditorBubbleMenu } from "../editor/EditorBubbleMenu";
+
+function insertImageViaView(file: File, view: EditorView) {
+  saveImage(file).then(async (relativePath) => {
+    const assetUrl = await resolveAssetUrl(relativePath);
+    const node = view.state.schema.nodes.image.create({ src: assetUrl, alt: file.name });
+    const tr = view.state.tr.replaceSelectionWith(node);
+    view.dispatch(tr);
+  }).catch((err) => {
+    console.error("Failed to insert image:", err);
+  });
+}
 
 interface EditableNoteProps {
   note: DailyNote;
+  placeholder?: string;
 }
 
-export default function EditableNote({ note }: EditableNoteProps) {
+export default function EditableNote({ note, placeholder = "Start writing..." }: EditableNoteProps) {
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Placeholder.configure({
-        placeholder: "Plan ahead...",
+      Placeholder.configure({ placeholder }),
+      Image.configure({
+        inline: false,
+        allowBase64: false,
       }),
+      WidgetExtension,
       Markdown,
     ],
-    content: note.content,
+    content: "",
     editable: true,
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class: "max-w-none focus:outline-hidden px-16 text-gray-900 dark:text-gray-100",
+        class: "max-w-none focus:outline-hidden px-6 text-gray-900 dark:text-gray-100",
+      },
+      handlePaste: (view, event) => {
+        const items = event.clipboardData?.items;
+        if (!items) return false;
+
+        for (const item of Array.from(items)) {
+          if (item.type.startsWith("image/")) {
+            const file = item.getAsFile();
+            if (file) {
+              event.preventDefault();
+              insertImageViaView(file, view);
+              return true;
+            }
+          }
+        }
+        return false;
+      },
+      handleDrop: (view, event) => {
+        const files = event.dataTransfer?.files;
+        if (!files?.length) return false;
+
+        for (const file of Array.from(files)) {
+          if (file.type.startsWith("image/")) {
+            event.preventDefault();
+            insertImageViaView(file, view);
+            return true;
+          }
+        }
+        return false;
       },
     },
     onUpdate: ({ editor }) => {
-      saveDailyNote({ ...note, content: editor.getJSON() }).catch(console.error);
+      saveDailyNote({ ...note, content: editor.getMarkdown() }).catch(console.error);
     },
   });
 
-  return <EditorContent editor={editor} />;
+  // Parse markdown via setContent (useEditor's content prop doesn't run through Markdown extension)
+  useEffect(() => {
+    if (editor && note.content) {
+      const current = editor.getMarkdown();
+      if (current !== note.content) {
+        editor.commands.setContent(note.content);
+      }
+    }
+  }, [editor, note.content]);
+
+  return (
+    <>
+      {editor && <EditorBubbleMenu editor={editor} />}
+      <EditorContent editor={editor} />
+    </>
+  );
 }

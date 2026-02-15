@@ -1,0 +1,52 @@
+import { exists, readTextFile, writeTextFile, mkdir } from '@tauri-apps/plugin-fs';
+import { join } from '@tauri-apps/api/path';
+import { getBaseDir } from './paths';
+
+interface Settings {
+  anthropicApiKey: string;
+}
+
+const SETTINGS_FILE = 'settings.json';
+
+const DEFAULT_SETTINGS: Settings = {
+  anthropicApiKey: '',
+};
+
+async function getSettingsPath(): Promise<string> {
+  const base = await getBaseDir();
+  return await join(base, SETTINGS_FILE);
+}
+
+export async function loadSettings(): Promise<Settings> {
+  const path = await getSettingsPath();
+  const fileExists = await exists(path);
+  if (!fileExists) return { ...DEFAULT_SETTINGS };
+
+  try {
+    const raw = await readTextFile(path);
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+export async function saveSettings(settings: Settings): Promise<void> {
+  const base = await getBaseDir();
+  const dirExists = await exists(base);
+  if (!dirExists) {
+    await mkdir(base, { recursive: true });
+  }
+  const path = await join(base, SETTINGS_FILE);
+  await writeTextFile(path, JSON.stringify(settings, null, 2));
+}
+
+export async function getApiKey(): Promise<string> {
+  const settings = await loadSettings();
+  return settings.anthropicApiKey;
+}
+
+export async function setApiKey(key: string): Promise<void> {
+  const settings = await loadSettings();
+  settings.anthropicApiKey = key;
+  await saveSettings(settings);
+}

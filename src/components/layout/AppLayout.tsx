@@ -1,13 +1,29 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
+import Image from "@tiptap/extension-image";
 import { Markdown } from "@tiptap/markdown";
+import type { EditorView } from "@tiptap/pm/view";
 import "../editor/Editor.css";
 import { DailyNote, formatDate, isToday, getToday, getDaysFromNow } from "../../types/note";
-import { getOrCreateDailyNote, saveDailyNote, loadPastNotes, loadDailyNote } from "../../services/storage";
-import PastNote from "../journal/PastNote";
+import { getOrCreateDailyNote, saveDailyNote, loadPastNotes } from "../../services/storage";
+import { saveImage, resolveAssetUrl } from "../../services/images";
 import EditableNote from "../journal/EditableNote";
+import { WidgetExtension } from "../editor/extensions/widget/WidgetExtension";
+import { EditorBubbleMenu } from "../editor/EditorBubbleMenu";
+import { SettingsModal } from "../settings/SettingsModal";
+
+function insertImageViaView(file: File, view: EditorView) {
+  saveImage(file).then(async (relativePath) => {
+    const assetUrl = await resolveAssetUrl(relativePath);
+    const node = view.state.schema.nodes.image.create({ src: assetUrl, alt: file.name });
+    const tr = view.state.tr.replaceSelectionWith(node);
+    view.dispatch(tr);
+  }).catch((err) => {
+    console.error("Failed to insert image:", err);
+  });
+}
 
 function DateHeader({ date }: { date: string }) {
   const showToday = isToday(date);
@@ -51,12 +67,13 @@ export default function AppLayout() {
   const [tomorrowNote, setTomorrowNote] = useState<DailyNote | null>(null);
   const [todayNote, setTodayNote] = useState<DailyNote | null>(null);
   const [pastNotes, setPastNotes] = useState<DailyNote[]>([]);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
-  // Load tomorrow (if exists), today, and past notes on mount
+  // Load tomorrow, today, and past notes on mount
   useEffect(() => {
     async function load() {
       const [tmrw, note, past] = await Promise.all([
-        loadDailyNote(tomorrow),
+        getOrCreateDailyNote(tomorrow),
         getOrCreateDailyNote(today),
         loadPastNotes(30),
       ]);
@@ -81,68 +98,179 @@ export default function AppLayout() {
       Placeholder.configure({
         placeholder: "Start writing...",
       }),
+      Image.configure({
+        inline: false,
+        allowBase64: false,
+      }),
+      WidgetExtension,
       Markdown,
     ],
     content: todayNote?.content || "",
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class: "max-w-none focus:outline-hidden px-16 text-gray-900 dark:text-gray-100",
+        class: "max-w-none focus:outline-hidden px-6 text-gray-900 dark:text-gray-100",
+      },
+      handlePaste: (view, event) => {
+        const items = event.clipboardData?.items;
+        if (!items) return false;
+
+        for (const item of Array.from(items)) {
+          if (item.type.startsWith("image/")) {
+            const file = item.getAsFile();
+            if (file) {
+              event.preventDefault();
+              insertImageViaView(file, view);
+              return true;
+            }
+          }
+        }
+        return false;
+      },
+      handleDrop: (view, event) => {
+        const files = event.dataTransfer?.files;
+        if (!files?.length) return false;
+
+        for (const file of Array.from(files)) {
+          if (file.type.startsWith("image/")) {
+            event.preventDefault();
+            insertImageViaView(file, view);
+            return true;
+          }
+        }
+        return false;
       },
     },
     onUpdate: ({ editor }) => {
       if (!todayNote) return;
-      handleTodaySave({ ...todayNote, content: editor.getJSON() });
+      handleTodaySave({ ...todayNote, content: editor.getMarkdown() });
     },
   });
 
   // Sync editor content when todayNote loads from disk
   useEffect(() => {
     if (editor && todayNote) {
-      const current = JSON.stringify(editor.getJSON());
-      if (current !== JSON.stringify(todayNote.content)) {
+      const current = editor.getMarkdown();
+      if (current !== todayNote.content) {
         editor.commands.setContent(todayNote.content);
       }
     }
   }, [editor, todayNote]);
 
+  // "Go to Today" badge when scrolled away
+  const todayRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [todayDirection, setTodayDirection] = useState<"above" | "below" | null>(null);
+
+  useEffect(() => {
+    const todayEl = todayRef.current;
+    const scrollEl = scrollRef.current;
+    if (!todayEl || !scrollEl) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setTodayDirection(null);
+        } else {
+          // If today's top is above the viewport, today is above → scroll up
+          // If today's top is below the viewport, today is below → scroll down
+          const rect = todayEl.getBoundingClientRect();
+          setTodayDirection(rect.top < 0 ? "above" : "below");
+        }
+      },
+      { root: scrollEl, threshold: 0 },
+    );
+
+    observer.observe(todayEl);
+    return () => observer.disconnect();
+  }, []);
+
+  function scrollToToday() {
+    todayRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   return (
     <div
-      className="h-screen bg-white dark:bg-gray-900 overflow-y-auto"
-      onClick={() => editor?.commands.focus()}
+      ref={scrollRef}
+      className="h-screen bg-white dark:bg-gray-900 overflow-y-scroll relative"
     >
-      <div className="w-full max-w-3xl mx-auto">
-        {/* Tomorrow (only if note exists) */}
+      <div className="w-full max-w-3xl">
+        {/* Tomorrow */}
         {tomorrowNote && (
-          <div className="mt-12">
-            <div className="px-16 pt-12 pb-4">
+          <div className="min-h-[400px]">
+            <div className="px-6 pt-6 pb-4">
               <DateHeader date={tomorrow} />
             </div>
-            <EditableNote note={tomorrowNote} />
+            <EditableNote note={tomorrowNote} placeholder="Plan ahead..." />
           </div>
         )}
 
         {/* Today */}
-        <div className={`min-h-screen ${tomorrowNote ? "mt-12" : ""}`}>
-          <div className="px-16 pt-12 pb-4">
+        <div className="mx-6 border-t border-gray-200 dark:border-gray-700" />
+        <div
+          ref={todayRef}
+          className="min-h-[400px]"
+          onClick={() => editor?.commands.focus()}
+        >
+          <div className="px-6 pt-6 pb-4">
             <DateHeader date={today} />
           </div>
+          {editor && <EditorBubbleMenu editor={editor} />}
           <EditorContent editor={editor} />
         </div>
 
         {/* Past notes */}
         {pastNotes.map((note) => (
           <div key={note.date}>
-            <div className="mx-16 border-t border-gray-200 dark:border-gray-700" />
-            <div className="min-h-screen">
-              <div className="px-16 pt-12 pb-4">
+            <div className="mx-6 border-t border-gray-200 dark:border-gray-700" />
+            <div className="min-h-[400px]">
+              <div className="px-6 pt-12 pb-4">
                 <DateHeader date={note.date} />
               </div>
-              <PastNote note={note} />
+              <EditableNote note={note} />
             </div>
           </div>
         ))}
       </div>
+
+      {/* Go to Today badge */}
+      {todayDirection && (
+        <button
+          onClick={scrollToToday}
+          className="fixed left-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium uppercase tracking-wide text-white font-sans shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer"
+          style={{
+            background: "linear-gradient(to bottom, #4b5563, #1f2937)",
+            ...(todayDirection === "above" ? { top: 16 } : { bottom: 16 }),
+          }}
+        >
+          {todayDirection === "above" ? "↑" : "↓"} today
+        </button>
+      )}
+
+      {/* Settings gear */}
+      <button
+        onClick={() => setSettingsOpen(true)}
+        className="fixed right-4 z-50 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all cursor-pointer"
+        style={{ top: 14 }}
+        title="Settings"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 16 16"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M6.5 1.5h3l.5 2 1.5.7 1.8-1 2.1 2.1-1 1.8.7 1.5 2 .5v3l-2 .5-0.7 1.5 1 1.8-2.1 2.1-1.8-1-1.5.7-.5 2h-3l-.5-2-1.5-.7-1.8 1-2.1-2.1 1-1.8-.7-1.5-2-.5v-3l2-.5.7-1.5-1-1.8 2.1-2.1 1.8 1 1.5-.7z" />
+          <circle cx="8" cy="8" r="2.5" />
+        </svg>
+      </button>
+
+      {/* Settings modal */}
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }

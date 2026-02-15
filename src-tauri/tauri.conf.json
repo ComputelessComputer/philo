@@ -18,7 +18,14 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "$APPDATA/journal/assets/**",
+          "$HOME/Library/Application Support/com.philo.dev/journal/assets/**"
+        ]
+      }
     }
   },
   "bundle": {

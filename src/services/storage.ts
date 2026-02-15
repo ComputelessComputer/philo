@@ -3,43 +3,48 @@ import {
   mkdir, 
   readTextFile, 
   writeTextFile,
-  BaseDirectory 
 } from '@tauri-apps/plugin-fs';
+import { join } from '@tauri-apps/api/path';
 import { DailyNote, getDaysAgo } from '../types/note';
+import { resolveMarkdownImages, unresolveMarkdownImages } from './images';
+import { getJournalDir } from './paths';
 
-const JOURNAL_DIR = 'journal';
-
-async function ensureJournalDir() {
-  const dirExists = await exists(JOURNAL_DIR, { baseDir: BaseDirectory.AppData });
+async function ensureDir(dir: string) {
+  const dirExists = await exists(dir);
   if (!dirExists) {
-    await mkdir(JOURNAL_DIR, { baseDir: BaseDirectory.AppData, recursive: true });
+    await mkdir(dir, { recursive: true });
   }
 }
 
 export async function saveDailyNote(note: DailyNote): Promise<void> {
-  await ensureJournalDir();
-  const filename = `${JOURNAL_DIR}/${note.date}.json`;
-  await writeTextFile(filename, JSON.stringify(note.content), { baseDir: BaseDirectory.AppData });
+  const journalDir = await getJournalDir();
+  await ensureDir(journalDir);
+  const filepath = await join(journalDir, `${note.date}.md`);
+  // Convert asset:// URLs back to relative paths before writing
+  const markdown = unresolveMarkdownImages(note.content);
+  await writeTextFile(filepath, markdown);
 }
 
 export async function loadDailyNote(date: string): Promise<DailyNote | null> {
-  await ensureJournalDir();
-  const filename = `${JOURNAL_DIR}/${date}.json`;
-  const fileExists = await exists(filename, { baseDir: BaseDirectory.AppData });
+  const journalDir = await getJournalDir();
+  await ensureDir(journalDir);
+  const filepath = await join(journalDir, `${date}.md`);
+  const fileExists = await exists(filepath);
   
   if (!fileExists) {
     return null;
   }
   
-  const raw = await readTextFile(filename, { baseDir: BaseDirectory.AppData });
-  const content = JSON.parse(raw);
+  const raw = await readTextFile(filepath);
+  // Convert relative asset paths to asset:// URLs for display
+  const content = await resolveMarkdownImages(raw);
   return { date, content };
 }
 
 export async function createEmptyDailyNote(date: string): Promise<DailyNote> {
   const note: DailyNote = {
     date,
-    content: { type: 'doc', content: [] },
+    content: '',
   };
   
   await saveDailyNote(note);

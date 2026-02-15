@@ -1,18 +1,20 @@
-import { JSONContent } from '@tiptap/react';
-
 export interface DailyNote {
   date: string; // ISO date string (YYYY-MM-DD)
-  content: JSONContent;
+  content: string; // markdown
+}
+
+function toLocalDateString(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export function getToday(): string {
-  return new Date().toISOString().split('T')[0];
+  return toLocalDateString(new Date());
 }
 
 export function getDaysFromNow(days: number): string {
   const date = new Date();
   date.setDate(date.getDate() + days);
-  return date.toISOString().split('T')[0];
+  return toLocalDateString(date);
 }
 
 function ordinalSuffix(day: number): string {
@@ -48,5 +50,5 @@ export function formatDateLong(dateStr: string): string {
 export function getDaysAgo(days: number): string {
   const date = new Date();
   date.setDate(date.getDate() - days);
-  return date.toISOString().split('T')[0];
+  return toLocalDateString(date);
 }

@@ -5,3 +5,7 @@
   --font-sans: "IBM Plex Mono", monospace;
   --font-mono: "IBM Plex Mono", monospace;
 }
+
+html, body {
+  overflow: hidden;
+}
