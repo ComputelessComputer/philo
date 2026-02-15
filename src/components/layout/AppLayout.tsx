@@ -12,7 +12,10 @@ import { saveImage, resolveAssetUrl } from "../../services/images";
 import EditableNote from "../journal/EditableNote";
 import { WidgetExtension } from "../editor/extensions/widget/WidgetExtension";
 import { EditorBubbleMenu } from "../editor/EditorBubbleMenu";
+import { listen } from "@tauri-apps/api/event";
 import { SettingsModal } from "../settings/SettingsModal";
+import { LibraryDrawer } from "../library/LibraryDrawer";
+import type { LibraryItem } from "../../services/library";
 
 function insertImageViaView(file: File, view: EditorView) {
   saveImage(file).then(async (relativePath) => {
@@ -68,6 +71,17 @@ export default function AppLayout() {
   const [todayNote, setTodayNote] = useState<DailyNote | null>(null);
   const [pastNotes, setPastNotes] = useState<DailyNote[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [libraryOpen, setLibraryOpen] = useState(false);
+
+  // Listen for macOS menu bar events
+  useEffect(() => {
+    const unlistenSettings = listen("open-settings", () => setSettingsOpen(true));
+    const unlistenLibrary = listen("toggle-library", () => setLibraryOpen((prev) => !prev));
+    return () => {
+      unlistenSettings.then((fn) => fn());
+      unlistenLibrary.then((fn) => fn());
+    };
+  }, []);
 
   // Load tomorrow, today, and past notes on mount
   useEffect(() => {
@@ -152,7 +166,7 @@ export default function AppLayout() {
     if (editor && todayNote) {
       const current = editor.getMarkdown();
       if (current !== todayNote.content) {
-        editor.commands.setContent(todayNote.content);
+        editor.commands.setContent(todayNote.content, { contentType: 'markdown' });
       }
     }
   }, [editor, todayNote]);
@@ -247,29 +261,28 @@ export default function AppLayout() {
         </button>
       )}
 
-      {/* Settings gear */}
-      <button
-        onClick={() => setSettingsOpen(true)}
-        className="fixed right-4 z-50 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all cursor-pointer"
-        style={{ top: 14 }}
-        title="Settings"
-      >
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <path d="M6.5 1.5h3l.5 2 1.5.7 1.8-1 2.1 2.1-1 1.8.7 1.5 2 .5v3l-2 .5-0.7 1.5 1 1.8-2.1 2.1-1.8-1-1.5.7-.5 2h-3l-.5-2-1.5-.7-1.8 1-2.1-2.1 1-1.8-.7-1.5-2-.5v-3l2-.5.7-1.5-1-1.8 2.1-2.1 1.8 1 1.5-.7z" />
-          <circle cx="8" cy="8" r="2.5" />
-        </svg>
-      </button>
+      {/* Library drawer — triggered by macOS menu bar Cmd+J */}
+      <LibraryDrawer
+        open={libraryOpen}
+        onClose={() => setLibraryOpen(false)}
+        onInsert={(item: LibraryItem) => {
+          if (!editor) return;
+          editor.chain().focus().insertContent({
+            type: 'widget',
+            attrs: {
+              id: crypto.randomUUID(),
+              spec: item.html,
+              prompt: item.prompt,
+              saved: true,
+              loading: false,
+              error: '',
+            },
+          }).run();
+          setLibraryOpen(false);
+        }}
+      />
 
-      {/* Settings modal */}
+      {/* Settings modal — triggered by macOS menu bar Cmd+, */}
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );

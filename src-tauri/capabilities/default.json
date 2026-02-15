@@ -31,13 +31,22 @@
     {
       "identifier": "fs:allow-exists",
       "allow": [
+        { "path": "$HOME/Library/Application Support/com.philo.dev" },
+        { "path": "$HOME/Library/Application Support/com.philo.dev/*" },
         { "path": "$HOME/Library/Application Support/com.philo.dev/**" }
       ]
     },
     {
       "identifier": "fs:allow-read-text-file",
       "allow": [
+        { "path": "$HOME/Library/Application Support/com.philo.dev/*" },
         { "path": "$HOME/Library/Application Support/com.philo.dev/**" }
+      ]
+    },
+    {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [
+        { "path": "$HOME/Library/Application Support/com.philo.dev/*" }
       ]
     }
   ]

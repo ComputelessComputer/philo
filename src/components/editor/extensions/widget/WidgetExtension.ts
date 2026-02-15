@@ -5,10 +5,12 @@ import { generateWidget } from '../../../../services/generate';
 
 export interface WidgetAttributes {
   id: string;
-  html: string;
+  /** JSON-stringified Spec from json-render, or empty string */
+  spec: string;
   prompt: string;
   saved: boolean;
   loading: boolean;
+  error: string;
 }
 
 declare module '@tiptap/core' {
@@ -50,10 +52,11 @@ export const WidgetExtension = Node.create({
   addAttributes() {
     return {
       id: { default: null },
-      html: { default: '' },
+      spec: { default: '' },
       prompt: { default: '' },
       saved: { default: false },
       loading: { default: false },
+      error: { default: '' },
     };
   },
 
@@ -78,9 +81,10 @@ export const WidgetExtension = Node.create({
             type: this.name,
             attrs: {
               id: crypto.randomUUID(),
-              html: '',
+              spec: '',
               saved: false,
               loading: false,
+              error: '',
               ...attrs,
             },
           });
@@ -90,7 +94,7 @@ export const WidgetExtension = Node.create({
 
   addKeyboardShortcuts() {
     return {
-      'Shift-Mod-Enter': () => {
+      'Mod-Enter': () => {
         const { from, to } = this.editor.state.selection;
         const selectedText = this.editor.state.doc.textBetween(from, to);
         if (!selectedText.trim()) return false;
@@ -102,26 +106,19 @@ export const WidgetExtension = Node.create({
           .deleteSelection()
           .insertContent({
             type: 'widget',
-            attrs: { id: widgetId, prompt: selectedText, html: '', loading: true, saved: false },
+            attrs: { id: widgetId, prompt: selectedText, spec: '', loading: true, saved: false, error: '' },
           })
           .run();
 
-        // Fire generation asynchronously
         generateWidget(selectedText)
-          .then((html) => {
-            updateWidgetById(this.editor, widgetId, { html, loading: false });
+          .then((spec) => {
+            updateWidgetById(this.editor, widgetId, { spec: JSON.stringify(spec), loading: false });
           })
           .catch((err) => {
-            console.error('Build failed:', err);
-            const errorHtml = `<div style="padding:24px;font-family:system-ui;color:#ef4444;text-align:center">
-              <p style="margin:0;font-weight:600">Build failed</p>
-              <p style="margin:4px 0 0;font-size:13px;color:#6b7280">${
-                err instanceof Error && err.message === 'API_KEY_MISSING'
-                  ? 'No API key configured. Add your Anthropic key in Settings.'
-                  : 'Something went wrong. Try again.'
-              }</p>
-            </div>`;
-            updateWidgetById(this.editor, widgetId, { html: errorHtml, loading: false });
+            const msg = err instanceof Error && err.message === 'API_KEY_MISSING'
+              ? 'No API key configured. Add your Anthropic key in Settings (⌘,).'
+              : err instanceof Error ? err.message : 'Something went wrong.';
+            updateWidgetById(this.editor, widgetId, { loading: false, error: msg });
           });
 
         return true;

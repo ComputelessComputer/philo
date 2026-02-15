@@ -47,27 +47,19 @@ export function EditorBubbleMenu({ editor }: EditorBubbleMenuProps) {
       .deleteSelection()
       .insertContent({
         type: 'widget',
-        attrs: { id: widgetId, prompt: selectedText, html: '', loading: true, saved: false },
+        attrs: { id: widgetId, prompt: selectedText, spec: '', loading: true, saved: false, error: '' },
       })
       .run();
 
     try {
-      const html = await generateWidget(selectedText);
-      updateWidgetById(editor, widgetId, { html, loading: false });
+      const spec = await generateWidget(selectedText);
+      updateWidgetById(editor, widgetId, { spec: JSON.stringify(spec), loading: false });
     } catch (err) {
       console.error('Build failed:', err);
-      // Remove the loading widget on failure
-      updateWidgetById(editor, widgetId, {
-        loading: false,
-        html: `<div style="padding:24px;font-family:system-ui;color:#ef4444;text-align:center">
-          <p style="margin:0;font-weight:600">Build failed</p>
-          <p style="margin:4px 0 0;font-size:13px;color:#6b7280">${
-            err instanceof Error && err.message === 'API_KEY_MISSING'
-              ? 'No API key configured. Add your Anthropic key in Settings.'
-              : 'Something went wrong. Try again.'
-          }</p>
-        </div>`,
-      });
+      const msg = err instanceof Error && err.message === 'API_KEY_MISSING'
+        ? 'No API key. Add your Anthropic key in Settings (⌘,).'
+        : err instanceof Error ? err.message : 'Something went wrong.';
+      updateWidgetById(editor, widgetId, { loading: false, error: msg });
     } finally {
       setBuilding(false);
     }
@@ -110,7 +102,7 @@ export function EditorBubbleMenu({ editor }: EditorBubbleMenuProps) {
           className={`bubble-btn bubble-btn-build ${building ? 'bubble-btn-building' : ''}`}
           disabled={building}
         >
-          {building ? 'Building...' : '⌘⇧↵ Build'}
+          {building ? 'Building...' : '⌘↵ Build'}
         </button>
       </div>
     </BubbleMenu>

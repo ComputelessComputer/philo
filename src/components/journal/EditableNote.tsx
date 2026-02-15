@@ -87,7 +87,7 @@ export default function EditableNote({ note, placeholder = "Start writing..." }:
     if (editor && note.content) {
       const current = editor.getMarkdown();
       if (current !== note.content) {
-        editor.commands.setContent(note.content);
+        editor.commands.setContent(note.content, { contentType: 'markdown' });
       }
     }
   }, [editor, note.content]);

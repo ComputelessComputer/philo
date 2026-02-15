@@ -1,22 +1,27 @@
 import { getApiKey } from './settings';
+import { widgetCatalog } from '../components/editor/extensions/widget/catalog';
+import type { Spec } from '@json-render/core';
 
-const SYSTEM_PROMPT = `You are a widget generator. The user will describe a mini-app or widget they want.
-Generate a SINGLE self-contained HTML file that implements it.
+const catalogPrompt = widgetCatalog.prompt();
+
+const SYSTEM_PROMPT = `You are Sophia, an AI that generates UI widgets as JSON specs.
+
+${catalogPrompt}
 
 Rules:
-- Output ONLY the HTML. No markdown, no explanation, no code fences.
-- Everything in one file: HTML structure, CSS in <style>, JS in <script>.
-- Use modern CSS (flexbox, grid, custom properties). No frameworks.
-- Use vanilla JS only. No external dependencies, no CDN links.
-- Make it visually polished with good typography and spacing.
-- Clean, minimal design. Subtle colors. Rounded corners.
-- Fully functional and interactive.
-- Use 100% width, never fixed widths. Responsive within its container.
-- Font: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif.
-- Background should be white or very light (#fafafa).
-- Keep it compact — aim for 300-500px height unless the widget needs more.`;
+- Output ONLY valid JSON. No markdown, no explanation, no code fences.
+- The JSON must follow the spec format: { "root": "<id>", "elements": { "<id>": { "type": "<Component>", "props": {...}, "children": [...] } } }
+- Each element needs a unique string ID (use descriptive names like "main-card", "title-text", etc.)
+- children is an array of element IDs (strings), NOT inline elements.
+- Use Card as the top-level container. Always wrap content in a Card.
+- Use Stack for layout (vertical by default, horizontal with direction: "horizontal").
+- Use Grid for multi-column layouts.
+- Keep it compact and visually clean.
+- Use Metric for key numbers, Badge for status, List for enumerations, Table for tabular data.
+- Use ProgressBar for completion/percentage data.
+- Be creative with the available components to best represent what the user asks for.`;
 
-export async function generateWidget(prompt: string): Promise<string> {
+export async function generateWidget(prompt: string): Promise<Spec> {
   const apiKey = await getApiKey();
   if (!apiKey) {
     throw new Error('API_KEY_MISSING');
@@ -40,9 +45,17 @@ export async function generateWidget(prompt: string): Promise<string> {
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`Claude API error (${response.status}): ${error}`);
+    throw new Error(`Sophia failed (${response.status}): ${error}`);
   }
 
   const data = await response.json();
-  return data.content[0].text;
+  const text: string = data.content[0].text;
+
+  // Parse the JSON spec — strip code fences if the model accidentally adds them
+  const cleaned = text.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim();
+  try {
+    return JSON.parse(cleaned) as Spec;
+  } catch {
+    throw new Error(`Sophia returned invalid JSON: ${cleaned.slice(0, 200)}`);
+  }
 }
