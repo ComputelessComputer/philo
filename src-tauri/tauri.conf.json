@@ -42,7 +42,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "REPLACE_WITH_YOUR_PUBLIC_KEY",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQxQjRGODZBQzYzMzMzM0EKUldRNk16UEdhdmkwMGFRdkh3OXdwU2RaOUZDUmtCRkxBdkIrem5RZmVLWGNWMzJkdVFlWGhrV3oK",
       "endpoints": [
         "https://github.com/ComputelessComputer/philo/releases/latest/download/latest.json"
       ]
