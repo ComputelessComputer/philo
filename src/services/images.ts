@@ -73,9 +73,10 @@ export async function resolveMarkdownImages(markdown: string): Promise<string> {
  * Matches the asset protocol URL pattern and extracts the relative assets/ path.
  */
 export function unresolveMarkdownImages(markdown: string): string {
-  // Tauri v2 asset URLs look like: http://asset.localhost/path/to/appdata/journal/assets/file.ext
-  // or asset://localhost/path/to/appdata/journal/assets/file.ext
-  const assetUrlPattern = /!\[([^\]]*)\]\(((?:http:\/\/asset\.localhost|asset:\/\/localhost)[^)\s"]*\/journal\/(assets\/[^)\s"]+))(?:\s+"([^"]*)")?\)/g;
+  // Tauri v2 asset URLs look like: http://asset.localhost/path/to/appdata/.../assets/file.ext
+  // or asset://localhost/path/to/appdata/.../assets/file.ext
+  // Match any path ending with assets/filename, regardless of parent directory structure.
+  const assetUrlPattern = /!\[([^\]]*)\]\(((?:http:\/\/asset\.localhost|asset:\/\/localhost)[^)\s"]*\/(assets\/[^)\s"]+))(?:\s+"([^"]*)")?\)/g;
 
   return markdown.replace(assetUrlPattern, (_full, alt, _url, relativePath, title) => {
     return title

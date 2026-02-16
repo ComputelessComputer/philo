@@ -2,14 +2,20 @@ import { exists, readTextFile, writeTextFile, mkdir } from '@tauri-apps/plugin-f
 import { join } from '@tauri-apps/api/path';
 import { getBaseDir } from './paths';
 
-interface Settings {
+export interface Settings {
   anthropicApiKey: string;
+  journalDir: string;
+  filenamePattern: string;
 }
 
 const SETTINGS_FILE = 'settings.json';
 
+export const DEFAULT_FILENAME_PATTERN = '{YYYY}-{MM}-{DD}';
+
 const DEFAULT_SETTINGS: Settings = {
   anthropicApiKey: '',
+  journalDir: '',
+  filenamePattern: '',
 };
 
 async function getSettingsPath(): Promise<string> {
@@ -49,4 +55,14 @@ export async function setApiKey(key: string): Promise<void> {
   const settings = await loadSettings();
   settings.anthropicApiKey = key;
   await saveSettings(settings);
+}
+
+export async function getJournalDirSetting(): Promise<string> {
+  const settings = await loadSettings();
+  return settings.journalDir;
+}
+
+export async function getFilenamePattern(): Promise<string> {
+  const settings = await loadSettings();
+  return settings.filenamePattern || DEFAULT_FILENAME_PATTERN;
 }

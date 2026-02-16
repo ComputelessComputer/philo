@@ -22,6 +22,7 @@ import type { LibraryItem } from "../../services/library";
 import { rolloverTasks } from "../../services/tasks";
 import { checkForUpdate, type UpdateInfo } from "../../services/updater";
 import { UpdateBanner } from "../UpdateBanner";
+import { initJournalScope } from "../../services/paths";
 
 function insertImageViaView(file: File, view: EditorView) {
   saveImage(file).then(async (relativePath) => {
@@ -64,6 +65,11 @@ export default function AppLayout() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+
+  // Extend FS scope for custom journal dir on mount
+  useEffect(() => {
+    initJournalScope().catch(console.error);
+  }, []);
 
   // Check for app updates on mount
   useEffect(() => {

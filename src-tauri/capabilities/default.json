@@ -9,6 +9,7 @@
     "fs:default",
     "updater:default",
     "process:allow-restart",
+    "dialog:default",
     {
       "identifier": "fs:allow-write-text-file",
       "allow": [

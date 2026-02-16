@@ -1,5 +1,21 @@
+use std::path::PathBuf;
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
-use tauri::Emitter;
+use tauri::{AppHandle, Emitter, Manager};
+use tauri_plugin_fs::FsExt;
+
+#[tauri::command]
+fn extend_fs_scope(app: AppHandle, path: String) -> Result<(), String> {
+    let p = PathBuf::from(&path);
+    // Extend fs plugin scope
+    app.fs_scope()
+        .allow_directory(&p, true)
+        .map_err(|e| e.to_string())?;
+    // Extend asset protocol scope
+    app.asset_protocol_scope()
+        .allow_directory(&p, true)
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -7,6 +23,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![extend_fs_scope])
         .setup(|app| {
             #[cfg(desktop)]
             app.handle()

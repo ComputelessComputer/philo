@@ -4,10 +4,9 @@ import {
   readTextFile, 
   writeTextFile,
 } from '@tauri-apps/plugin-fs';
-import { join } from '@tauri-apps/api/path';
 import { DailyNote, getDaysAgo } from '../types/note';
 import { resolveMarkdownImages, unresolveMarkdownImages } from './images';
-import { getJournalDir } from './paths';
+import { getNotePath, getNoteDir } from './paths';
 
 async function ensureDir(dir: string) {
   const dirExists = await exists(dir);
@@ -17,18 +16,16 @@ async function ensureDir(dir: string) {
 }
 
 export async function saveDailyNote(note: DailyNote): Promise<void> {
-  const journalDir = await getJournalDir();
-  await ensureDir(journalDir);
-  const filepath = await join(journalDir, `${note.date}.md`);
+  const noteDir = await getNoteDir(note.date);
+  await ensureDir(noteDir);
+  const filepath = await getNotePath(note.date);
   // Convert asset:// URLs back to relative paths before writing
   const markdown = unresolveMarkdownImages(note.content);
   await writeTextFile(filepath, markdown);
 }
 
 export async function loadDailyNote(date: string): Promise<DailyNote | null> {
-  const journalDir = await getJournalDir();
-  await ensureDir(journalDir);
-  const filepath = await join(journalDir, `${date}.md`);
+  const filepath = await getNotePath(date);
   const fileExists = await exists(filepath);
   
   if (!fileExists) {

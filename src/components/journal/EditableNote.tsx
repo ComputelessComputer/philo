@@ -3,6 +3,7 @@ import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
 import Image from "@tiptap/extension-image";
+import Link from "@tiptap/extension-link";
 import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import { Markdown } from "@tiptap/markdown";
@@ -38,6 +39,10 @@ export default function EditableNote({ note, placeholder = "Start writing..." }:
       Image.configure({
         inline: false,
         allowBase64: false,
+      }),
+      Link.configure({
+        openOnClick: false,
+        autolink: true,
       }),
       TaskList,
       TaskItem.configure({ nested: true }),
@@ -75,6 +80,16 @@ export default function EditableNote({ note, placeholder = "Start writing..." }:
           if (file.type.startsWith("image/")) {
             event.preventDefault();
             insertImageViaView(file, view);
+            return true;
+          }
+        }
+        return false;
+      },
+      handleClick: (view, _pos, event) => {
+        if (event.metaKey) {
+          const anchor = (event.target as HTMLElement).closest('a');
+          if (anchor?.href) {
+            window.open(anchor.href, '_blank');
             return true;
           }
         }

@@ -114,6 +114,7 @@
 
 .tiptap a:hover {
   color: #1d4ed8;
+  cursor: text;
 }
 
 /* ---- Lists ---- */
