@@ -8,7 +8,7 @@ import TaskItem from "@tiptap/extension-task-item";
 import { Markdown } from "@tiptap/markdown";
 import type { EditorView } from "@tiptap/pm/view";
 import "../editor/Editor.css";
-import { DailyNote, formatDate, isToday, getToday, getDaysFromNow } from "../../types/note";
+import { DailyNote, formatDate, isToday, getToday } from "../../types/note";
 import { getOrCreateDailyNote, saveDailyNote, loadPastNotes } from "../../services/storage";
 import { saveImage, resolveAssetUrl } from "../../services/images";
 import EditableNote from "../journal/EditableNote";
@@ -33,7 +33,6 @@ function insertImageViaView(file: File, view: EditorView) {
 
 function DateHeader({ date }: { date: string }) {
   const showToday = isToday(date);
-  const showTomorrow = isTomorrow(date);
 
   return (
     <div className="flex items-center gap-4">
@@ -51,26 +50,12 @@ function DateHeader({ date }: { date: string }) {
           today
         </span>
       )}
-      {showTomorrow && (
-        <span
-          className="text-xs font-medium uppercase tracking-wide px-3 py-px rounded-full text-white font-sans"
-          style={{ background: "linear-gradient(to bottom, #6366f1, #4338ca)" }}
-        >
-          tomorrow
-        </span>
-      )}
     </div>
   );
 }
 
-function isTomorrow(dateStr: string): boolean {
-  return dateStr === getDaysFromNow(1);
-}
-
 export default function AppLayout() {
   const today = getToday();
-  const tomorrow = getDaysFromNow(1);
-  const [tomorrowNote, setTomorrowNote] = useState<DailyNote | null>(null);
   const [todayNote, setTodayNote] = useState<DailyNote | null>(null);
   const [pastNotes, setPastNotes] = useState<DailyNote[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -92,17 +77,15 @@ export default function AppLayout() {
       // Move unchecked tasks from past notes into today before loading
       await rolloverTasks(30);
 
-      const [tmrw, note, past] = await Promise.all([
-        getOrCreateDailyNote(tomorrow),
+      const [note, past] = await Promise.all([
         getOrCreateDailyNote(today),
         loadPastNotes(30),
       ]);
-      setTomorrowNote(tmrw);
       setTodayNote(note);
       setPastNotes(past);
     }
     load();
-  }, [today, tomorrow]);
+  }, [today]);
 
   const handleTodaySave = useCallback(
     (note: DailyNote) => {
@@ -238,18 +221,7 @@ export default function AppLayout() {
       className="h-screen bg-white dark:bg-gray-900 overflow-y-scroll relative"
     >
       <div className="w-full max-w-3xl">
-        {/* Tomorrow */}
-        {tomorrowNote && (
-          <div className="min-h-[400px]">
-            <div className="px-6 pt-6 pb-4">
-              <DateHeader date={tomorrow} />
-            </div>
-            <EditableNote note={tomorrowNote} placeholder="Plan ahead..." />
-          </div>
-        )}
-
         {/* Today */}
-        <div className="mx-6 border-t border-gray-200 dark:border-gray-700" />
         <div
           ref={todayRef}
           className="min-h-[400px]"
