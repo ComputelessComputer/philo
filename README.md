@@ -1,23 +1,41 @@
 # Philo
 
-A note-taking app that builds things for you.
+A daily journaling app that builds things for you.
 
-Write your notes, then hit **⇧⌘↵** to generate a custom mini-app — a calorie tracker, a world clock, a habit chart — embedded right inside your document.
+Write your notes in a timeline, manage tasks that carry forward automatically, and hit **⌘↵** to generate custom mini-apps — a calorie tracker, a world clock, a habit chart — embedded right inside your journal.
 
 ## How it works
 
-1. **Write** — take notes in a block-based editor
-2. **Generate** — describe what you need and press Shift+Cmd+Enter
-3. **Use** — an interactive widget appears inline in your notes
-4. **Keep or toss** — widgets are disposable by default. Save the ones you like to your library and reuse them anywhere.
+1. **Journal** — write daily notes in a scrollable timeline (tomorrow → today → past)
+2. **Track tasks** — checkbox tasks roll over automatically; unchecked items carry forward to today on each app launch
+3. **Recurring tasks** — add `#daily`, `#weekly`, `#monthly`, `#2days`, `#3weeks`, etc. to a task and it reappears on schedule after you check it off
+4. **Generate widgets** — describe what you need and press ⌘↵ to create an interactive widget inline
+5. **Save to library** — widgets are disposable by default. Save the ones you like (⌘J to browse) and reuse them anywhere.
+
+## Features
+
+- **Daily timeline** — tomorrow, today, and past notes in a single scrollable view with a floating "Go to Today" button
+- **Task rollover** — unchecked tasks from past days automatically move to today
+- **Recurring tasks** — tag tasks with recurrence intervals (`#daily`, `#weekly`, `#2weeks`, etc.) to have them repeat
+- **AI widgets** — generate interactive React mini-apps inline via Claude
+- **Widget library** — save and reuse generated widgets across notes (⌘J)
+- **Image support** — paste or drag-and-drop images directly into notes
+- **Local storage** — all data stored as markdown files on disk (`$APPDATA/philo/journal/`)
+- **Dark mode** — follows system theme
 
 ## Use cases
 
-- **Personal dashboards** — embed a habit tracker, mood logger, or daily planner directly in your journal
+- **Daily journaling** — capture thoughts, plan tomorrow, review the past
+- **Habit tracking** — recurring tasks like `- [ ] Meditate #daily` reappear each day
+- **Personal dashboards** — embed a calorie tracker, mood logger, or workout log directly in your journal
 - **Quick tools** — need a unit converter or tip calculator? Generate it on the spot
-- **Study aids** — create flashcard widgets, spaced repetition timers, or formula reference cards
-- **Project planning** — spin up a kanban board, countdown timer, or progress tracker inside your project notes
-- **Health & fitness** — calorie counters, water intake trackers, workout logs — all inline
+- **Project planning** — spin up a kanban board, countdown timer, or progress tracker inside your notes
+
+## Keyboard shortcuts
+
+- **⌘↵** — Generate a widget from the current selection
+- **⌘J** — Open the widget library
+- **⌘,** — Open settings
 
 ## Inspiration
 
@@ -25,4 +43,4 @@ Inspired by [Logseq](https://logseq.com) and [@omer_vexler](https://x.com/omer_v
 
 ## Stack
 
-Tauri v2 · React · TypeScript · TipTap · Tailwind CSS
+Tauri v2 · React 19 · TypeScript · TipTap · Tailwind CSS v4 · Anthropic Claude
