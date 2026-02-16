@@ -1,6 +1,6 @@
-import { loadDailyNote, saveDailyNote } from './storage';
-import { getToday, getDaysAgo } from '../types/note';
-import type { DailyNote } from '../types/note';
+import { getDaysAgo, getToday, } from "../types/note";
+import type { DailyNote, } from "../types/note";
+import { loadDailyNote, saveDailyNote, } from "./storage";
 
 /** Regex matching unchecked task lines: `- [ ] text` or `* [ ] text` */
 const UNCHECKED_TASK = /^(\s*)[-*] \[ \] (.+)$/;
@@ -26,37 +26,37 @@ interface Recurrence {
 }
 
 /** Parse a recurrence tag from task text. Returns null if none found. */
-export function parseRecurrence(text: string): Recurrence | null {
-  const match = text.match(RECURRENCE_TAG);
+export function parseRecurrence(text: string,): Recurrence | null {
+  const match = text.match(RECURRENCE_TAG,);
   if (!match) return null;
 
   const tag = match[0];
   const keyword = match[1].toLowerCase();
 
-  if (keyword === 'daily') return { intervalDays: 1, tag };
-  if (keyword === 'weekly') return { intervalDays: 7, tag };
-  if (keyword === 'monthly') return { intervalDays: 30, tag };
+  if (keyword === "daily") return { intervalDays: 1, tag, };
+  if (keyword === "weekly") return { intervalDays: 7, tag, };
+  if (keyword === "monthly") return { intervalDays: 30, tag, };
 
-  const n = parseInt(match[2], 10);
+  const n = parseInt(match[2], 10,);
   const unit = match[3].toLowerCase();
 
-  if (unit.startsWith('day')) return { intervalDays: n, tag };
-  if (unit.startsWith('week')) return { intervalDays: n * 7, tag };
-  if (unit.startsWith('month')) return { intervalDays: n * 30, tag };
+  if (unit.startsWith("day",)) return { intervalDays: n, tag, };
+  if (unit.startsWith("week",)) return { intervalDays: n * 7, tag, };
+  if (unit.startsWith("month",)) return { intervalDays: n * 30, tag, };
 
   return null;
 }
 
 /** Format a Date as YYYY-MM-DD in local time. */
-function dateToString(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+function dateToString(d: Date,): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1,).padStart(2, "0",)}-${String(d.getDate(),).padStart(2, "0",)}`;
 }
 
 /** Add N days to a YYYY-MM-DD string and return a new YYYY-MM-DD string. */
-function addDaysToDate(dateStr: string, days: number): string {
-  const d = new Date(dateStr + 'T00:00:00');
-  d.setDate(d.getDate() + days);
-  return dateToString(d);
+function addDaysToDate(dateStr: string, days: number,): string {
+  const d = new Date(dateStr + "T00:00:00",);
+  d.setDate(d.getDate() + days,);
+  return dateToString(d,);
 }
 
 /**
@@ -64,39 +64,39 @@ function addDaysToDate(dateStr: string, days: number): string {
  * Preserves indentation so nested task structure survives rollover.
  * Returns the tasks and the content with those tasks removed.
  */
-function extractUncheckedTasks(content: string): { tasks: TaskLine[]; cleaned: string } {
-  const lines = content.split('\n');
+function extractUncheckedTasks(content: string,): { tasks: TaskLine[]; cleaned: string; } {
+  const lines = content.split("\n",);
   const tasks: TaskLine[] = [];
   const kept: string[] = [];
 
   for (const line of lines) {
-    const match = line.match(UNCHECKED_TASK);
+    const match = line.match(UNCHECKED_TASK,);
     if (match) {
-      tasks.push({ indent: match[1], text: match[2] });
+      tasks.push({ indent: match[1], text: match[2], },);
     } else {
-      kept.push(line);
+      kept.push(line,);
     }
   }
 
   // Remove trailing empty lines left by task removal
-  let cleaned = kept.join('\n');
-  cleaned = cleaned.replace(/\n{3,}/g, '\n\n').trim();
+  let cleaned = kept.join("\n",);
+  cleaned = cleaned.replace(/\n{3,}/g, "\n\n",).trim();
 
-  return { tasks, cleaned };
+  return { tasks, cleaned, };
 }
 
 /**
  * Extract checked tasks that have a recurrence tag.
  * These stay in the source note (history) — we only read them.
  */
-function extractCheckedRecurringTasks(content: string): string[] {
-  const lines = content.split('\n');
+function extractCheckedRecurringTasks(content: string,): string[] {
+  const lines = content.split("\n",);
   const tasks: string[] = [];
 
   for (const line of lines) {
-    const match = line.match(CHECKED_TASK);
-    if (match && parseRecurrence(match[2])) {
-      tasks.push(match[2]);
+    const match = line.match(CHECKED_TASK,);
+    if (match && parseRecurrence(match[2],)) {
+      tasks.push(match[2],);
     }
   }
 
@@ -107,16 +107,16 @@ function extractCheckedRecurringTasks(content: string): string[] {
  * Collect all task texts (checked + unchecked) already present in content.
  * Used for deduplication.
  */
-function extractAllTaskTexts(content: string): Set<string> {
-  const lines = content.split('\n');
+function extractAllTaskTexts(content: string,): Set<string> {
+  const lines = content.split("\n",);
   const texts = new Set<string>();
 
   for (const line of lines) {
-    const unchecked = line.match(UNCHECKED_TASK);
-    if (unchecked) texts.add(unchecked[2]);
+    const unchecked = line.match(UNCHECKED_TASK,);
+    if (unchecked) texts.add(unchecked[2],);
 
-    const checked = line.match(CHECKED_TASK);
-    if (checked) texts.add(checked[2]);
+    const checked = line.match(CHECKED_TASK,);
+    if (checked) texts.add(checked[2],);
   }
 
   return texts;
@@ -126,10 +126,10 @@ function extractAllTaskTexts(content: string): Set<string> {
  * Prepend rolled-over tasks to today's content as unchecked task items,
  * preserving their original indentation for nested structure.
  */
-function prependTasks(content: string, tasks: TaskLine[]): string {
+function prependTasks(content: string, tasks: TaskLine[],): string {
   if (tasks.length === 0) return content;
 
-  const taskLines = tasks.map((t) => `${t.indent}- [ ] ${t.text}`).join('\n');
+  const taskLines = tasks.map((t,) => `${t.indent}- [ ] ${t.text}`).join("\n",);
   const trimmed = content.trim();
 
   if (!trimmed) return taskLines;
@@ -143,7 +143,7 @@ function prependTasks(content: string, tasks: TaskLine[]): string {
  *
  * Returns true if any tasks were rolled over.
  */
-export async function rolloverTasks(days: number = 30): Promise<boolean> {
+export async function rolloverTasks(days: number = 30,): Promise<boolean> {
   const today = getToday();
   // Map from task text → TaskLine (preserves indent, deduplicates by text)
   const taskMap = new Map<string, TaskLine>();
@@ -151,28 +151,28 @@ export async function rolloverTasks(days: number = 30): Promise<boolean> {
 
   // Scan past notes
   for (let i = 1; i <= days; i++) {
-    const date = getDaysAgo(i);
-    const note = await loadDailyNote(date);
+    const date = getDaysAgo(i,);
+    const note = await loadDailyNote(date,);
     if (!note || !note.content.trim()) continue;
 
     // 1. Extract unchecked tasks → move to today (preserving nesting)
-    const { tasks, cleaned } = extractUncheckedTasks(note.content);
+    const { tasks, cleaned, } = extractUncheckedTasks(note.content,);
     if (tasks.length > 0) {
-      tasks.forEach((t) => {
-        if (!taskMap.has(t.text)) {
-          taskMap.set(t.text, t);
+      tasks.forEach((t,) => {
+        if (!taskMap.has(t.text,)) {
+          taskMap.set(t.text, t,);
         }
-      });
-      modifiedNotes.push({ ...note, content: cleaned });
+      },);
+      modifiedNotes.push({ ...note, content: cleaned, },);
     }
 
     // 2. Find checked recurring tasks that are due again
-    const checkedRecurring = extractCheckedRecurringTasks(note.content);
+    const checkedRecurring = extractCheckedRecurringTasks(note.content,);
     for (const taskText of checkedRecurring) {
-      const recurrence = parseRecurrence(taskText)!;
-      const nextDue = addDaysToDate(date, recurrence.intervalDays);
-      if (nextDue <= today && !taskMap.has(taskText)) {
-        taskMap.set(taskText, { indent: '', text: taskText });
+      const recurrence = parseRecurrence(taskText,)!;
+      const nextDue = addDaysToDate(date, recurrence.intervalDays,);
+      if (nextDue <= today && !taskMap.has(taskText,)) {
+        taskMap.set(taskText, { indent: "", text: taskText, },);
       }
     }
   }
@@ -180,18 +180,18 @@ export async function rolloverTasks(days: number = 30): Promise<boolean> {
   if (taskMap.size === 0) return false;
 
   // Save cleaned past notes (unchecked tasks removed)
-  await Promise.all(modifiedNotes.map((note) => saveDailyNote(note)));
+  await Promise.all(modifiedNotes.map((note,) => saveDailyNote(note,)),);
 
   // Deduplicate against tasks already in today's note
-  const todayNote = await loadDailyNote(today);
-  const todayContent = todayNote?.content ?? '';
-  const existingTasks = extractAllTaskTexts(todayContent);
-  const newTasks = [...taskMap.values()].filter((t) => !existingTasks.has(t.text));
+  const todayNote = await loadDailyNote(today,);
+  const todayContent = todayNote?.content ?? "";
+  const existingTasks = extractAllTaskTexts(todayContent,);
+  const newTasks = [...taskMap.values(),].filter((t,) => !existingTasks.has(t.text,));
 
   if (newTasks.length === 0) return false;
 
-  const updated = prependTasks(todayContent, newTasks);
-  await saveDailyNote({ date: today, content: updated });
+  const updated = prependTasks(todayContent, newTasks,);
+  await saveDailyNote({ date: today, content: updated, },);
 
   return true;
 }

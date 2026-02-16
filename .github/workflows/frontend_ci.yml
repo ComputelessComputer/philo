@@ -9,6 +9,7 @@ on:
       - "bun.lock"
       - "tsconfig*.json"
       - "vite.config.*"
+      - "dprint.json"
   pull_request:
     branches: [main]
     paths:
@@ -17,6 +18,7 @@ on:
       - "bun.lock"
       - "tsconfig*.json"
       - "vite.config.*"
+      - "dprint.json"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -36,3 +38,9 @@ jobs:
 
       - name: Typecheck and build frontend
         run: bun run build
+
+      - name: Install dprint
+        run: curl -fsSL https://dprint.dev/install.sh | sh && echo "$HOME/.dprint/bin" >> $GITHUB_PATH
+
+      - name: Check formatting
+        run: dprint check

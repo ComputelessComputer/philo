@@ -1,6 +1,6 @@
-import { appDataDir, homeDir, join, dirname } from '@tauri-apps/api/path';
-import { invoke } from '@tauri-apps/api/core';
-import { getJournalDirSetting, getFilenamePattern } from './settings';
+import { invoke, } from "@tauri-apps/api/core";
+import { appDataDir, dirname, homeDir, join, } from "@tauri-apps/api/path";
+import { getFilenamePattern, getJournalDirSetting, } from "./settings";
 
 let resolvedBaseDir: string | null = null;
 let resolvedJournalDir: string | null = null;
@@ -15,7 +15,7 @@ export async function getBaseDir(): Promise<string> {
 
   if (import.meta.env.DEV) {
     const home = await homeDir();
-    resolvedBaseDir = await join(home, 'Library', 'Application Support', 'com.philo.dev');
+    resolvedBaseDir = await join(home, "Library", "Application Support", "com.philo.dev",);
   } else {
     resolvedBaseDir = await appDataDir();
   }
@@ -34,7 +34,7 @@ export async function getJournalDir(): Promise<string> {
     resolvedJournalDir = customDir;
   } else {
     const base = await getBaseDir();
-    resolvedJournalDir = await join(base, 'journal');
+    resolvedJournalDir = await join(base, "journal",);
   }
   return resolvedJournalDir;
 }
@@ -43,10 +43,10 @@ export async function getJournalDir(): Promise<string> {
  * Clear cached journal dir so it's re-read from settings on next access.
  * Also extends the FS & asset protocol scopes for the new path.
  */
-export async function resetJournalDir(newDir?: string): Promise<void> {
+export async function resetJournalDir(newDir?: string,): Promise<void> {
   resolvedJournalDir = null;
   if (newDir) {
-    await invoke('extend_fs_scope', { path: newDir });
+    await invoke("extend_fs_scope", { path: newDir, },);
   }
 }
 
@@ -57,13 +57,13 @@ export async function resetJournalDir(newDir?: string): Promise<void> {
 export async function initJournalScope(): Promise<void> {
   const customDir = await getJournalDirSetting();
   if (customDir) {
-    await invoke('extend_fs_scope', { path: customDir });
+    await invoke("extend_fs_scope", { path: customDir, },);
   }
 }
 
 export async function getAssetsDir(): Promise<string> {
   const journal = await getJournalDir();
-  return await join(journal, 'assets');
+  return await join(journal, "assets",);
 }
 
 /**
@@ -71,28 +71,28 @@ export async function getAssetsDir(): Promise<string> {
  * Supported tokens: {YYYY}, {MM}, {DD}
  * Example: "{YYYY}/{YYYY}-{MM}-{DD}" → "2026/2026-02-16"
  */
-export function applyFilenamePattern(pattern: string, date: string): string {
-  const [yyyy, mm, dd] = date.split('-');
+export function applyFilenamePattern(pattern: string, date: string,): string {
+  const [yyyy, mm, dd,] = date.split("-",);
   return pattern
-    .replace(/\{YYYY\}/g, yyyy)
-    .replace(/\{MM\}/g, mm)
-    .replace(/\{DD\}/g, dd);
+    .replace(/\{YYYY\}/g, yyyy,)
+    .replace(/\{MM\}/g, mm,)
+    .replace(/\{DD\}/g, dd,);
 }
 
 /**
  * Get the full file path for a daily note, applying the filename pattern.
  */
-export async function getNotePath(date: string): Promise<string> {
+export async function getNotePath(date: string,): Promise<string> {
   const journalDir = await getJournalDir();
   const pattern = await getFilenamePattern();
-  const relativePath = applyFilenamePattern(pattern, date) + '.md';
-  return await join(journalDir, relativePath);
+  const relativePath = applyFilenamePattern(pattern, date,) + ".md";
+  return await join(journalDir, relativePath,);
 }
 
 /**
  * Get the parent directory of a note path (for ensuring subdirectories exist).
  */
-export async function getNoteDir(date: string): Promise<string> {
-  const notePath = await getNotePath(date);
-  return await dirname(notePath);
+export async function getNoteDir(date: string,): Promise<string> {
+  const notePath = await getNotePath(date,);
+  return await dirname(notePath,);
 }

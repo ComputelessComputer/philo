@@ -1,5 +1,5 @@
-import { getApiKey } from './settings';
-import type { Spec } from '@json-render/core';
+import type { Spec, } from "@json-render/core";
+import { getApiKey, } from "./settings";
 
 const SYSTEM_PROMPT = `You are Sophia, an AI that generates UI widgets as JSON specs.
 
@@ -52,41 +52,41 @@ RULES:
 - Use Metric for key numbers, Badge for status labels, List for enumerations, Table for tabular data.
 - Be creative and make it visually clean.`;
 
-export async function generateWidget(prompt: string): Promise<Spec> {
+export async function generateWidget(prompt: string,): Promise<Spec> {
   const apiKey = await getApiKey();
   if (!apiKey) {
-    throw new Error('API_KEY_MISSING');
+    throw new Error("API_KEY_MISSING",);
   }
 
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-dangerous-direct-browser-access": "true",
     },
     body: JSON.stringify({
-      model: 'claude-opus-4-6',
+      model: "claude-opus-4-6",
       max_tokens: 8192,
       system: SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: prompt }],
-    }),
-  });
+      messages: [{ role: "user", content: prompt, },],
+    },),
+  },);
 
   if (!response.ok) {
     const error = await response.text();
-    throw new Error(`Sophia failed (${response.status}): ${error}`);
+    throw new Error(`Sophia failed (${response.status}): ${error}`,);
   }
 
   const data = await response.json();
   const text: string = data.content[0].text;
 
   // Parse the JSON spec — strip code fences if the model accidentally adds them
-  const cleaned = text.replace(/^```(?:json)?\n?/m, '').replace(/\n?```$/m, '').trim();
+  const cleaned = text.replace(/^```(?:json)?\n?/m, "",).replace(/\n?```$/m, "",).trim();
   try {
-    return JSON.parse(cleaned) as Spec;
+    return JSON.parse(cleaned,) as Spec;
   } catch {
-    throw new Error(`Sophia returned invalid JSON: ${cleaned.slice(0, 200)}`);
+    throw new Error(`Sophia returned invalid JSON: ${cleaned.slice(0, 200,)}`,);
   }
 }

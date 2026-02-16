@@ -1,6 +1,6 @@
-import { exists, readTextFile, writeTextFile, mkdir } from '@tauri-apps/plugin-fs';
-import { join } from '@tauri-apps/api/path';
-import { getBaseDir } from './paths';
+import { join, } from "@tauri-apps/api/path";
+import { exists, mkdir, readTextFile, writeTextFile, } from "@tauri-apps/plugin-fs";
+import { getBaseDir, } from "./paths";
 
 export interface Settings {
   anthropicApiKey: string;
@@ -8,42 +8,42 @@ export interface Settings {
   filenamePattern: string;
 }
 
-const SETTINGS_FILE = 'settings.json';
+const SETTINGS_FILE = "settings.json";
 
-export const DEFAULT_FILENAME_PATTERN = '{YYYY}-{MM}-{DD}';
+export const DEFAULT_FILENAME_PATTERN = "{YYYY}-{MM}-{DD}";
 
 const DEFAULT_SETTINGS: Settings = {
-  anthropicApiKey: '',
-  journalDir: '',
-  filenamePattern: '',
+  anthropicApiKey: "",
+  journalDir: "",
+  filenamePattern: "",
 };
 
 async function getSettingsPath(): Promise<string> {
   const base = await getBaseDir();
-  return await join(base, SETTINGS_FILE);
+  return await join(base, SETTINGS_FILE,);
 }
 
 export async function loadSettings(): Promise<Settings> {
   const path = await getSettingsPath();
-  const fileExists = await exists(path);
-  if (!fileExists) return { ...DEFAULT_SETTINGS };
+  const fileExists = await exists(path,);
+  if (!fileExists) return { ...DEFAULT_SETTINGS, };
 
   try {
-    const raw = await readTextFile(path);
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+    const raw = await readTextFile(path,);
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw,), };
   } catch {
-    return { ...DEFAULT_SETTINGS };
+    return { ...DEFAULT_SETTINGS, };
   }
 }
 
-export async function saveSettings(settings: Settings): Promise<void> {
+export async function saveSettings(settings: Settings,): Promise<void> {
   const base = await getBaseDir();
-  const dirExists = await exists(base);
+  const dirExists = await exists(base,);
   if (!dirExists) {
-    await mkdir(base, { recursive: true });
+    await mkdir(base, { recursive: true, },);
   }
-  const path = await join(base, SETTINGS_FILE);
-  await writeTextFile(path, JSON.stringify(settings, null, 2));
+  const path = await join(base, SETTINGS_FILE,);
+  await writeTextFile(path, JSON.stringify(settings, null, 2,),);
 }
 
 export async function getApiKey(): Promise<string> {
@@ -51,10 +51,10 @@ export async function getApiKey(): Promise<string> {
   return settings.anthropicApiKey;
 }
 
-export async function setApiKey(key: string): Promise<void> {
+export async function setApiKey(key: string,): Promise<void> {
   const settings = await loadSettings();
   settings.anthropicApiKey = key;
-  await saveSettings(settings);
+  await saveSettings(settings,);
 }
 
 export async function getJournalDirSetting(): Promise<string> {

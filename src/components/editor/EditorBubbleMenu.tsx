@@ -1,7 +1,7 @@
-import { useState } from 'react';
-import { BubbleMenu } from '@tiptap/react/menus';
-import type { Editor } from '@tiptap/core';
-import { generateWidget } from '../../services/generate';
+import type { Editor, } from "@tiptap/core";
+import { BubbleMenu, } from "@tiptap/react/menus";
+import { useState, } from "react";
+import { generateWidget, } from "../../services/generate";
 
 interface EditorBubbleMenuProps {
   editor: Editor;
@@ -10,34 +10,34 @@ interface EditorBubbleMenuProps {
 /**
  * Find a widget node by ID and update its attributes.
  */
-function updateWidgetById(editor: Editor, id: string, attrs: Record<string, unknown>) {
-  const { doc } = editor.state;
+function updateWidgetById(editor: Editor, id: string, attrs: Record<string, unknown>,) {
+  const { doc, } = editor.state;
   const tr = editor.state.tr;
   let found = false;
 
-  doc.descendants((node, pos) => {
+  doc.descendants((node, pos,) => {
     if (found) return false;
-    if (node.type.name === 'widget' && node.attrs.id === id) {
-      tr.setNodeMarkup(pos, undefined, { ...node.attrs, ...attrs });
+    if (node.type.name === "widget" && node.attrs.id === id) {
+      tr.setNodeMarkup(pos, undefined, { ...node.attrs, ...attrs, },);
       found = true;
       return false;
     }
-  });
+  },);
 
   if (found) {
-    editor.view.dispatch(tr);
+    editor.view.dispatch(tr,);
   }
 }
 
-export function EditorBubbleMenu({ editor }: EditorBubbleMenuProps) {
-  const [building, setBuilding] = useState(false);
+export function EditorBubbleMenu({ editor, }: EditorBubbleMenuProps,) {
+  const [building, setBuilding,] = useState(false,);
 
   const handleBuild = async () => {
-    const { from, to } = editor.state.selection;
-    const selectedText = editor.state.doc.textBetween(from, to);
+    const { from, to, } = editor.state.selection;
+    const selectedText = editor.state.doc.textBetween(from, to,);
     if (!selectedText.trim() || building) return;
 
-    setBuilding(true);
+    setBuilding(true,);
 
     // Insert loading widget, replacing selection
     const widgetId = crypto.randomUUID();
@@ -46,63 +46,65 @@ export function EditorBubbleMenu({ editor }: EditorBubbleMenuProps) {
       .focus()
       .deleteSelection()
       .insertContent({
-        type: 'widget',
-        attrs: { id: widgetId, prompt: selectedText, spec: '', loading: true, saved: false, error: '' },
-      })
+        type: "widget",
+        attrs: { id: widgetId, prompt: selectedText, spec: "", loading: true, saved: false, error: "", },
+      },)
       .run();
 
     try {
-      const spec = await generateWidget(selectedText);
-      updateWidgetById(editor, widgetId, { spec: JSON.stringify(spec), loading: false });
+      const spec = await generateWidget(selectedText,);
+      updateWidgetById(editor, widgetId, { spec: JSON.stringify(spec,), loading: false, },);
     } catch (err) {
-      console.error('Build failed:', err);
-      const msg = err instanceof Error && err.message === 'API_KEY_MISSING'
-        ? 'No API key. Add your Anthropic key in Settings (⌘,).'
-        : err instanceof Error ? err.message : 'Something went wrong.';
-      updateWidgetById(editor, widgetId, { loading: false, error: msg });
+      console.error("Build failed:", err,);
+      const msg = err instanceof Error && err.message === "API_KEY_MISSING"
+        ? "No API key. Add your Anthropic key in Settings (⌘,)."
+        : err instanceof Error
+        ? err.message
+        : "Something went wrong.";
+      updateWidgetById(editor, widgetId, { loading: false, error: msg, },);
     } finally {
-      setBuilding(false);
+      setBuilding(false,);
     }
   };
 
   return (
     <BubbleMenu
       editor={editor}
-      options={{ placement: 'top', offset: 8 }}
-      shouldShow={({ from, to }: { from: number; to: number }) => from !== to}
+      options={{ placement: "top", offset: 8, }}
+      shouldShow={({ from, to, }: { from: number; to: number; },) => from !== to}
     >
       <div className="bubble-menu">
         <button
           onClick={() => editor.chain().focus().toggleBold().run()}
-          className={`bubble-btn ${editor.isActive('bold') ? 'bubble-btn-active' : ''}`}
+          className={`bubble-btn ${editor.isActive("bold",) ? "bubble-btn-active" : ""}`}
         >
           B
         </button>
         <button
           onClick={() => editor.chain().focus().toggleItalic().run()}
-          className={`bubble-btn bubble-btn-italic ${editor.isActive('italic') ? 'bubble-btn-active' : ''}`}
+          className={`bubble-btn bubble-btn-italic ${editor.isActive("italic",) ? "bubble-btn-active" : ""}`}
         >
           I
         </button>
         <button
           onClick={() => editor.chain().focus().toggleStrike().run()}
-          className={`bubble-btn bubble-btn-strike ${editor.isActive('strike') ? 'bubble-btn-active' : ''}`}
+          className={`bubble-btn bubble-btn-strike ${editor.isActive("strike",) ? "bubble-btn-active" : ""}`}
         >
           S
         </button>
         <button
           onClick={() => editor.chain().focus().toggleCode().run()}
-          className={`bubble-btn ${editor.isActive('code') ? 'bubble-btn-active' : ''}`}
+          className={`bubble-btn ${editor.isActive("code",) ? "bubble-btn-active" : ""}`}
         >
-          {'</>'}
+          {"</>"}
         </button>
         <div className="bubble-divider" />
         <button
           onClick={handleBuild}
-          className={`bubble-btn bubble-btn-build ${building ? 'bubble-btn-building' : ''}`}
+          className={`bubble-btn bubble-btn-build ${building ? "bubble-btn-building" : ""}`}
           disabled={building}
         >
-          {building ? 'Building...' : 'Build ⌘↵'}
+          {building ? "Building..." : "Build ⌘↵"}
         </button>
       </div>
     </BubbleMenu>

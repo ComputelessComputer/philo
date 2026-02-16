@@ -1,12 +1,16 @@
 {
   "name": "philo",
   "private": true,
-"version": "0.0.5",
+  "version": "0.0.5",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "fmt": "dprint fmt",
+    "fmt:check": "dprint check",
+    "check": "bun run typecheck && dprint fmt",
     "tauri": "tauri"
   },
   "dependencies": {

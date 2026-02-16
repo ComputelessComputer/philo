@@ -1,8 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
-import { loadSettings, saveSettings, DEFAULT_FILENAME_PATTERN, type Settings } from '../../services/settings';
-import { applyFilenamePattern, resetJournalDir, getJournalDir } from '../../services/paths';
-import { open as openDialog } from '@tauri-apps/plugin-dialog';
-import { getToday } from '../../types/note';
+import { open as openDialog, } from "@tauri-apps/plugin-dialog";
+import { useEffect, useRef, useState, } from "react";
+import { applyFilenamePattern, getJournalDir, resetJournalDir, } from "../../services/paths";
+import { DEFAULT_FILENAME_PATTERN, loadSettings, saveSettings, type Settings, } from "../../services/settings";
+import { getToday, } from "../../types/note";
 
 interface SettingsModalProps {
   open: boolean;
@@ -10,64 +10,64 @@ interface SettingsModalProps {
 }
 
 const FILENAME_PRESETS = [
-  { label: 'Flat', value: '{YYYY}-{MM}-{DD}' },
-  { label: 'By year', value: '{YYYY}/{YYYY}-{MM}-{DD}' },
-  { label: 'By year + month', value: '{YYYY}/{MM}/{YYYY}-{MM}-{DD}' },
+  { label: "Flat", value: "{YYYY}-{MM}-{DD}", },
+  { label: "By year", value: "{YYYY}/{YYYY}-{MM}-{DD}", },
+  { label: "By year + month", value: "{YYYY}/{MM}/{YYYY}-{MM}-{DD}", },
 ];
 
-const mono = { fontFamily: "'IBM Plex Mono', monospace" };
+const mono = { fontFamily: "'IBM Plex Mono', monospace", };
 
-export function SettingsModal({ open, onClose }: SettingsModalProps) {
-  const [settings, setSettings] = useState<Settings | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [defaultJournalDir, setDefaultJournalDir] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
+  const [settings, setSettings,] = useState<Settings | null>(null,);
+  const [saved, setSaved,] = useState(false,);
+  const [defaultJournalDir, setDefaultJournalDir,] = useState("",);
+  const inputRef = useRef<HTMLInputElement>(null,);
 
   useEffect(() => {
     if (open) {
-      loadSettings().then((s) => {
-        setSettings(s);
-        setSaved(false);
-      });
+      loadSettings().then((s,) => {
+        setSettings(s,);
+        setSaved(false,);
+      },);
       // Resolve the default journal dir for display
-      getJournalDir().then(setDefaultJournalDir);
-      setTimeout(() => inputRef.current?.focus(), 100);
+      getJournalDir().then(setDefaultJournalDir,);
+      setTimeout(() => inputRef.current?.focus(), 100,);
     }
-  }, [open]);
+  }, [open,],);
 
   if (!open || !settings) return null;
 
   const effectivePattern = settings.filenamePattern || DEFAULT_FILENAME_PATTERN;
-  const filenamePreview = applyFilenamePattern(effectivePattern, getToday()) + '.md';
+  const filenamePreview = applyFilenamePattern(effectivePattern, getToday(),) + ".md";
 
-  const update = (partial: Partial<Settings>) => {
-    setSettings({ ...settings, ...partial });
-    setSaved(false);
+  const update = (partial: Partial<Settings>,) => {
+    setSettings({ ...settings, ...partial, },);
+    setSaved(false,);
   };
 
   const handleSave = async () => {
     try {
-      await saveSettings(settings);
+      await saveSettings(settings,);
       // Reset cached journal dir so it picks up the new setting
-      await resetJournalDir(settings.journalDir || undefined);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
+      await resetJournalDir(settings.journalDir || undefined,);
+      setSaved(true,);
+      setTimeout(() => setSaved(false,), 2000,);
     } catch (err) {
-      console.error('Failed to save settings:', err);
+      console.error("Failed to save settings:", err,);
     }
   };
 
   const handleChooseFolder = async () => {
-    const selected = await openDialog({ directory: true, multiple: false });
+    const selected = await openDialog({ directory: true, multiple: false, },);
     if (selected) {
-      update({ journalDir: selected });
+      update({ journalDir: selected, },);
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
+  const handleKeyDown = (e: React.KeyboardEvent,) => {
+    if (e.key === "Escape") {
       onClose();
-    } else if (e.key === 'Enter' && e.metaKey) {
+    } else if (e.key === "Enter" && e.metaKey) {
       handleSave();
     }
   };
@@ -84,7 +84,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
       {/* Modal */}
       <div
         className="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 max-h-[80vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e,) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-medium text-gray-900" style={mono}>
@@ -107,7 +107,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             ref={inputRef}
             type="password"
             value={settings.anthropicApiKey}
-            onChange={(e) => update({ anthropicApiKey: e.target.value })}
+            onChange={(e,) => update({ anthropicApiKey: e.target.value, },)}
             placeholder="sk-ant-..."
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
             style={mono}
@@ -131,7 +131,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
               style={mono}
               title={settings.journalDir || defaultJournalDir}
             >
-              {settings.journalDir || defaultJournalDir || '...'}
+              {settings.journalDir || defaultJournalDir || "..."}
             </div>
             <button
               onClick={handleChooseFolder}
@@ -143,7 +143,7 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           </div>
           {settings.journalDir && (
             <button
-              onClick={() => update({ journalDir: '' })}
+              onClick={() => update({ journalDir: "", },)}
               className="text-xs text-violet-600 hover:text-violet-800 transition-colors cursor-pointer"
               style={mono}
             >
@@ -169,20 +169,20 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
           <input
             type="text"
             value={settings.filenamePattern}
-            onChange={(e) => update({ filenamePattern: e.target.value })}
+            onChange={(e,) => update({ filenamePattern: e.target.value, },)}
             placeholder={DEFAULT_FILENAME_PATTERN}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
             style={mono}
           />
           <div className="flex flex-wrap gap-1.5">
-            {FILENAME_PRESETS.map((preset) => (
+            {FILENAME_PRESETS.map((preset,) => (
               <button
                 key={preset.value}
-                onClick={() => update({ filenamePattern: preset.value })}
+                onClick={() => update({ filenamePattern: preset.value, },)}
                 className={`px-2 py-1 text-xs rounded-md border transition-colors cursor-pointer ${
                   effectivePattern === preset.value
-                    ? 'border-violet-400 bg-violet-50 text-violet-700'
-                    : 'border-gray-200 text-gray-500 hover:border-gray-300'
+                    ? "border-violet-400 bg-violet-50 text-violet-700"
+                    : "border-gray-200 text-gray-500 hover:border-gray-300"
                 }`}
                 style={mono}
               >
@@ -194,7 +194,13 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             Preview: <span className="text-gray-600">{filenamePreview}</span>
           </p>
           <p className="text-xs text-gray-400" style={mono}>
-            Tokens: {'{'}<span className="text-gray-600">YYYY</span>{'}'}, {'{'}<span className="text-gray-600">MM</span>{'}'}, {'{'}<span className="text-gray-600">DD</span>{'}'}. Use <span className="text-gray-600">/</span> for subdirectories.
+            Tokens: {"{"}
+            <span className="text-gray-600">YYYY</span>
+            {"}"}, {"{"}
+            <span className="text-gray-600">MM</span>
+            {"}"}, {"{"}
+            <span className="text-gray-600">DD</span>
+            {"}"}. Use <span className="text-gray-600">/</span> for subdirectories.
           </p>
           <p className="text-xs text-amber-600" style={mono}>
             Changing this will not rename existing files.
@@ -216,11 +222,11 @@ export function SettingsModal({ open, onClose }: SettingsModalProps) {
             style={{
               ...mono,
               background: saved
-                ? 'linear-gradient(to bottom, #22c55e, #16a34a)'
-                : 'linear-gradient(to bottom, #7c3aed, #5b21b6)',
+                ? "linear-gradient(to bottom, #22c55e, #16a34a)"
+                : "linear-gradient(to bottom, #7c3aed, #5b21b6)",
             }}
           >
-            {saved ? '✓ Saved' : 'Save'}
+            {saved ? "✓ Saved" : "Save"}
           </button>
         </div>
       </div>
