@@ -1,0 +1,30 @@
+name: Rust fmt
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src-tauri/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src-tauri/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+
+      - name: Check formatting
+        run: cargo fmt --check
+        working-directory: src-tauri
