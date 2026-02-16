@@ -119,7 +119,7 @@ export default function AppLayout() {
         placeholder: "Start writing...",
       },),
       Image.configure({
-        inline: false,
+        inline: true,
         allowBase64: false,
       },),
       TaskList,

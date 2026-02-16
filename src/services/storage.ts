@@ -10,12 +10,21 @@ async function ensureDir(dir: string,) {
   }
 }
 
+/**
+ * Strip &nbsp; entities that TipTap's markdown serializer produces for
+ * empty paragraphs / list items. Left in the file they render as literal
+ * text on reload.
+ */
+function stripNbsp(markdown: string,): string {
+  return markdown.replace(/&nbsp;/g, "",);
+}
+
 export async function saveDailyNote(note: DailyNote,): Promise<void> {
   const noteDir = await getNoteDir(note.date,);
   await ensureDir(noteDir,);
   const filepath = await getNotePath(note.date,);
   // Convert asset:// URLs back to relative paths before writing
-  const markdown = unresolveMarkdownImages(note.content,);
+  const markdown = stripNbsp(unresolveMarkdownImages(note.content,),);
   await writeTextFile(filepath, markdown,);
 }
 
@@ -28,8 +37,8 @@ export async function loadDailyNote(date: string,): Promise<DailyNote | null> {
   }
 
   const raw = await readTextFile(filepath,);
-  // Convert relative asset paths to asset:// URLs for display
-  const content = await resolveMarkdownImages(raw,);
+  // Strip &nbsp; from existing files, then resolve asset paths
+  const content = await resolveMarkdownImages(stripNbsp(raw,),);
   return { date, content, };
 }
 

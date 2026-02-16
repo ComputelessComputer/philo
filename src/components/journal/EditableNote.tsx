@@ -37,7 +37,7 @@ export default function EditableNote({ note, placeholder = "Start writing...", }
       StarterKit,
       Placeholder.configure({ placeholder, },),
       Image.configure({
-        inline: false,
+        inline: true,
         allowBase64: false,
       },),
       Link.configure({
