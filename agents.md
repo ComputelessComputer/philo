@@ -63,3 +63,17 @@ src-tauri/         # Rust backend (Tauri v2)
 ## Current Phase
 
 Phase 2: Daily Journal Timeline — implementing timeline view, daily note storage, and navigation.
+
+## Pre-commit checks
+
+Always run formatting and type checks before committing:
+
+- `bun run check` — runs TypeScript typecheck and formats with dprint (writes changes)
+- For verification-only/CI: `bun run fmt:check`
+- If you changed Rust code: `cargo fmt --manifest-path src-tauri/Cargo.toml`
+
+Typical commit flow:
+
+1. `bun run check`
+2. `git add -A`
+3. `git commit -m "..."`
