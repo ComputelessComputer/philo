@@ -20,6 +20,8 @@ import { SettingsModal } from "../settings/SettingsModal";
 import { LibraryDrawer } from "../library/LibraryDrawer";
 import type { LibraryItem } from "../../services/library";
 import { rolloverTasks } from "../../services/tasks";
+import { checkForUpdate, type UpdateInfo } from "../../services/updater";
+import { UpdateBanner } from "../UpdateBanner";
 
 function insertImageViaView(file: File, view: EditorView) {
   saveImage(file).then(async (relativePath) => {
@@ -61,6 +63,14 @@ export default function AppLayout() {
   const [pastNotes, setPastNotes] = useState<DailyNote[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+
+  // Check for app updates on mount
+  useEffect(() => {
+    checkForUpdate().then((info) => {
+      if (info) setUpdateInfo(info);
+    });
+  }, []);
 
   // Listen for macOS menu bar events
   useEffect(() => {
@@ -221,6 +231,9 @@ export default function AppLayout() {
       ref={scrollRef}
       className="h-screen bg-white dark:bg-gray-900 overflow-y-scroll relative"
     >
+      {updateInfo && (
+        <UpdateBanner update={updateInfo} onDismiss={() => setUpdateInfo(null)} />
+      )}
       <div className="w-full max-w-3xl">
         {/* Today */}
         <div
