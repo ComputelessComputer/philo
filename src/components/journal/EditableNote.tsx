@@ -95,12 +95,17 @@ export default function EditableNote({ note, placeholder = "Start writing...", }
         }
         return false;
       },
-      handleKeyDown: (view, event,) => {
+      handleKeyDown: (_view, event,) => {
+        if (event.metaKey && event.key === "l") {
+          event.preventDefault();
+          editor?.chain().focus().toggleTaskList().run();
+          return true;
+        }
         if (event.key === "Backspace") {
-          const { $from, empty, } = view.state.selection;
+          const { $from, empty, } = _view.state.selection;
           if (empty && $from.parentOffset === 0 && $from.parent.type.name === "heading") {
-            const tr = view.state.tr.setBlockType($from.before(), $from.after(), view.state.schema.nodes.paragraph,);
-            view.dispatch(tr,);
+            const tr = _view.state.tr.setBlockType($from.before(), $from.after(), _view.state.schema.nodes.paragraph,);
+            _view.dispatch(tr,);
             return true;
           }
         }
