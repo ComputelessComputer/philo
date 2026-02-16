@@ -8,7 +8,8 @@ import TaskItem from "@tiptap/extension-task-item";
 import { Markdown } from "@tiptap/markdown";
 import type { EditorView } from "@tiptap/pm/view";
 import "../editor/Editor.css";
-import { DailyNote, formatDate, isToday, getToday } from "../../types/note";
+import { DailyNote, formatDate, isToday } from "../../types/note";
+import { useCurrentDate } from "../../hooks/useCurrentDate";
 import { getOrCreateDailyNote, saveDailyNote, loadPastNotes } from "../../services/storage";
 import { saveImage, resolveAssetUrl } from "../../services/images";
 import EditableNote from "../journal/EditableNote";
@@ -55,7 +56,7 @@ function DateHeader({ date }: { date: string }) {
 }
 
 export default function AppLayout() {
-  const today = getToday();
+  const today = useCurrentDate();
   const [todayNote, setTodayNote] = useState<DailyNote | null>(null);
   const [pastNotes, setPastNotes] = useState<DailyNote[]>([]);
   const [settingsOpen, setSettingsOpen] = useState(false);

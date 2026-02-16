@@ -8,6 +8,12 @@ const UNCHECKED_TASK = /^(\s*)[-*] \[ \] (.+)$/;
 /** Regex matching checked task lines: `- [x] text` or `* [x] text` */
 const CHECKED_TASK = /^(\s*)[-*] \[x\] (.+)$/i;
 
+/** A task line preserving its original indentation level. */
+interface TaskLine {
+  indent: string;
+  text: string;
+}
+
 /**
  * Recurrence tag pattern.
  * Matches: #daily, #weekly, #monthly, #2days, #3weeks, #2months, etc.
@@ -55,18 +61,18 @@ function addDaysToDate(dateStr: string, days: number): string {
 
 /**
  * Extract unchecked tasks from markdown content.
+ * Preserves indentation so nested task structure survives rollover.
  * Returns the tasks and the content with those tasks removed.
  */
-function extractUncheckedTasks(content: string): { tasks: string[]; cleaned: string } {
+function extractUncheckedTasks(content: string): { tasks: TaskLine[]; cleaned: string } {
   const lines = content.split('\n');
-  const tasks: string[] = [];
+  const tasks: TaskLine[] = [];
   const kept: string[] = [];
 
   for (const line of lines) {
     const match = line.match(UNCHECKED_TASK);
     if (match) {
-      // Keep the task text (without indentation/prefix)
-      tasks.push(match[2]);
+      tasks.push({ indent: match[1], text: match[2] });
     } else {
       kept.push(line);
     }
@@ -117,12 +123,13 @@ function extractAllTaskTexts(content: string): Set<string> {
 }
 
 /**
- * Prepend rolled-over tasks to today's content as unchecked task items.
+ * Prepend rolled-over tasks to today's content as unchecked task items,
+ * preserving their original indentation for nested structure.
  */
-function prependTasks(content: string, tasks: string[]): string {
+function prependTasks(content: string, tasks: TaskLine[]): string {
   if (tasks.length === 0) return content;
 
-  const taskLines = tasks.map((t) => `- [ ] ${t}`).join('\n');
+  const taskLines = tasks.map((t) => `${t.indent}- [ ] ${t.text}`).join('\n');
   const trimmed = content.trim();
 
   if (!trimmed) return taskLines;
@@ -138,7 +145,8 @@ function prependTasks(content: string, tasks: string[]): string {
  */
 export async function rolloverTasks(days: number = 30): Promise<boolean> {
   const today = getToday();
-  const taskSet = new Set<string>();
+  // Map from task text → TaskLine (preserves indent, deduplicates by text)
+  const taskMap = new Map<string, TaskLine>();
   const modifiedNotes: DailyNote[] = [];
 
   // Scan past notes
@@ -147,10 +155,14 @@ export async function rolloverTasks(days: number = 30): Promise<boolean> {
     const note = await loadDailyNote(date);
     if (!note || !note.content.trim()) continue;
 
-    // 1. Extract unchecked tasks → move to today (existing behaviour)
+    // 1. Extract unchecked tasks → move to today (preserving nesting)
     const { tasks, cleaned } = extractUncheckedTasks(note.content);
     if (tasks.length > 0) {
-      tasks.forEach((t) => taskSet.add(t));
+      tasks.forEach((t) => {
+        if (!taskMap.has(t.text)) {
+          taskMap.set(t.text, t);
+        }
+      });
       modifiedNotes.push({ ...note, content: cleaned });
     }
 
@@ -159,13 +171,13 @@ export async function rolloverTasks(days: number = 30): Promise<boolean> {
     for (const taskText of checkedRecurring) {
       const recurrence = parseRecurrence(taskText)!;
       const nextDue = addDaysToDate(date, recurrence.intervalDays);
-      if (nextDue <= today) {
-        taskSet.add(taskText);
+      if (nextDue <= today && !taskMap.has(taskText)) {
+        taskMap.set(taskText, { indent: '', text: taskText });
       }
     }
   }
 
-  if (taskSet.size === 0) return false;
+  if (taskMap.size === 0) return false;
 
   // Save cleaned past notes (unchecked tasks removed)
   await Promise.all(modifiedNotes.map((note) => saveDailyNote(note)));
@@ -174,7 +186,7 @@ export async function rolloverTasks(days: number = 30): Promise<boolean> {
   const todayNote = await loadDailyNote(today);
   const todayContent = todayNote?.content ?? '';
   const existingTasks = extractAllTaskTexts(todayContent);
-  const newTasks = [...taskSet].filter((t) => !existingTasks.has(t));
+  const newTasks = [...taskMap.values()].filter((t) => !existingTasks.has(t.text));
 
   if (newTasks.length === 0) return false;
 
