@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "philo",
+  "productName": "Philo",
   "version": "0.0.13",
   "identifier": "com.johnjeong.philo",
   "build": {
