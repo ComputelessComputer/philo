@@ -11,7 +11,7 @@ alwaysApply: true
 
 ## Releases
 
-- When asked to create a release: bump the version in `Cargo.toml`, commit, push, then create the release with `gh release create`.
+- When asked to create a release: bump the version in `src-tauri/Cargo.toml` and `src-tauri/tauri.conf.json`, commit, push, then create the release with `gh release create`. The CI workflow (`.github/workflows/release.yml`) will automatically build and upload platform binaries (`.dmg`, `.exe`, etc.) to the release.
 - Releases must be published immediately — do not use `--draft`.
 - Include release notes with concise, descriptive bullet points explaining what changed (e.g. `- Add @ autocomplete dropdown for selecting tasks by ID or title`). Do not just list version numbers or raw commit messages.
 - Each bullet should describe the user-facing change, not implementation details.
