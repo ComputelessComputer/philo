@@ -1,7 +1,16 @@
 import { mergeAttributes, Node, } from "@tiptap/core";
+import type { JSONContent, } from "@tiptap/core";
 import { ReactNodeViewRenderer, } from "@tiptap/react";
 import { generateWidget, } from "../../../../services/generate";
 import { WidgetView, } from "./WidgetView";
+
+function escapeAttr(s: string,): string {
+  return s
+    .replace(/&/g, "&amp;",)
+    .replace(/"/g, "&quot;",)
+    .replace(/</g, "&lt;",)
+    .replace(/>/g, "&gt;",);
+}
 
 export interface WidgetAttributes {
   id: string;
@@ -49,14 +58,28 @@ export const WidgetExtension = Node.create({
   atom: true,
   draggable: true,
 
+  renderMarkdown(node: JSONContent,) {
+    const a = node.attrs || {};
+    const parts = ['<div data-widget=""',];
+    if (a.id) parts.push(` data-id="${escapeAttr(String(a.id,),)}"`,);
+    if (a.spec) parts.push(` data-spec="${escapeAttr(String(a.spec,),)}"`,);
+    if (a.prompt) parts.push(` data-prompt="${escapeAttr(String(a.prompt,),)}"`,);
+    if (a.saved) parts.push(' data-saved="true"',);
+    parts.push("></div>",);
+    return parts.join("",) + "\n\n";
+  },
+
   addAttributes() {
     return {
       id: { default: null, },
       spec: { default: "", },
       prompt: { default: "", },
-      saved: { default: false, },
-      loading: { default: false, },
-      error: { default: "", },
+      saved: {
+        default: false,
+        parseHTML: (el: HTMLElement,) => el.getAttribute("data-saved",) === "true",
+      },
+      loading: { default: false, rendered: false, },
+      error: { default: "", rendered: false, },
     };
   },
 
