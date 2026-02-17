@@ -5,7 +5,7 @@ const NonInclusiveLink = Link.extend({
   inclusive() {
     return false;
   },
-});
+},);
 import Placeholder from "@tiptap/extension-placeholder";
 import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
@@ -104,13 +104,13 @@ export default function EditableNote({ note, placeholder = "Start writing...", }
       handleKeyDown: (_view, event,) => {
         if (event.key === "Tab") {
           const { $from, } = _view.state.selection;
-          const inList = $from.node(-1)?.type.name === "listItem" || $from.node(-1)?.type.name === "taskItem";
+          const inList = $from.node(-1,)?.type.name === "listItem" || $from.node(-1,)?.type.name === "taskItem";
           if (inList) {
             event.preventDefault();
             if (event.shiftKey) {
-              editor?.commands.liftListItem("listItem") || editor?.commands.liftListItem("taskItem");
+              editor?.commands.liftListItem("listItem",) || editor?.commands.liftListItem("taskItem",);
             } else {
-              editor?.commands.sinkListItem("listItem") || editor?.commands.sinkListItem("taskItem");
+              editor?.commands.sinkListItem("listItem",) || editor?.commands.sinkListItem("taskItem",);
             }
             return true;
           }
