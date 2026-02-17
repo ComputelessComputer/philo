@@ -391,6 +391,11 @@
   padding: 8px 12px;
   border-bottom: 1px solid #f3f4f6;
   background: #fafafa;
+  cursor: grab;
+}
+
+.widget-toolbar:active {
+  cursor: grabbing;
 }
 
 .widget-prompt {

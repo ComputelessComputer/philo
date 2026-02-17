@@ -84,7 +84,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
   return (
     <NodeViewWrapper className={`widget-node ${selected ? "widget-selected" : ""}`}>
       <div className="widget-container">
-        <div className="widget-toolbar">
+        <div className="widget-toolbar" data-drag-handle>
           <span className="widget-prompt" title={prompt}>
             {prompt.length > 50 ? prompt.slice(0, 50,) + "..." : prompt}
           </span>
@@ -125,7 +125,11 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
           )
           : spec
           ? (
-            <div className="widget-render">
+            <div
+              className="widget-render"
+              onMouseDown={(e,) => e.stopPropagation()}
+              onClick={(e,) => e.stopPropagation()}
+            >
               <RendererBoundary>
                 <JSONUIProvider registry={registry}>
                   <Renderer spec={spec} registry={registry} />
