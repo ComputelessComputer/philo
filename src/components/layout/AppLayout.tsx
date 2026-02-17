@@ -190,17 +190,8 @@ export default function AppLayout() {
     }
   }, [editor, todayNote,],);
 
-  // Scroll to today on startup (after notes render)
   const todayRef = useRef<HTMLDivElement>(null,);
   const scrollRef = useRef<HTMLDivElement>(null,);
-  const didScrollToToday = useRef(false,);
-
-  useEffect(() => {
-    if (todayNote && todayRef.current && !didScrollToToday.current) {
-      didScrollToToday.current = true;
-      todayRef.current.scrollIntoView({ block: "start", },);
-    }
-  }, [todayNote,],);
 
   // "Go to Today" badge when scrolled away
   const [todayDirection, setTodayDirection,] = useState<"above" | "below" | null>(null,);
