@@ -1,5 +1,11 @@
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
+
+const NonInclusiveLink = Link.extend({
+  inclusive() {
+    return false;
+  },
+});
 import Placeholder from "@tiptap/extension-placeholder";
 import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
@@ -40,7 +46,7 @@ export default function EditableNote({ note, placeholder = "Start writing...", }
         inline: true,
         allowBase64: false,
       },),
-      Link.configure({
+      NonInclusiveLink.configure({
         openOnClick: false,
         autolink: true,
       },),
@@ -96,6 +102,19 @@ export default function EditableNote({ note, placeholder = "Start writing...", }
         return false;
       },
       handleKeyDown: (_view, event,) => {
+        if (event.key === "Tab") {
+          const { $from, } = _view.state.selection;
+          const inList = $from.node(-1)?.type.name === "listItem" || $from.node(-1)?.type.name === "taskItem";
+          if (inList) {
+            event.preventDefault();
+            if (event.shiftKey) {
+              editor?.commands.liftListItem("listItem") || editor?.commands.liftListItem("taskItem");
+            } else {
+              editor?.commands.sinkListItem("listItem") || editor?.commands.sinkListItem("taskItem");
+            }
+            return true;
+          }
+        }
         if (event.metaKey && event.key === "l") {
           event.preventDefault();
           editor?.chain().focus().toggleTaskList().run();
