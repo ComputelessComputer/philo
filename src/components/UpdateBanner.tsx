@@ -8,14 +8,18 @@ interface UpdateBannerProps {
 
 export function UpdateBanner({ update, onDismiss, }: UpdateBannerProps,) {
   const [updating, setUpdating,] = useState(false,);
+  const [progress, setProgress,] = useState<number | null>(null,);
 
   const handleUpdate = async () => {
     setUpdating(true,);
     try {
-      await update.downloadAndInstall();
+      await update.downloadAndInstall((downloaded, total,) => {
+        if (total > 0) setProgress(Math.round((downloaded / total) * 100,),);
+      },);
     } catch (err) {
       console.error("Update failed:", err,);
       setUpdating(false,);
+      setProgress(null,);
     }
   };
 
@@ -38,7 +42,11 @@ export function UpdateBanner({ update, onDismiss, }: UpdateBannerProps,) {
             : "linear-gradient(to bottom, #4b5563, #1f2937)",
         }}
       >
-        {updating ? "Updating\u2026" : "Update & Restart"}
+        {updating
+          ? progress !== null
+            ? `Downloading\u2026 ${progress}%`
+            : "Preparing\u2026"
+          : "Update & Restart"}
       </button>
 
       {!updating && (
