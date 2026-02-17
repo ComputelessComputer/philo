@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "philo",
-"version": "0.0.13"
-  "identifier": "com.johnjeong.philo",
+  "version": "0.0.13",
+  "identifier"
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
