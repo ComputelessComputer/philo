@@ -24,10 +24,10 @@ alwaysApply: true
 ## General
 
 - Avoid creating unnecessary structs, enums, or traits if they are not shared. Prefer inlining types when they're only used in one place.
-- Run `dprint fmt` before committing to ensure consistent formatting.
-- Run `cargo clippy` and fix any warnings before committing.
+- Run `bun typecheck && bun fmt` before committing.
+- Run `cargo clippy` and fix any warnings before committing Rust changes.
 - Run `cargo check` periodically while making Rust changes to catch errors early — don't wait until the end.
-- Run `cargo build` after code changes to verify compilation before committing.
+- Run `cargo build` after Rust code changes to verify compilation before committing.
 - Keep commits small and reviewable.
 
 ## TypeScript
