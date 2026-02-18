@@ -19,6 +19,7 @@ import { resolveAssetUrl, saveImage, } from "../../services/images";
 import { saveDailyNote, } from "../../services/storage";
 import { DailyNote, } from "../../types/note";
 import { EditorBubbleMenu, } from "../editor/EditorBubbleMenu";
+import { CustomParagraph, } from "../editor/extensions/paragraph/ParagraphExtension";
 import { WidgetExtension, } from "../editor/extensions/widget/WidgetExtension";
 
 function insertImageViaView(file: File, view: EditorView,) {
@@ -40,7 +41,10 @@ interface EditableNoteProps {
 export default function EditableNote({ note, placeholder = "Start writing...", }: EditableNoteProps,) {
   const editor = useEditor({
     extensions: [
-      StarterKit,
+      StarterKit.configure({
+        paragraph: false,
+      },),
+      CustomParagraph,
       Placeholder.configure({ placeholder, },),
       Image.configure({
         inline: true,
@@ -103,17 +107,21 @@ export default function EditableNote({ note, placeholder = "Start writing...", }
       },
       handleKeyDown: (_view, event,) => {
         if (event.key === "Tab") {
-          const { $from, } = _view.state.selection;
-          const inList = $from.node(-1,)?.type.name === "listItem" || $from.node(-1,)?.type.name === "taskItem";
-          if (inList) {
-            event.preventDefault();
-            if (event.shiftKey) {
-              editor?.commands.liftListItem("listItem",) || editor?.commands.liftListItem("taskItem",);
-            } else {
-              editor?.commands.sinkListItem("listItem",) || editor?.commands.sinkListItem("taskItem",);
+          event.preventDefault();
+          if (event.shiftKey) {
+            if (editor?.can().liftListItem("listItem",)) {
+              editor.commands.liftListItem("listItem",);
+            } else if (editor?.can().liftListItem("taskItem",)) {
+              editor.commands.liftListItem("taskItem",);
             }
-            return true;
+          } else {
+            if (editor?.can().sinkListItem("listItem",)) {
+              editor.commands.sinkListItem("listItem",);
+            } else if (editor?.can().sinkListItem("taskItem",)) {
+              editor.commands.sinkListItem("taskItem",);
+            }
           }
+          return true;
         }
         if (event.metaKey && event.key === "l") {
           event.preventDefault();

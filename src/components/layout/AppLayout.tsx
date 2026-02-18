@@ -163,6 +163,23 @@ export default function AppLayout() {
         return false;
       },
       handleKeyDown: (view, event,) => {
+        if (event.key === "Tab") {
+          event.preventDefault();
+          if (event.shiftKey) {
+            if (editor?.can().liftListItem("listItem",)) {
+              editor.commands.liftListItem("listItem",);
+            } else if (editor?.can().liftListItem("taskItem",)) {
+              editor.commands.liftListItem("taskItem",);
+            }
+          } else {
+            if (editor?.can().sinkListItem("listItem",)) {
+              editor.commands.sinkListItem("listItem",);
+            } else if (editor?.can().sinkListItem("taskItem",)) {
+              editor.commands.sinkListItem("taskItem",);
+            }
+          }
+          return true;
+        }
         if (event.key === "Backspace") {
           const { $from, empty, } = view.state.selection;
           if (empty && $from.parentOffset === 0 && $from.parent.type.name === "heading") {
