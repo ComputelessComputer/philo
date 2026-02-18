@@ -11,7 +11,7 @@
   caret-color: #374151;
   min-height: 100%;
   outline: none;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
 .tiptap:focus {
@@ -25,7 +25,6 @@
 
 .tiptap p {
   margin-bottom: 0.25rem;
-  text-wrap: balance;
 }
 
 /* ---- Placeholder ---- */
@@ -115,7 +114,50 @@
 
 .tiptap a:hover {
   color: #1d4ed8;
-  cursor: text;
+}
+
+.tiptap a:hover::after {
+  content: "Cmd+click to open link";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  background-color: rgba(0, 0, 0, 0.85);
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  border-radius: 6px;
+  pointer-events: none;
+  z-index: 1000;
+  animation: linkTooltipFadeIn 0.15s ease-in;
+}
+
+.tiptap a:hover::before {
+  content: "";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 2px;
+  border: 6px solid transparent;
+  border-top-color: rgba(0, 0, 0, 0.85);
+  pointer-events: none;
+  z-index: 1000;
+  animation: linkTooltipFadeIn 0.15s ease-in;
+}
+
+@keyframes linkTooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 /* ---- Lists ---- */
@@ -174,7 +216,10 @@
   list-style: none;
   margin-left: 0;
   padding: 0;
-  padding-left: 0.125rem;
+}
+
+.tiptap ul[data-type="taskList"].is-empty::before {
+  margin-left: 24px;
 }
 
 .tiptap ul[data-type="taskList"] li {
@@ -234,6 +279,14 @@
 
 .tiptap ul[data-type="taskList"] input[type="checkbox"]:hover:not(:checked) {
   border-color: #9ca3af;
+}
+
+.tiptap ul[data-type="taskList"] ul[data-type="taskList"] {
+  margin: 0;
+}
+
+.tiptap ul[data-type="taskList"] ul[data-type="taskList"] li {
+  margin-top: 0.25rem;
 }
 
 /* ---- Table ---- */
