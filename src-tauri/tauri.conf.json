@@ -3,7 +3,7 @@
   "productName": "Philo",
   "version": "0.0.18",
   "identifier": "com.johnjeong.philo",
-  "build":
+  "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1421",
     "beforeBuildCommand": "bun run build",
