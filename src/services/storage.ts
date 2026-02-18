@@ -19,12 +19,31 @@ function stripNbsp(markdown: string,): string {
   return markdown.replace(/&nbsp;/g, "",);
 }
 
+const ZWSP = "\u200B";
+
+/**
+ * Convert blank lines in markdown into zero-width-space paragraphs so
+ * TipTap renders them as visible empty lines in the editor.
+ */
+function preserveBlankLines(markdown: string,): string {
+  return markdown.trimEnd().replace(/\n{2,}/g, `\n\n${ZWSP}\n\n`,);
+}
+
+/**
+ * Normalize serialized markdown for writing to disk:
+ * strip ZWSP characters and collapse runs of 3+ newlines back to 2.
+ */
+function normalizeForSave(markdown: string,): string {
+  return markdown.replace(/\u200B/g, "",).replace(/\n{3,}/g, "\n\n",);
+}
+
 export async function saveDailyNote(note: DailyNote,): Promise<void> {
   const noteDir = await getNoteDir(note.date,);
   await ensureDir(noteDir,);
   const filepath = await getNotePath(note.date,);
-  // Convert asset:// URLs back to relative paths before writing
-  const markdown = stripNbsp(unresolveMarkdownImages(note.content,),);
+  // Convert asset:// URLs back to relative paths, strip ZWSP, normalize blanks
+  let markdown = normalizeForSave(stripNbsp(unresolveMarkdownImages(note.content,),),);
+  if (!markdown.endsWith("\n",)) markdown += "\n";
   await writeTextFile(filepath, markdown,);
 }
 
@@ -37,8 +56,10 @@ export async function loadDailyNote(date: string,): Promise<DailyNote | null> {
   }
 
   const raw = await readTextFile(filepath,);
-  // Strip &nbsp; from existing files, then resolve asset paths
-  const content = await resolveMarkdownImages(stripNbsp(raw,),);
+  // Strip &nbsp; from existing files, resolve asset paths, then
+  // convert blank lines into ZWSP paragraphs so TipTap shows them.
+  const resolved = await resolveMarkdownImages(stripNbsp(raw,),);
+  const content = preserveBlankLines(resolved,);
   return { date, content, };
 }
 

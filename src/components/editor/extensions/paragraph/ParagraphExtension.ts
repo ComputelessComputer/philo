@@ -24,10 +24,6 @@ export const CustomParagraph = Paragraph.extend({
   },
 
   renderMarkdown: (node, helpers,) => {
-    const content = helpers.renderChildren(node.content || [],);
-    if (content === "") {
-      return `${EMPTY_MARKER}\n\n`;
-    }
-    return `${content}\n\n`;
+    return helpers.renderChildren(node.content || [],);
   },
 },);

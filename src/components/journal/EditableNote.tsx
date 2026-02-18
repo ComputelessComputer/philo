@@ -147,8 +147,10 @@ export default function EditableNote({ note, placeholder = "Start writing...", }
   // Parse markdown via setContent (useEditor's content prop doesn't run through Markdown extension)
   useEffect(() => {
     if (editor && note.content) {
-      const current = editor.getMarkdown();
-      if (current !== note.content) {
+      // Normalize both sides: strip ZWSP + collapse blank lines so the
+      // preprocessed note.content and the serialised editor output compare equal.
+      const norm = (s: string,) => s.replace(/\u200B/g, "",).replace(/\n{2,}/g, "\n\n",).trimEnd();
+      if (norm(editor.getMarkdown(),) !== norm(note.content,)) {
         editor.commands.setContent(note.content, { contentType: "markdown", },);
       }
     }
