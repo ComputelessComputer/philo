@@ -48,7 +48,7 @@ export async function resolveAssetUrl(relativePath: string,): Promise<string> {
  * Matches patterns like ![alt](assets/filename.ext) or ![alt](assets/filename.ext "title")
  */
 export async function resolveMarkdownImages(markdown: string,): Promise<string> {
-  const assetPattern = /!\[([^\]]*)\]\((assets\/[^)\s"]+)(?:\s+"([^"]*)")?\)/g;
+  const assetPattern = /!\[([^\]]*)\]\(((?:\.\.?\/)*assets\/[^)\s"]+)(?:\s+"([^"]*)")?\)/g;
   const matches = [...markdown.matchAll(assetPattern,),];
   if (matches.length === 0) return markdown;
 
@@ -57,7 +57,8 @@ export async function resolveMarkdownImages(markdown: string,): Promise<string> 
 
   for (const match of matches) {
     const [full, alt, relativePath, title,] = match;
-    const absolutePath = await join(journalDir, relativePath,);
+    const normalizedPath = relativePath.replace(/^(?:\.\.?\/)+/, "",);
+    const absolutePath = await join(journalDir, normalizedPath,);
     const assetUrl = convertFileSrc(absolutePath,);
     const replacement = title
       ? `![${alt}](${assetUrl} "${title}")`
