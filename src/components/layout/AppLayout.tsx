@@ -1,3 +1,4 @@
+import { getCurrentWindow, } from "@tauri-apps/api/window";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import TaskItem from "@tiptap/extension-task-item";
@@ -65,6 +66,7 @@ export default function AppLayout() {
   const [settingsOpen, setSettingsOpen,] = useState(false,);
   const [libraryOpen, setLibraryOpen,] = useState(false,);
   const [updateInfo, setUpdateInfo,] = useState<UpdateInfo | null>(null,);
+  const [isPinned, setIsPinned,] = useState(false,);
 
   // Extend FS scope for custom journal dir on mount
   useEffect(() => {
@@ -245,6 +247,36 @@ export default function AppLayout() {
       ref={scrollRef}
       className="h-screen bg-white dark:bg-gray-900 overflow-y-scroll relative"
     >
+      {/* Titlebar: drag region + pin button */}
+      <div
+        className="sticky top-0 z-50 h-[38px] w-full flex items-center justify-end shrink-0"
+        data-tauri-drag-region
+      >
+        <button
+          onClick={async () => {
+            const next = !isPinned;
+            await getCurrentWindow().setAlwaysOnTop(next,);
+            setIsPinned(next,);
+          }}
+          className={`mr-3 p-1 rounded-md transition-colors cursor-default ${
+            isPinned
+              ? "text-gray-900 dark:text-white bg-gray-200/60 dark:bg-gray-700/60"
+              : "text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+          }`}
+          title={isPinned ? "Unpin window" : "Pin window on top"}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 16 16"
+            fill="currentColor"
+            className={`transition-transform ${isPinned ? "" : "rotate-45"}`}
+          >
+            <path d="M4.146.146A.5.5 0 0 1 4.5 0h7a.5.5 0 0 1 .5.5c0 .68-.342 1.174-.646 1.479-.126.125-.25.224-.354.298v4.431l.078.048c.203.127.476.314.751.555C12.36 7.775 13 8.527 13 9.5a.5.5 0 0 1-.5.5h-4v4.5c0 .276-.224 1.5-.5 1.5s-.5-1.224-.5-1.5V10h-4a.5.5 0 0 1-.5-.5c0-.973.64-1.725 1.17-2.189A5.921 5.921 0 0 1 5 6.708V2.277a2.77 2.77 0 0 1-.354-.298C4.342 1.674 4 1.179 4 .5a.5.5 0 0 1 .146-.354z" />
+          </svg>
+        </button>
+      </div>
+
       {updateInfo && <UpdateBanner update={updateInfo} onDismiss={() => setUpdateInfo(null,)} />}
       <div className="w-full max-w-3xl">
         {/* Today */}
