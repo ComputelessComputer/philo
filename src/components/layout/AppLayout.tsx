@@ -13,6 +13,7 @@ import "../editor/Editor.css";
 import { listen, } from "@tauri-apps/api/event";
 import { watch, } from "@tauri-apps/plugin-fs";
 import { useCurrentDate, } from "../../hooks/useCurrentDate";
+import { useTimezoneCity, } from "../../hooks/useTimezoneCity";
 import { resolveAssetUrl, saveImage, } from "../../services/images";
 import type { LibraryItem, } from "../../services/library";
 import { getJournalDir, getNotePath, initJournalScope, } from "../../services/paths";
@@ -40,6 +41,7 @@ function insertImageViaView(file: File, view: EditorView,) {
 
 function DateHeader({ date, }: { date: string; },) {
   const showToday = isToday(date,);
+  const city = useTimezoneCity();
 
   return (
     <div className="flex items-center gap-4">
@@ -55,6 +57,11 @@ function DateHeader({ date, }: { date: string; },) {
           style={{ background: "linear-gradient(to bottom, #4b5563, #1f2937)", }}
         >
           today
+        </span>
+      )}
+      {showToday && city && (
+        <span className="text-sm text-gray-400 dark:text-gray-500 font-sans">
+          {city}
         </span>
       )}
     </div>
