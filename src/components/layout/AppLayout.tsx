@@ -5,7 +5,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
 import { Markdown, } from "@tiptap/markdown";
-import { AllSelection, } from "@tiptap/pm/state";
+import { TextSelection, } from "@tiptap/pm/state";
 import type { EditorView, } from "@tiptap/pm/view";
 import { EditorContent, useEditor, } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
@@ -29,6 +29,12 @@ import { LibraryDrawer, } from "../library/LibraryDrawer";
 import { SettingsModal, } from "../settings/SettingsModal";
 import { UpdateBanner, } from "../UpdateBanner";
 
+function applyCity(savedCity: string | null | undefined, newCity: string,): string {
+  if (!savedCity || savedCity === newCity) return newCity;
+  const from = savedCity.includes(" → ",) ? savedCity.split(" → ",)[0] : savedCity;
+  return `${from} → ${newCity}`;
+}
+
 function insertImageViaView(file: File, view: EditorView,) {
   saveImage(file,).then(async (relativePath,) => {
     const assetUrl = await resolveAssetUrl(relativePath,);
@@ -40,9 +46,8 @@ function insertImageViaView(file: File, view: EditorView,) {
   },);
 }
 
-function DateHeader({ date, }: { date: string; },) {
+function DateHeader({ date, city, }: { date: string; city?: string | null; },) {
   const showToday = isToday(date,);
-  const city = useTimezoneCity();
 
   return (
     <div className="flex items-center gap-4">
@@ -60,7 +65,7 @@ function DateHeader({ date, }: { date: string; },) {
           today
         </span>
       )}
-      {showToday && city && (
+      {city && (
         <span className="text-sm text-gray-400 dark:text-gray-500 font-sans">
           {city}
         </span>
@@ -71,6 +76,7 @@ function DateHeader({ date, }: { date: string; },) {
 
 export default function AppLayout() {
   const today = useCurrentDate();
+  const currentCity = useTimezoneCity();
   const [todayNote, setTodayNote,] = useState<DailyNote | null>(null,);
   const [pastNotes, setPastNotes,] = useState<DailyNote[]>([],);
   const [settingsOpen, setSettingsOpen,] = useState(false,);
@@ -78,6 +84,12 @@ export default function AppLayout() {
   const [updateInfo, setUpdateInfo,] = useState<UpdateInfo | null>(null,);
   const [isPinned, setIsPinned,] = useState(false,);
   const [opacity, setOpacity,] = useState(1,);
+  const cityRef = useRef(currentCity,);
+  const prevCityRef = useRef(currentCity,);
+  const todayNoteRef = useRef<DailyNote | null>(null,);
+  useEffect(() => {
+    todayNoteRef.current = todayNote;
+  }, [todayNote,],);
 
   // Extend FS scope for custom journal dir on mount
   useEffect(() => {
@@ -117,8 +129,17 @@ export default function AppLayout() {
         getOrCreateDailyNote(today,),
         loadPastNotes(30,),
       ],);
-      setTodayNote(note,);
+
+      // Apply current city: if the note's saved city differs, record the transition
+      const effectiveCity = currentCity ? applyCity(note.city, currentCity,) : note.city;
+      const todayWithCity = { ...note, city: effectiveCity, };
+      cityRef.current = effectiveCity ?? currentCity ?? "";
+      setTodayNote(todayWithCity,);
       setPastNotes(past,);
+      if (effectiveCity !== note.city) {
+        selfWriteTimer.current = Date.now();
+        saveDailyNote(todayWithCity,).catch(console.error,);
+      }
 
       // Build path → date map so the file watcher can identify changed notes
       const pastDates = Array.from({ length: 30, }, (_, i,) => getDaysAgo(i + 1,),);
@@ -133,6 +154,25 @@ export default function AppLayout() {
     }
     load();
   }, [today,],);
+
+  // Detect same-day timezone change (travel): update today's note with transition city.
+  // Guard (note.date === today) prevents this from running when both today and currentCity
+  // change simultaneously (cross-date-line travel) — the [today] load effect handles that.
+  useEffect(() => {
+    const prevCity = prevCityRef.current;
+    prevCityRef.current = currentCity;
+    if (prevCity === currentCity) return;
+
+    const note = todayNoteRef.current;
+    if (!note || note.date !== today) return;
+
+    const transition = applyCity(note.city ?? prevCity, currentCity,);
+    cityRef.current = transition;
+    const updated = { ...note, city: transition, };
+    setTodayNote(updated,);
+    selfWriteTimer.current = Date.now();
+    saveDailyNote(updated,).catch(console.error,);
+  }, [currentCity,],);
 
   // Watch the journal directory for external changes
   useEffect(() => {
@@ -240,7 +280,9 @@ export default function AppLayout() {
       handleKeyDown: (view, event,) => {
         if ((event.metaKey || event.ctrlKey) && event.key === "a") {
           event.preventDefault();
-          view.dispatch(view.state.tr.setSelection(new AllSelection(view.state.doc,),),);
+          view.dispatch(
+            view.state.tr.setSelection(TextSelection.create(view.state.doc, 0, view.state.doc.content.size,),),
+          );
           return true;
         }
         if ((event.metaKey || event.ctrlKey) && event.key === "l") {
@@ -278,7 +320,7 @@ export default function AppLayout() {
     },
     onUpdate: ({ editor, },) => {
       if (!todayNote) return;
-      handleTodaySave({ ...todayNote, content: editor.getMarkdown(), },);
+      handleTodaySave({ ...todayNote, content: editor.getMarkdown(), city: cityRef.current, },);
     },
   },);
 
@@ -399,7 +441,7 @@ export default function AppLayout() {
           onClick={() => editor?.commands.focus()}
         >
           <div className="px-6 pt-6 pb-4">
-            <DateHeader date={today} />
+            <DateHeader date={today} city={currentCity} />
           </div>
           {editor && <EditorBubbleMenu editor={editor} />}
           <EditorContent editor={editor} />
@@ -411,7 +453,7 @@ export default function AppLayout() {
             <div className="mx-6 border-t border-gray-200 dark:border-gray-700" />
             <div className="min-h-[400px]">
               <div className="px-6 pt-12 pb-4">
-                <DateHeader date={note.date} />
+                <DateHeader date={note.date} city={note.city} />
               </div>
               <EditableNote note={note} />
             </div>
