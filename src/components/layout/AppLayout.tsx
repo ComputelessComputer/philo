@@ -1,3 +1,4 @@
+import { invoke, } from "@tauri-apps/api/core";
 import { getCurrentWindow, } from "@tauri-apps/api/window";
 import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -67,6 +68,7 @@ export default function AppLayout() {
   const [libraryOpen, setLibraryOpen,] = useState(false,);
   const [updateInfo, setUpdateInfo,] = useState<UpdateInfo | null>(null,);
   const [isPinned, setIsPinned,] = useState(false,);
+  const [opacity, setOpacity,] = useState(1,);
 
   // Extend FS scope for custom journal dir on mount
   useEffect(() => {
@@ -84,9 +86,15 @@ export default function AppLayout() {
   useEffect(() => {
     const unlistenSettings = listen("open-settings", () => setSettingsOpen(true,),);
     const unlistenLibrary = listen("toggle-library", () => setLibraryOpen((prev,) => !prev),);
+    const unlistenUpdate = listen("update-available", () => {
+      checkForUpdate().then((info,) => {
+        if (info) setUpdateInfo(info,);
+      },);
+    },);
     return () => {
       unlistenSettings.then((fn,) => fn());
       unlistenLibrary.then((fn,) => fn());
+      unlistenUpdate.then((fn,) => fn());
     };
   }, [],);
 
@@ -204,7 +212,15 @@ export default function AppLayout() {
     if (editor && todayNote) {
       const current = editor.getMarkdown();
       if (current !== todayNote.content) {
+        const scrollEl = scrollRef.current;
+        const top = scrollEl?.scrollTop ?? 0;
         editor.commands.setContent(todayNote.content, { contentType: "markdown", },);
+        if (scrollEl) {
+          scrollEl.scrollTop = top;
+          requestAnimationFrame(() => {
+            scrollEl.scrollTop = top;
+          },);
+        }
       }
     }
   }, [editor, todayNote,],);
@@ -250,8 +266,28 @@ export default function AppLayout() {
       {/* Titlebar: drag region + pin button */}
       <div
         className="sticky top-0 z-50 h-[38px] w-full flex items-center justify-end shrink-0"
-        data-tauri-drag-region
+        onMouseDown={(e,) => {
+          if (e.buttons === 1 && !(e.target as HTMLElement).closest("button, input",)) {
+            e.detail === 2
+              ? getCurrentWindow().toggleMaximize()
+              : getCurrentWindow().startDragging();
+          }
+        }}
       >
+        <input
+          type="range"
+          min={0.15}
+          max={1}
+          step={0.01}
+          value={opacity}
+          onChange={(e,) => {
+            const v = Number(e.target.value,);
+            setOpacity(v,);
+            invoke("set_window_opacity", { opacity: v, },);
+          }}
+          className="w-16 h-1 mr-1 appearance-none bg-gray-300 dark:bg-gray-600 rounded-full cursor-pointer opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gray-500 [&::-webkit-slider-thumb]:dark:bg-gray-400"
+          title={`Window opacity: ${Math.round(opacity * 100,)}%`}
+        />
         <button
           onClick={async () => {
             const next = !isPinned;
