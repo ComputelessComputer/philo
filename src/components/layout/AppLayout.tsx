@@ -11,14 +11,15 @@ import StarterKit from "@tiptap/starter-kit";
 import { useCallback, useEffect, useRef, useState, } from "react";
 import "../editor/Editor.css";
 import { listen, } from "@tauri-apps/api/event";
+import { watch, } from "@tauri-apps/plugin-fs";
 import { useCurrentDate, } from "../../hooks/useCurrentDate";
 import { resolveAssetUrl, saveImage, } from "../../services/images";
 import type { LibraryItem, } from "../../services/library";
-import { initJournalScope, } from "../../services/paths";
-import { getOrCreateDailyNote, loadPastNotes, saveDailyNote, } from "../../services/storage";
+import { getJournalDir, getNotePath, initJournalScope, } from "../../services/paths";
+import { getOrCreateDailyNote, loadDailyNote, loadPastNotes, saveDailyNote, } from "../../services/storage";
 import { rolloverTasks, } from "../../services/tasks";
 import { checkForUpdate, type UpdateInfo, } from "../../services/updater";
-import { DailyNote, formatDate, isToday, } from "../../types/note";
+import { DailyNote, formatDate, getDaysAgo, isToday, } from "../../types/note";
 import { EditorBubbleMenu, } from "../editor/EditorBubbleMenu";
 import { WidgetExtension, } from "../editor/extensions/widget/WidgetExtension";
 import EditableNote from "../journal/EditableNote";
@@ -110,12 +111,68 @@ export default function AppLayout() {
       ],);
       setTodayNote(note,);
       setPastNotes(past,);
+
+      // Build path → date map so the file watcher can identify changed notes
+      const pastDates = Array.from({ length: 30, }, (_, i,) => getDaysAgo(i + 1,),);
+      const [todayPath, ...pastPaths] = await Promise.all([
+        getNotePath(today,),
+        ...pastDates.map((d,) => getNotePath(d,)),
+      ],);
+      const pathMap = new Map<string, string>();
+      pathMap.set(todayPath, today,);
+      pastDates.forEach((d, i,) => pathMap.set(pastPaths[i], d,));
+      notePathsRef.current = pathMap;
     }
     load();
   }, [today,],);
 
+  // Watch the journal directory for external changes
+  useEffect(() => {
+    let unwatch: (() => void) | null = null;
+
+    getJournalDir().then(async (dir,) => {
+      unwatch = await watch(
+        dir,
+        (event,) => {
+          // Ignore events triggered by our own saves
+          if (Date.now() - selfWriteTimer.current < 3000) return;
+
+          const mdPaths = event.paths.filter((p,) => p.endsWith(".md",));
+          if (mdPaths.length === 0) return;
+
+          for (const changedPath of mdPaths) {
+            const date = notePathsRef.current.get(changedPath,);
+            if (!date) continue;
+
+            if (date === today) {
+              loadDailyNote(today,)
+                .then((reloaded,) => {
+                  if (reloaded) setTodayNote(reloaded,);
+                },)
+                .catch(console.error,);
+            } else {
+              loadDailyNote(date,)
+                .then((reloaded,) => {
+                  if (reloaded) {
+                    setPastNotes((prev,) => prev.map((n,) => n.date === date ? reloaded : n));
+                  }
+                },)
+                .catch(console.error,);
+            }
+          }
+        },
+        { recursive: true, },
+      );
+    },).catch(console.error,);
+
+    return () => {
+      unwatch?.();
+    };
+  }, [today,],);
+
   const handleTodaySave = useCallback(
     (note: DailyNote,) => {
+      selfWriteTimer.current = Date.now();
       saveDailyNote(note,).catch(console.error,);
       setTodayNote(note,);
     },
@@ -227,6 +284,8 @@ export default function AppLayout() {
 
   const todayRef = useRef<HTMLDivElement>(null,);
   const scrollRef = useRef<HTMLDivElement>(null,);
+  const selfWriteTimer = useRef(0,);
+  const notePathsRef = useRef<Map<string, string>>(new Map(),);
 
   // "Go to Today" badge when scrolled away
   const [todayDirection, setTodayDirection,] = useState<"above" | "below" | null>(null,);
