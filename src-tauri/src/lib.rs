@@ -1,10 +1,30 @@
+#[cfg(target_os = "macos")]
+#[macro_use]
+extern crate objc;
+
 use std::path::PathBuf;
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::{AppHandle, Emitter, Manager};
-use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_fs::FsExt;
 #[cfg(desktop)]
 use tauri_plugin_updater::UpdaterExt;
+
+#[tauri::command]
+fn set_window_opacity(app: AppHandle, opacity: f64) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    {
+        let window = app
+            .get_webview_window("main")
+            .ok_or("Window not found")?;
+        let ns_win = window.ns_window().map_err(|e| e.to_string())?;
+        unsafe {
+            let _: () =
+                objc::msg_send![ns_win as *mut objc::runtime::Object, setAlphaValue: opacity];
+        }
+    }
+    Ok(())
+}
 
 #[tauri::command]
 fn extend_fs_scope(app: AppHandle, path: String) -> Result<(), String> {
@@ -27,7 +47,7 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![extend_fs_scope])
+        .invoke_handler(tauri::generate_handler![extend_fs_scope, set_window_opacity])
         .setup(|app| {
             #[cfg(desktop)]
             app.handle()
@@ -90,35 +110,8 @@ pub fn run() {
                     tauri::async_runtime::spawn(async move {
                         match handle.updater() {
                             Ok(updater) => match updater.check().await {
-                                Ok(Some(update)) => {
-                                    let confirmed = handle
-                                        .dialog()
-                                        .message(format!(
-                                            "Version {} is available. Would you like to update now?",
-                                            update.version
-                                        ))
-                                        .title("Update Available")
-                                        .kind(MessageDialogKind::Info)
-                                        .buttons(MessageDialogButtons::OkCancelCustom(
-                                            "Update".into(),
-                                            "Later".into(),
-                                        ))
-                                        .blocking_show();
-                                    if confirmed {
-                                        if let Err(e) =
-                                            update.download_and_install(|_, _| {}, || {}).await
-                                        {
-                                            handle
-                                                .dialog()
-                                                .message(format!(
-                                                    "Failed to install update: {}",
-                                                    e
-                                                ))
-                                                .title("Update Error")
-                                                .kind(MessageDialogKind::Error)
-                                                .blocking_show();
-                                        }
-                                    }
+                                Ok(Some(_)) => {
+                                    let _ = handle.emit("update-available", ());
                                 }
                                 Ok(None) => {
                                     handle
