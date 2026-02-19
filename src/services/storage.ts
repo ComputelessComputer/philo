@@ -3,6 +3,23 @@ import { DailyNote, getDaysAgo, } from "../types/note";
 import { resolveMarkdownImages, unresolveMarkdownImages, } from "./images";
 import { getNoteDir, getNotePath, } from "./paths";
 
+const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n?/;
+
+function parseFrontmatter(raw: string,): { city: string | null; body: string; } {
+  const match = raw.match(FRONTMATTER_RE,);
+  if (!match) return { city: null, body: raw, };
+  const cityMatch = match[1].match(/^city:\s*(.+)$/m,);
+  return {
+    city: cityMatch ? cityMatch[1].trim() : null,
+    body: raw.slice(match[0].length,),
+  };
+}
+
+function buildFrontmatter(city: string | null | undefined, body: string,): string {
+  if (!city) return body;
+  return `---\ncity: ${city}\n---\n${body}`;
+}
+
 async function ensureDir(dir: string,) {
   const dirExists = await exists(dir,);
   if (!dirExists) {
@@ -42,9 +59,9 @@ export async function saveDailyNote(note: DailyNote,): Promise<void> {
   await ensureDir(noteDir,);
   const filepath = await getNotePath(note.date,);
   // Convert asset:// URLs back to relative paths, strip ZWSP, normalize blanks
-  let markdown = normalizeForSave(stripNbsp(unresolveMarkdownImages(note.content,),),);
-  if (!markdown.endsWith("\n",)) markdown += "\n";
-  await writeTextFile(filepath, markdown,);
+  let body = normalizeForSave(stripNbsp(unresolveMarkdownImages(note.content,),),);
+  if (!body.endsWith("\n",)) body += "\n";
+  await writeTextFile(filepath, buildFrontmatter(note.city, body,),);
 }
 
 export async function loadDailyNote(date: string,): Promise<DailyNote | null> {
@@ -56,11 +73,12 @@ export async function loadDailyNote(date: string,): Promise<DailyNote | null> {
   }
 
   const raw = await readTextFile(filepath,);
+  const { city, body, } = parseFrontmatter(raw,);
   // Strip &nbsp; from existing files, resolve asset paths, then
   // convert blank lines into ZWSP paragraphs so TipTap shows them.
-  const resolved = await resolveMarkdownImages(stripNbsp(raw,),);
+  const resolved = await resolveMarkdownImages(stripNbsp(body,),);
   const content = preserveBlankLines(resolved,);
-  return { date, content, };
+  return { date, content, city, };
 }
 
 export async function createEmptyDailyNote(date: string,): Promise<DailyNote> {

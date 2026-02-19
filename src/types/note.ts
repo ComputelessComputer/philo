@@ -1,6 +1,7 @@
 export interface DailyNote {
   date: string; // ISO date string (YYYY-MM-DD)
   content: string; // markdown
+  city?: string | null;
 }
 
 function toLocalDateString(d: Date,): string {
