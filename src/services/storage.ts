@@ -26,7 +26,7 @@ const ZWSP = "\u200B";
  * TipTap renders them as visible empty lines in the editor.
  */
 function preserveBlankLines(markdown: string,): string {
-  return markdown.trimEnd().replace(/\n{2,}/g, `\n\n${ZWSP}\n\n`,);
+  return markdown.trimEnd().replace(/\n{3,}/g, `\n\n${ZWSP}\n\n`,);
 }
 
 /**
