@@ -15,6 +15,7 @@ import { listen, } from "@tauri-apps/api/event";
 import { watch, } from "@tauri-apps/plugin-fs";
 import { useCurrentDate, } from "../../hooks/useCurrentDate";
 import { useTimezoneCity, } from "../../hooks/useTimezoneCity";
+import { formatNote, } from "../../services/format";
 import { resolveAssetUrl, saveImage, } from "../../services/images";
 import type { LibraryItem, } from "../../services/library";
 import { getJournalDir, getNotePath, initJournalScope, } from "../../services/paths";
@@ -278,6 +279,11 @@ export default function AppLayout() {
         return false;
       },
       handleKeyDown: (view, event,) => {
+        if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === "i") {
+          event.preventDefault();
+          formatHandlerRef.current?.();
+          return true;
+        }
         if ((event.metaKey || event.ctrlKey) && event.key === "a") {
           event.preventDefault();
           view.dispatch(
@@ -346,6 +352,14 @@ export default function AppLayout() {
   const scrollRef = useRef<HTMLDivElement>(null,);
   const selfWriteTimer = useRef(0,);
   const notePathsRef = useRef<Map<string, string>>(new Map(),);
+  const formatHandlerRef = useRef<(() => void) | null>(null,);
+  formatHandlerRef.current = () => {
+    if (!editor) return;
+    const current = editor.getMarkdown();
+    const formatted = formatNote(current,);
+    if (formatted.trimEnd() === current.trimEnd()) return;
+    editor.commands.setContent(formatted, { contentType: "markdown", },);
+  };
 
   // "Go to Today" badge when scrolled away
   const [todayDirection, setTodayDirection,] = useState<"above" | "below" | null>(null,);
@@ -407,6 +421,15 @@ export default function AppLayout() {
           className="w-16 h-1 mr-1 appearance-none bg-gray-300 dark:bg-gray-600 rounded-full cursor-pointer opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gray-500 [&::-webkit-slider-thumb]:dark:bg-gray-400"
           title={`Window opacity: ${Math.round(opacity * 100,)}%`}
         />
+        <button
+          onClick={() => formatHandlerRef.current?.()}
+          className="mr-1 p-1 rounded-md transition-colors cursor-default text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+          title="Format note (⌘⇧I)"
+        >
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
+            <path d="M2 2h8a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2zm0 4h12a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2zm0 4h6a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2z" />
+          </svg>
+        </button>
         <button
           onClick={async () => {
             const next = !isPinned;
