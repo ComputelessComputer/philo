@@ -1,6 +1,7 @@
 import { invoke, } from "@tauri-apps/api/core";
 import { getCurrentWindow, } from "@tauri-apps/api/window";
 import Image from "@tiptap/extension-image";
+import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
@@ -30,6 +31,12 @@ import EditableNote from "../journal/EditableNote";
 import { LibraryDrawer, } from "../library/LibraryDrawer";
 import { SettingsModal, } from "../settings/SettingsModal";
 import { UpdateBanner, } from "../UpdateBanner";
+
+const NonInclusiveLink = Link.extend({
+  inclusive() {
+    return false;
+  },
+},);
 
 function applyCity(savedCity: string | null | undefined, newCity: string,): string {
   if (!savedCity || savedCity === newCity) return newCity;
@@ -255,6 +262,7 @@ export default function AppLayout() {
         inline: true,
         allowBase64: false,
       },),
+      NonInclusiveLink.configure({ openOnClick: false, autolink: true, },),
       TaskList,
       TaskItem.configure({ nested: true, },),
       WidgetExtension,
@@ -266,6 +274,16 @@ export default function AppLayout() {
     editorProps: {
       attributes: {
         class: "max-w-none focus:outline-hidden px-6 text-gray-900 dark:text-gray-100",
+      },
+      handleClick: (_view, _pos, event,) => {
+        if (event.metaKey) {
+          const anchor = (event.target as HTMLElement).closest("a",);
+          if (anchor?.href) {
+            window.open(anchor.href, "_blank",);
+            return true;
+          }
+        }
+        return false;
       },
       handlePaste: (view, event,) => {
         const items = event.clipboardData?.items;
