@@ -43,7 +43,14 @@ const ZWSP = "\u200B";
  * TipTap renders them as visible empty lines in the editor.
  */
 function preserveBlankLines(markdown: string,): string {
-  return markdown.trimEnd().replace(/\n{3,}/g, `\n\n${ZWSP}\n\n`,);
+  return markdown
+    .trimEnd()
+    // 2+ blank lines → ZWSP paragraph
+    .replace(/\n{3,}/g, `\n\n${ZWSP}\n\n`,)
+    // Single blank line: regular bullet → task item
+    .replace(/([-*] (?!\[[ xX]\] ).+)\n\n([-*] \[[ xX]\] )/g, `$1\n\n${ZWSP}\n\n$2`,)
+    // Single blank line: task item → regular bullet
+    .replace(/([-*] \[[ xX]\] .+)\n\n([-*] (?!\[[ xX]\] ))/g, `$1\n\n${ZWSP}\n\n$2`,);
 }
 
 /**
