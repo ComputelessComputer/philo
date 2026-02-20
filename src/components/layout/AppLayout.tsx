@@ -9,7 +9,7 @@ import { TextSelection, } from "@tiptap/pm/state";
 import type { EditorView, } from "@tiptap/pm/view";
 import { EditorContent, useEditor, } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { useCallback, useEffect, useRef, useState, } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, } from "react";
 import "../editor/Editor.css";
 import { listen, } from "@tauri-apps/api/event";
 import { watch, } from "@tauri-apps/plugin-fs";
@@ -19,7 +19,7 @@ import { formatNote, } from "../../services/format";
 import { resolveAssetUrl, saveImage, } from "../../services/images";
 import type { LibraryItem, } from "../../services/library";
 import { getJournalDir, getNotePath, initJournalScope, } from "../../services/paths";
-import { getOrCreateDailyNote, loadDailyNote, loadPastNotes, saveDailyNote, } from "../../services/storage";
+import { getOrCreateDailyNote, loadDailyNote, saveDailyNote, } from "../../services/storage";
 import { rolloverTasks, } from "../../services/tasks";
 import { checkForUpdate, type UpdateInfo, } from "../../services/updater";
 import { DailyNote, formatDate, getDaysAgo, isToday, } from "../../types/note";
@@ -75,11 +75,47 @@ function DateHeader({ date, city, }: { date: string; city?: string | null; },) {
   );
 }
 
+function LazyNote({ date, }: { date: string; },) {
+  const [note, setNote,] = useState<DailyNote | null>(null,);
+  const containerRef = useRef<HTMLDivElement>(null,);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry,],) => {
+        if (entry.isIntersecting) {
+          loadDailyNote(date,).then(setNote,).catch(console.error,);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "400px", },
+    );
+
+    observer.observe(el,);
+    return () => observer.disconnect();
+  }, [date,],);
+
+  return (
+    <div ref={containerRef} className="min-h-[400px]">
+      {note && (
+        <>
+          <div className="px-6 pt-12 pb-4">
+            <DateHeader date={note.date} city={note.city} />
+          </div>
+          <EditableNote note={note} />
+        </>
+      )}
+    </div>
+  );
+}
+
 export default function AppLayout() {
   const today = useCurrentDate();
   const currentCity = useTimezoneCity();
   const [todayNote, setTodayNote,] = useState<DailyNote | null>(null,);
-  const [pastNotes, setPastNotes,] = useState<DailyNote[]>([],);
+  const pastDates = useMemo(() => Array.from({ length: 30, }, (_, i,) => getDaysAgo(i + 1,),), [today,],);
   const [settingsOpen, setSettingsOpen,] = useState(false,);
   const [libraryOpen, setLibraryOpen,] = useState(false,);
   const [updateInfo, setUpdateInfo,] = useState<UpdateInfo | null>(null,);
@@ -120,38 +156,26 @@ export default function AppLayout() {
     };
   }, [],);
 
-  // Roll over unchecked tasks from past days, then load all notes
+  // Roll over unchecked tasks from past days, then load today's note
   useEffect(() => {
     async function load() {
-      // Move unchecked tasks from past notes into today before loading
       await rolloverTasks(30,);
 
-      const [note, past,] = await Promise.all([
-        getOrCreateDailyNote(today,),
-        loadPastNotes(30,),
-      ],);
+      const note = await getOrCreateDailyNote(today,);
 
       // Apply current city: if the note's saved city differs, record the transition
       const effectiveCity = currentCity ? applyCity(note.city, currentCity,) : note.city;
       const todayWithCity = { ...note, city: effectiveCity, };
       cityRef.current = effectiveCity ?? currentCity ?? "";
       setTodayNote(todayWithCity,);
-      setPastNotes(past,);
       if (effectiveCity !== note.city) {
         selfWriteTimer.current = Date.now();
         saveDailyNote(todayWithCity,).catch(console.error,);
       }
 
-      // Build path → date map so the file watcher can identify changed notes
-      const pastDates = Array.from({ length: 30, }, (_, i,) => getDaysAgo(i + 1,),);
-      const [todayPath, ...pastPaths] = await Promise.all([
-        getNotePath(today,),
-        ...pastDates.map((d,) => getNotePath(d,)),
-      ],);
-      const pathMap = new Map<string, string>();
-      pathMap.set(todayPath, today,);
-      pastDates.forEach((d, i,) => pathMap.set(pastPaths[i], d,));
-      notePathsRef.current = pathMap;
+      // Track today's path so the file watcher can identify external changes
+      const todayPath = await getNotePath(today,);
+      notePathsRef.current = new Map([[todayPath, today,],],);
     }
     load();
   }, [today,],);
@@ -197,14 +221,6 @@ export default function AppLayout() {
               loadDailyNote(today,)
                 .then((reloaded,) => {
                   if (reloaded) setTodayNote(reloaded,);
-                },)
-                .catch(console.error,);
-            } else {
-              loadDailyNote(date,)
-                .then((reloaded,) => {
-                  if (reloaded) {
-                    setPastNotes((prev,) => prev.map((n,) => n.date === date ? reloaded : n));
-                  }
                 },)
                 .catch(console.error,);
             }
@@ -470,16 +486,11 @@ export default function AppLayout() {
           <EditorContent editor={editor} />
         </div>
 
-        {/* Past notes */}
-        {pastNotes.map((note,) => (
-          <div key={note.date}>
+        {/* Past notes — loaded lazily as they scroll into view */}
+        {pastDates.map((date,) => (
+          <div key={date}>
             <div className="mx-6 border-t border-gray-200 dark:border-gray-700" />
-            <div className="min-h-[400px]">
-              <div className="px-6 pt-12 pb-4">
-                <DateHeader date={note.date} city={note.city} />
-              </div>
-              <EditableNote note={note} />
-            </div>
+            <LazyNote date={date} />
           </div>
         ))}
       </div>
