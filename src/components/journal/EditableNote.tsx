@@ -19,6 +19,7 @@ import { resolveAssetUrl, saveImage, } from "../../services/images";
 import { saveDailyNote, } from "../../services/storage";
 import { DailyNote, } from "../../types/note";
 import { EditorBubbleMenu, } from "../editor/EditorBubbleMenu";
+import { HashtagExtension, } from "../editor/extensions/hashtag/HashtagExtension";
 import { CustomParagraph, } from "../editor/extensions/paragraph/ParagraphExtension";
 import { WidgetExtension, } from "../editor/extensions/widget/WidgetExtension";
 
@@ -58,6 +59,7 @@ export default function EditableNote({ note, placeholder = "Start writing...", }
       TaskItem.configure({ nested: true, },),
       WidgetExtension,
       Markdown,
+      HashtagExtension,
     ],
     content: "",
     editable: true,

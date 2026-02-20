@@ -602,6 +602,29 @@
   white-space: nowrap;
 }
 
+/* ---- Hashtag Chips ---- */
+
+.hashtag-chip {
+  display: inline-block;
+  background: #f3f4f6;
+  color: #4b5563;
+  border-radius: 9999px;
+  padding: 0.05em 0.5em;
+  font-size: 0.78em;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  vertical-align: baseline;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+
+@media (prefers-color-scheme: dark) {
+  .hashtag-chip {
+    background: #374151;
+    color: #9ca3af;
+  }
+}
+
 /* ---- Scrollbar ---- */
 
 .scrollbar-hide {

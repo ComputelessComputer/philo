@@ -24,6 +24,7 @@ import { rolloverTasks, } from "../../services/tasks";
 import { checkForUpdate, type UpdateInfo, } from "../../services/updater";
 import { DailyNote, formatDate, getDaysAgo, isToday, } from "../../types/note";
 import { EditorBubbleMenu, } from "../editor/EditorBubbleMenu";
+import { HashtagExtension, } from "../editor/extensions/hashtag/HashtagExtension";
 import { WidgetExtension, } from "../editor/extensions/widget/WidgetExtension";
 import EditableNote from "../journal/EditableNote";
 import { LibraryDrawer, } from "../library/LibraryDrawer";
@@ -258,6 +259,7 @@ export default function AppLayout() {
       TaskItem.configure({ nested: true, },),
       WidgetExtension,
       Markdown,
+      HashtagExtension,
     ],
     content: todayNote?.content || "",
     immediatelyRender: false,
