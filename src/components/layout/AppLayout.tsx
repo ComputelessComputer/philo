@@ -95,7 +95,6 @@ function LazyNote({ date, }: { date: string; },) {
       ([entry,],) => {
         if (entry.isIntersecting) {
           loadDailyNote(date,).then(setNote,).catch(console.error,);
-          observer.disconnect();
         }
       },
       { rootMargin: "400px", },
@@ -163,6 +162,24 @@ export default function AppLayout() {
       unlistenUpdate.then((fn,) => fn());
     };
   }, [],);
+
+  // Re-read today's note from disk when the window regains focus (handles external edits)
+  useEffect(() => {
+    const handleFocus = () => {
+      loadDailyNote(today,)
+        .then((reloaded,) => {
+          if (!reloaded) return;
+          const norm = (s: string,) => s.replace(/\u200B/g, "",).replace(/\n{2,}/g, "\n\n",).trimEnd();
+          if (norm(reloaded.content,) !== norm(todayNoteRef.current?.content ?? "",)) {
+            selfWriteTimer.current = Date.now();
+            setTodayNote(reloaded,);
+          }
+        },)
+        .catch(console.error,);
+    };
+    window.addEventListener("focus", handleFocus,);
+    return () => window.removeEventListener("focus", handleFocus,);
+  }, [today,],);
 
   // Roll over unchecked tasks from past days, then load today's note
   useEffect(() => {
