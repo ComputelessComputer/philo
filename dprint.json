@@ -13,7 +13,8 @@
     "node_modules",
     "dist",
     "src-tauri/target",
-    "src-tauri/Cargo.lock"
+    "src-tauri/Cargo.lock",
+    "vendor"
   ],
   "plugins": [
     "https://plugins.dprint.dev/typescript-0.93.3.wasm",

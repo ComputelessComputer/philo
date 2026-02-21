@@ -2,7 +2,6 @@
 
 <img width="727" height="776" alt="image" src="https://github.com/user-attachments/assets/5c8474ad-e8e1-4d1c-b965-abc4bc1a060e" />
 
-
 A daily journaling app that builds things for you.
 
 Write your notes in a timeline, manage tasks that carry forward automatically, and hit **⌘↵** to generate custom mini-apps — a calorie tracker, a world clock, a habit chart — embedded right inside your journal.
@@ -47,3 +46,7 @@ Inspired by [Logseq](https://logseq.com) and [@omer_vexler](https://x.com/omer_v
 ## Stack
 
 Tauri v2 · React 19 · TypeScript · TipTap · Tailwind CSS v4 · Anthropic Claude
+
+## Relationship to Char (formerly Hyprnote)
+
+Philo is a proof-of-concept playground for a daily journaling feature being developed for [Char](https://github.com/fastrepl/hyprnote). It borrows Char's editor styling and file-saving mechanism (via a git submodule at `vendor/hyprnote`) while adding philo-specific features: task rollover, recurring tasks, and AI widget generation.

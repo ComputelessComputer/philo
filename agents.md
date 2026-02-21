@@ -2,6 +2,10 @@
 alwaysApply: true
 ---
 
+## Definition
+
+- The app's name is Philo.
+
 ## Commit Discipline
 
 - Commit after every discrete action. Each meaningful change (e.g. adding a feature, fixing a bug, refactoring, updating docs, adding a test) must be committed individually before moving on.
