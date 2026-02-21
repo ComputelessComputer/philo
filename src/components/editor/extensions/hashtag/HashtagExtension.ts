@@ -26,7 +26,7 @@ export const HashtagExtension = Extension.create({
               while ((match = HASHTAG_RE.exec(text,)) !== null) {
                 decorations.push(
                   Decoration.inline(pos + match.index, pos + match.index + match[0].length, {
-                    class: "hashtag-chip",
+                    class: "hashtag",
                   },),
                 );
               }
