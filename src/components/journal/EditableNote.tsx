@@ -1,38 +1,28 @@
+import type { Editor as TiptapEditor, } from "@tiptap/core";
+import FileHandler from "@tiptap/extension-file-handler";
+import Highlight from "@tiptap/extension-highlight";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
-
-const NonInclusiveLink = Link.extend({
-  inclusive() {
-    return false;
-  },
-},);
 import Placeholder from "@tiptap/extension-placeholder";
-import TaskItem from "@tiptap/extension-task-item";
+import { Table, TableCell, TableHeader, TableRow, } from "@tiptap/extension-table";
 import TaskList from "@tiptap/extension-task-list";
-import { Markdown, } from "@tiptap/markdown";
-import type { EditorView, } from "@tiptap/pm/view";
+import Underline from "@tiptap/extension-underline";
+import { Plugin, PluginKey, } from "@tiptap/pm/state";
 import { EditorContent, useEditor, } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import { useEffect, } from "react";
+import { useEffect, useRef, } from "react";
+import { useDebounceCallback, } from "usehooks-ts";
 import "../editor/Editor.css";
+import { json2md, md2json, } from "../../lib/markdown";
 import { resolveAssetUrl, saveImage, } from "../../services/images";
 import { saveDailyNote, } from "../../services/storage";
-import { DailyNote, } from "../../types/note";
+import type { DailyNote, } from "../../types/note";
 import { EditorBubbleMenu, } from "../editor/EditorBubbleMenu";
+import { ClipboardTextSerializer, } from "../editor/extensions/clipboard";
 import { HashtagExtension, } from "../editor/extensions/hashtag/HashtagExtension";
-import { CustomParagraph, } from "../editor/extensions/paragraph/ParagraphExtension";
+import { CustomListKeymap, } from "../editor/extensions/list-keymap";
+import { CustomTaskItem, } from "../editor/extensions/task-item/TaskItemNode";
 import { WidgetExtension, } from "../editor/extensions/widget/WidgetExtension";
-
-function insertImageViaView(file: File, view: EditorView,) {
-  saveImage(file,).then(async (relativePath,) => {
-    const assetUrl = await resolveAssetUrl(relativePath,);
-    const node = view.state.schema.nodes.image.create({ src: assetUrl, alt: file.name, },);
-    const tr = view.state.tr.replaceSelectionWith(node,);
-    view.dispatch(tr,);
-  },).catch((err,) => {
-    console.error("Failed to insert image:", err,);
-  },);
-}
 
 interface EditableNoteProps {
   note: DailyNote;
@@ -40,91 +30,95 @@ interface EditableNoteProps {
 }
 
 export default function EditableNote({ note, placeholder = "Start writing...", }: EditableNoteProps,) {
+  const noteRef = useRef(note,);
+  noteRef.current = note;
+
+  const saveDebounced = useDebounceCallback((markdown: string,) => {
+    saveDailyNote({ ...noteRef.current, content: markdown, },).catch(console.error,);
+  }, 500,);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        paragraph: false,
+        heading: { levels: [1, 2, 3, 4, 5, 6,], },
+        listKeymap: false,
       },),
-      CustomParagraph,
+      Image.configure({ inline: true, allowBase64: false, },),
+      Underline,
       Placeholder.configure({ placeholder, },),
-      Image.configure({
-        inline: true,
-        allowBase64: false,
-      },),
-      NonInclusiveLink.configure({
-        openOnClick: false,
-        autolink: true,
-      },),
+      Link.extend({
+        inclusive() {
+          return false;
+        },
+        addProseMirrorPlugins() {
+          return [
+            new Plugin({
+              key: new PluginKey("linkCmdClick",),
+              props: {
+                handleClick(_view, _pos, event,) {
+                  if (!(event.metaKey || event.ctrlKey)) return false;
+                  const anchor = (event.target as HTMLElement).closest("a",);
+                  if (anchor && (anchor as HTMLAnchorElement).href) {
+                    event.preventDefault();
+                    window.open((anchor as HTMLAnchorElement).href, "_blank",);
+                    return true;
+                  }
+                  return false;
+                },
+              },
+            },),
+          ];
+        },
+      },).configure({ openOnClick: false, autolink: true, },),
       TaskList,
-      TaskItem.configure({ nested: true, },),
-      WidgetExtension,
-      Markdown,
+      CustomTaskItem.configure({ nested: true, },),
+      Table.configure({ resizable: true, HTMLAttributes: { class: "tiptap-table", }, },),
+      TableRow,
+      TableHeader,
+      TableCell,
+      Highlight,
       HashtagExtension,
+      WidgetExtension,
+      CustomListKeymap,
+      ClipboardTextSerializer,
+      FileHandler.configure({
+        allowedMimeTypes: ["image/png", "image/jpeg", "image/gif", "image/webp",],
+        onDrop: (_editor: TiptapEditor, files: File[], pos: number,) => {
+          (async () => {
+            for (const file of files) {
+              const relativePath = await saveImage(file,);
+              const assetUrl = await resolveAssetUrl(relativePath,);
+              _editor.chain().insertContentAt(pos, {
+                type: "image",
+                attrs: { src: assetUrl, alt: file.name, },
+              },).focus().run();
+            }
+          })().catch(console.error,);
+          return true;
+        },
+        onPaste: (_editor: TiptapEditor, files: File[],) => {
+          (async () => {
+            for (const file of files) {
+              const relativePath = await saveImage(file,);
+              const assetUrl = await resolveAssetUrl(relativePath,);
+              _editor.chain().focus().insertContent({
+                type: "image",
+                attrs: { src: assetUrl, alt: file.name, },
+              },).run();
+            }
+          })().catch(console.error,);
+          return true;
+        },
+      },),
     ],
-    content: "",
+    content: md2json(note.content,),
     editable: true,
     immediatelyRender: false,
     editorProps: {
       attributes: {
         class: "max-w-none focus:outline-hidden px-6 text-gray-900 dark:text-gray-100",
       },
-      handlePaste: (view, event,) => {
-        const items = event.clipboardData?.items;
-        if (!items) return false;
-
-        for (const item of Array.from(items,)) {
-          if (item.type.startsWith("image/",)) {
-            const file = item.getAsFile();
-            if (file) {
-              event.preventDefault();
-              insertImageViaView(file, view,);
-              return true;
-            }
-          }
-        }
-        return false;
-      },
-      handleDrop: (view, event,) => {
-        const files = event.dataTransfer?.files;
-        if (!files?.length) return false;
-
-        for (const file of Array.from(files,)) {
-          if (file.type.startsWith("image/",)) {
-            event.preventDefault();
-            insertImageViaView(file, view,);
-            return true;
-          }
-        }
-        return false;
-      },
-      handleClick: (_view, _pos, event,) => {
-        if (event.metaKey) {
-          const anchor = (event.target as HTMLElement).closest("a",);
-          if (anchor?.href) {
-            window.open(anchor.href, "_blank",);
-            return true;
-          }
-        }
-        return false;
-      },
       handleKeyDown: (_view, event,) => {
-        if (event.key === "Tab") {
-          event.preventDefault();
-          if (event.shiftKey) {
-            if (editor?.can().liftListItem("listItem",)) {
-              editor.commands.liftListItem("listItem",);
-            } else if (editor?.can().liftListItem("taskItem",)) {
-              editor.commands.liftListItem("taskItem",);
-            }
-          } else {
-            if (editor?.can().sinkListItem("listItem",)) {
-              editor.commands.sinkListItem("listItem",);
-            } else if (editor?.can().sinkListItem("taskItem",)) {
-              editor.commands.sinkListItem("taskItem",);
-            }
-          }
-          return true;
-        }
         if (event.metaKey && event.key === "l") {
           event.preventDefault();
           editor?.chain().focus().toggleTaskList().run();
@@ -133,7 +127,11 @@ export default function EditableNote({ note, placeholder = "Start writing...", }
         if (event.key === "Backspace") {
           const { $from, empty, } = _view.state.selection;
           if (empty && $from.parentOffset === 0 && $from.parent.type.name === "heading") {
-            const tr = _view.state.tr.setBlockType($from.before(), $from.after(), _view.state.schema.nodes.paragraph,);
+            const tr = _view.state.tr.setBlockType(
+              $from.before(),
+              $from.after(),
+              _view.state.schema.nodes.paragraph,
+            );
             _view.dispatch(tr,);
             return true;
           }
@@ -142,21 +140,17 @@ export default function EditableNote({ note, placeholder = "Start writing...", }
       },
     },
     onUpdate: ({ editor, },) => {
-      saveDailyNote({ ...note, content: editor.getMarkdown(), },).catch(console.error,);
+      saveDebounced(json2md(editor.getJSON(),),);
     },
   },);
 
-  // Parse markdown via setContent (useEditor's content prop doesn't run through Markdown extension)
   useEffect(() => {
-    if (editor && note.content) {
-      // Normalize both sides: strip ZWSP + collapse blank lines so the
-      // preprocessed note.content and the serialised editor output compare equal.
-      const norm = (s: string,) => s.replace(/\u200B/g, "",).replace(/\n{2,}/g, "\n\n",).trimEnd();
-      if (norm(editor.getMarkdown(),) !== norm(note.content,)) {
-        editor.commands.setContent(note.content, { contentType: "markdown", },);
-      }
+    if (!editor || editor.isDestroyed) return;
+    const incoming = md2json(note.content,);
+    if (!editor.isFocused) {
+      editor.commands.setContent(incoming, { emitUpdate: false, },);
     }
-  }, [editor, note.content,],);
+  }, [note.content,],);
 
   return (
     <>
