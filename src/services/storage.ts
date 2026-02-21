@@ -27,46 +27,11 @@ async function ensureDir(dir: string,) {
   }
 }
 
-/**
- * Strip &nbsp; entities that TipTap's markdown serializer produces for
- * empty paragraphs / list items. Left in the file they render as literal
- * text on reload.
- */
-function stripNbsp(markdown: string,): string {
-  return markdown.replace(/&nbsp;/g, "",);
-}
-
-const ZWSP = "\u200B";
-
-/**
- * Convert blank lines in markdown into zero-width-space paragraphs so
- * TipTap renders them as visible empty lines in the editor.
- */
-function preserveBlankLines(markdown: string,): string {
-  return markdown
-    .trimEnd()
-    // 2+ blank lines → ZWSP paragraph
-    .replace(/\n{3,}/g, `\n\n${ZWSP}\n\n`,)
-    // Single blank line: regular bullet → task item
-    .replace(/([-*] (?!\[[ xX]\] ).+)\n\n([-*] \[[ xX]\] )/g, `$1\n\n${ZWSP}\n\n$2`,)
-    // Single blank line: task item → regular bullet
-    .replace(/([-*] \[[ xX]\] .+)\n\n([-*] (?!\[[ xX]\] ))/g, `$1\n\n${ZWSP}\n\n$2`,);
-}
-
-/**
- * Normalize serialized markdown for writing to disk:
- * strip ZWSP characters and collapse runs of 3+ newlines back to 2.
- */
-function normalizeForSave(markdown: string,): string {
-  return markdown.replace(/\u200B/g, "",).replace(/\n{3,}/g, "\n\n",);
-}
-
 export async function saveDailyNote(note: DailyNote,): Promise<void> {
   const noteDir = await getNoteDir(note.date,);
   await ensureDir(noteDir,);
   const filepath = await getNotePath(note.date,);
-  // Convert asset:// URLs back to relative paths, strip ZWSP, normalize blanks
-  let body = normalizeForSave(stripNbsp(unresolveMarkdownImages(note.content,),),);
+  let body = unresolveMarkdownImages(note.content,);
   if (!body.endsWith("\n",)) body += "\n";
   await writeTextFile(filepath, buildFrontmatter(note.city, body,),);
 }
@@ -81,10 +46,7 @@ export async function loadDailyNote(date: string,): Promise<DailyNote | null> {
 
   const raw = await readTextFile(filepath,);
   const { city, body, } = parseFrontmatter(raw,);
-  // Strip &nbsp; from existing files, resolve asset paths, then
-  // convert blank lines into ZWSP paragraphs so TipTap shows them.
-  const resolved = await resolveMarkdownImages(stripNbsp(body,),);
-  const content = preserveBlankLines(resolved,);
+  const content = await resolveMarkdownImages(body,);
   return { date, content, city, };
 }
 
