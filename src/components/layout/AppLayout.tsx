@@ -475,15 +475,6 @@ export default function AppLayout() {
           title={`Window opacity: ${Math.round(opacity * 100,)}%`}
         />
         <button
-          onClick={() => formatHandlerRef.current?.()}
-          className="mr-1 p-1 rounded-md transition-colors cursor-default text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
-          title="Format note (⌘⇧I)"
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-            <path d="M2 2h8a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2zm0 4h12a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2zm0 4h6a1 1 0 0 1 0 2H2a1 1 0 0 1 0-2z" />
-          </svg>
-        </button>
-        <button
           onClick={async () => {
             const next = !isPinned;
             await getCurrentWindow().setAlwaysOnTop(next,);
