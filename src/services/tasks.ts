@@ -122,34 +122,14 @@ function extractAllTaskTexts(content: string,): Set<string> {
   return texts;
 }
 
-const TODO_HEADING = /^#{1,6}\s+To-?do\s*$/i;
-
-/**
- * Place rolled-over tasks under a "## To-do" section in today's content.
- * If the section already exists, new tasks are inserted at its top.
- * Otherwise a new section is created above the existing content.
- */
 function prependTasks(content: string, tasks: TaskLine[],): string {
   if (tasks.length === 0) return content;
 
   const taskLines = tasks.map((t,) => `${t.indent}- [ ] ${t.text}`).join("\n",);
   const trimmed = content.trim();
 
-  if (!trimmed) return `## To-do\n\n${taskLines}`;
-
-  const lines = trimmed.split("\n",);
-  const todoIdx = lines.findIndex((l,) => TODO_HEADING.test(l,));
-
-  if (todoIdx !== -1) {
-    let insertIdx = todoIdx + 1;
-    while (insertIdx < lines.length && lines[insertIdx].trim() === "") {
-      insertIdx++;
-    }
-    lines.splice(insertIdx, 0, taskLines,);
-    return lines.join("\n",);
-  }
-
-  return `## To-do\n\n${taskLines}\n\n${trimmed}`;
+  if (!trimmed) return taskLines;
+  return `${taskLines}\n\n${trimmed}`;
 }
 
 /**
