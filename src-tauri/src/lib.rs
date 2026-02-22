@@ -11,14 +11,14 @@ use tauri_plugin_fs::FsExt;
 use tauri_plugin_updater::UpdaterExt;
 
 #[tauri::command]
-fn set_window_opacity(app: AppHandle, opacity: f64) -> Result<(), String> {
+fn set_window_opacity(_app: AppHandle, _opacity: f64) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
-        let window = app.get_webview_window("main").ok_or("Window not found")?;
+        let window = _app.get_webview_window("main").ok_or("Window not found")?;
         let ns_win = window.ns_window().map_err(|e| e.to_string())?;
         unsafe {
             let _: () =
-                objc::msg_send![ns_win as *mut objc::runtime::Object, setAlphaValue: opacity];
+                objc::msg_send![ns_win as *mut objc::runtime::Object, setAlphaValue: _opacity];
         }
     }
     Ok(())
