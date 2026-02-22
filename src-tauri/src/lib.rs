@@ -14,9 +14,7 @@ use tauri_plugin_updater::UpdaterExt;
 fn set_window_opacity(app: AppHandle, opacity: f64) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
-        let window = app
-            .get_webview_window("main")
-            .ok_or("Window not found")?;
+        let window = app.get_webview_window("main").ok_or("Window not found")?;
         let ns_win = window.ns_window().map_err(|e| e.to_string())?;
         unsafe {
             let _: () =
@@ -47,7 +45,10 @@ pub fn run() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![extend_fs_scope, set_window_opacity])
+        .invoke_handler(tauri::generate_handler![
+            extend_fs_scope,
+            set_window_opacity
+        ])
         .setup(|app| {
             #[cfg(desktop)]
             app.handle()
@@ -124,10 +125,7 @@ pub fn run() {
                                 Err(e) => {
                                     handle
                                         .dialog()
-                                        .message(format!(
-                                            "Could not check for updates: {}",
-                                            e
-                                        ))
+                                        .message(format!("Could not check for updates: {}", e))
                                         .title("Update Error")
                                         .kind(MessageDialogKind::Error)
                                         .blocking_show();
