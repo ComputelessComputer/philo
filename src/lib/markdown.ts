@@ -66,7 +66,7 @@ export function md2json(markdown: string,): JSONContent {
 
 export function json2md(json: JSONContent,): string {
   try {
-    return getMarkdownManager().serialize(json,);
+    return getMarkdownManager().serialize(json,).replace(/&nbsp;/g, "",);
   } catch {
     return "";
   }
