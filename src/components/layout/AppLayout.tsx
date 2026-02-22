@@ -1,58 +1,25 @@
 import { invoke, } from "@tauri-apps/api/core";
-import { getCurrentWindow, } from "@tauri-apps/api/window";
-import Image from "@tiptap/extension-image";
-import Link from "@tiptap/extension-link";
-import Placeholder from "@tiptap/extension-placeholder";
-import TaskItem from "@tiptap/extension-task-item";
-import TaskList from "@tiptap/extension-task-list";
-import { Markdown, } from "@tiptap/markdown";
-import { TextSelection, } from "@tiptap/pm/state";
-import type { EditorView, } from "@tiptap/pm/view";
-import { EditorContent, useEditor, } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import { useCallback, useEffect, useMemo, useRef, useState, } from "react";
-import "../editor/Editor.css";
 import { listen, } from "@tauri-apps/api/event";
+import { getCurrentWindow, } from "@tauri-apps/api/window";
 import { watch, } from "@tauri-apps/plugin-fs";
+import { useCallback, useEffect, useMemo, useRef, useState, } from "react";
 import { useCurrentDate, } from "../../hooks/useCurrentDate";
 import { useTimezoneCity, } from "../../hooks/useTimezoneCity";
-import { formatNote, } from "../../services/format";
-import { resolveAssetUrl, saveImage, } from "../../services/images";
 import type { LibraryItem, } from "../../services/library";
 import { getJournalDir, getNotePath, initJournalScope, } from "../../services/paths";
 import { getOrCreateDailyNote, loadDailyNote, saveDailyNote, } from "../../services/storage";
 import { rolloverTasks, } from "../../services/tasks";
 import { checkForUpdate, type UpdateInfo, } from "../../services/updater";
 import { DailyNote, formatDate, getDaysAgo, isToday, } from "../../types/note";
-import { EditorBubbleMenu, } from "../editor/EditorBubbleMenu";
-import { HashtagExtension, } from "../editor/extensions/hashtag/HashtagExtension";
-import { WidgetExtension, } from "../editor/extensions/widget/WidgetExtension";
-import EditableNote from "../journal/EditableNote";
+import EditableNote, { type EditableNoteHandle, } from "../journal/EditableNote";
 import { LibraryDrawer, } from "../library/LibraryDrawer";
 import { SettingsModal, } from "../settings/SettingsModal";
 import { UpdateBanner, } from "../UpdateBanner";
-
-const NonInclusiveLink = Link.extend({
-  inclusive() {
-    return false;
-  },
-},);
 
 function applyCity(savedCity: string | null | undefined, newCity: string,): string {
   if (!savedCity || savedCity === newCity) return newCity;
   const from = savedCity.includes(" → ",) ? savedCity.split(" → ",)[0] : savedCity;
   return `${from} → ${newCity}`;
-}
-
-function insertImageViaView(file: File, view: EditorView,) {
-  saveImage(file,).then(async (relativePath,) => {
-    const assetUrl = await resolveAssetUrl(relativePath,);
-    const node = view.state.schema.nodes.image.create({ src: assetUrl, alt: file.name, },);
-    const tr = view.state.tr.replaceSelectionWith(node,);
-    view.dispatch(tr,);
-  },).catch((err,) => {
-    console.error("Failed to insert image:", err,);
-  },);
 }
 
 function DateHeader({ date, city, }: { date: string; city?: string | null; },) {
@@ -169,8 +136,7 @@ export default function AppLayout() {
       loadDailyNote(today,)
         .then((reloaded,) => {
           if (!reloaded) return;
-          const norm = (s: string,) => s.replace(/\u200B/g, "",).replace(/\n{2,}/g, "\n\n",).trimEnd();
-          if (norm(reloaded.content,) !== norm(todayNoteRef.current?.content ?? "",)) {
+          if (reloaded.content.trimEnd() !== (todayNoteRef.current?.content ?? "").trimEnd()) {
             selfWriteTimer.current = Date.now();
             setTodayNote(reloaded,);
           }
@@ -269,150 +235,11 @@ export default function AppLayout() {
     [],
   );
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Placeholder.configure({
-        placeholder: "Start writing...",
-      },),
-      Image.configure({
-        inline: true,
-        allowBase64: false,
-      },),
-      NonInclusiveLink.configure({ openOnClick: false, autolink: true, },),
-      TaskList,
-      TaskItem.configure({ nested: true, },),
-      WidgetExtension,
-      Markdown,
-      HashtagExtension,
-    ],
-    content: todayNote?.content || "",
-    immediatelyRender: false,
-    editorProps: {
-      attributes: {
-        class: "max-w-none focus:outline-hidden px-6 text-gray-900 dark:text-gray-100",
-      },
-      handleClick: (_view, _pos, event,) => {
-        if (event.metaKey) {
-          const anchor = (event.target as HTMLElement).closest("a",);
-          if (anchor?.href) {
-            window.open(anchor.href, "_blank",);
-            return true;
-          }
-        }
-        return false;
-      },
-      handlePaste: (view, event,) => {
-        const items = event.clipboardData?.items;
-        if (!items) return false;
-
-        for (const item of Array.from(items,)) {
-          if (item.type.startsWith("image/",)) {
-            const file = item.getAsFile();
-            if (file) {
-              event.preventDefault();
-              insertImageViaView(file, view,);
-              return true;
-            }
-          }
-        }
-        return false;
-      },
-      handleDrop: (view, event,) => {
-        const files = event.dataTransfer?.files;
-        if (!files?.length) return false;
-
-        for (const file of Array.from(files,)) {
-          if (file.type.startsWith("image/",)) {
-            event.preventDefault();
-            insertImageViaView(file, view,);
-            return true;
-          }
-        }
-        return false;
-      },
-      handleKeyDown: (view, event,) => {
-        if ((event.metaKey || event.ctrlKey) && event.shiftKey && event.key === "i") {
-          event.preventDefault();
-          formatHandlerRef.current?.();
-          return true;
-        }
-        if ((event.metaKey || event.ctrlKey) && event.key === "a") {
-          event.preventDefault();
-          view.dispatch(
-            view.state.tr.setSelection(TextSelection.create(view.state.doc, 0, view.state.doc.content.size,),),
-          );
-          return true;
-        }
-        if ((event.metaKey || event.ctrlKey) && event.key === "l") {
-          event.preventDefault();
-          editor?.commands.toggleTaskList();
-          return true;
-        }
-        if (event.key === "Tab") {
-          event.preventDefault();
-          if (event.shiftKey) {
-            if (editor?.can().liftListItem("listItem",)) {
-              editor.commands.liftListItem("listItem",);
-            } else if (editor?.can().liftListItem("taskItem",)) {
-              editor.commands.liftListItem("taskItem",);
-            }
-          } else {
-            if (editor?.can().sinkListItem("listItem",)) {
-              editor.commands.sinkListItem("listItem",);
-            } else if (editor?.can().sinkListItem("taskItem",)) {
-              editor.commands.sinkListItem("taskItem",);
-            }
-          }
-          return true;
-        }
-        if (event.key === "Backspace") {
-          const { $from, empty, } = view.state.selection;
-          if (empty && $from.parentOffset === 0 && $from.parent.type.name === "heading") {
-            const tr = view.state.tr.setBlockType($from.before(), $from.after(), view.state.schema.nodes.paragraph,);
-            view.dispatch(tr,);
-            return true;
-          }
-        }
-        return false;
-      },
-    },
-    onUpdate: ({ editor, },) => {
-      if (!todayNote) return;
-      handleTodaySave({ ...todayNote, content: editor.getMarkdown(), city: cityRef.current, },);
-    },
-  },);
-
-  // Sync editor content when todayNote loads from disk
-  useEffect(() => {
-    if (editor && todayNote) {
-      const current = editor.getMarkdown();
-      if (current !== todayNote.content) {
-        const scrollEl = scrollRef.current;
-        const top = scrollEl?.scrollTop ?? 0;
-        editor.commands.setContent(todayNote.content, { contentType: "markdown", },);
-        if (scrollEl) {
-          scrollEl.scrollTop = top;
-          requestAnimationFrame(() => {
-            scrollEl.scrollTop = top;
-          },);
-        }
-      }
-    }
-  }, [editor, todayNote,],);
-
+  const todayEditorRef = useRef<EditableNoteHandle>(null,);
   const todayRef = useRef<HTMLDivElement>(null,);
   const scrollRef = useRef<HTMLDivElement>(null,);
   const selfWriteTimer = useRef(0,);
   const notePathsRef = useRef<Map<string, string>>(new Map(),);
-  const formatHandlerRef = useRef<(() => void) | null>(null,);
-  formatHandlerRef.current = () => {
-    if (!editor) return;
-    const current = editor.getMarkdown();
-    const formatted = formatNote(current,);
-    if (formatted.trimEnd() === current.trimEnd()) return;
-    editor.commands.setContent(formatted, { contentType: "markdown", },);
-  };
 
   // "Go to Today" badge when scrolled away
   const [todayDirection, setTodayDirection,] = useState<"above" | "below" | null>(null,);
@@ -505,13 +332,18 @@ export default function AppLayout() {
         <div
           ref={todayRef}
           className="min-h-[400px]"
-          onClick={() => editor?.commands.focus()}
+          onClick={() => todayEditorRef.current?.focus()}
         >
           <div className="px-6 pt-6 pb-4">
             <DateHeader date={today} city={currentCity} />
           </div>
-          {editor && <EditorBubbleMenu editor={editor} />}
-          <EditorContent editor={editor} />
+          {todayNote && (
+            <EditableNote
+              ref={todayEditorRef}
+              note={todayNote}
+              onSave={handleTodaySave}
+            />
+          )}
         </div>
 
         {/* Past notes — loaded lazily as they scroll into view */}
@@ -542,6 +374,7 @@ export default function AppLayout() {
         open={libraryOpen}
         onClose={() => setLibraryOpen(false,)}
         onInsert={(item: LibraryItem,) => {
+          const editor = todayEditorRef.current?.editor;
           if (!editor) return;
           editor.chain().focus().insertContent({
             type: "widget",
