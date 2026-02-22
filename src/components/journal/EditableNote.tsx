@@ -1,3 +1,4 @@
+import { openUrl, } from "@tauri-apps/plugin-opener";
 import type { Editor as TiptapEditor, } from "@tiptap/core";
 import FileHandler from "@tiptap/extension-file-handler";
 import Highlight from "@tiptap/extension-highlight";
@@ -75,7 +76,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
                     const anchor = (event.target as HTMLElement).closest("a",);
                     if (anchor && (anchor as HTMLAnchorElement).href) {
                       event.preventDefault();
-                      window.open((anchor as HTMLAnchorElement).href, "_blank",);
+                      openUrl((anchor as HTMLAnchorElement).href,);
                       return true;
                     }
                     return false;
