@@ -57,8 +57,35 @@ function getMarkdownManager(): MarkdownManager {
 
 export function md2json(markdown: string,): JSONContent {
   try {
-    const result = getMarkdownManager().parse(markdown,);
-    return isValidContent(result,) ? result : EMPTY_DOC;
+    const cleaned = markdown.replace(/&nbsp;/g, "",);
+    // Split on 3+ newlines — these mark where empty paragraphs should be injected.
+    // A single blank line (\n\n) is just a block separator; two blank lines (\n\n\n) = empty paragraph.
+    const parts = cleaned.split(/\n{3,}/,);
+
+    if (parts.length <= 1) {
+      const result = getMarkdownManager().parse(cleaned,);
+      return isValidContent(result,) ? result : EMPTY_DOC;
+    }
+
+    const allNodes: JSONContent[] = [];
+
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i].trim();
+
+      if (part) {
+        const parsed = getMarkdownManager().parse(part,);
+        if (isValidContent(parsed,) && parsed.content) {
+          allNodes.push(...parsed.content,);
+        }
+      }
+
+      // Insert empty paragraph between chunks (not after the last one)
+      if (i < parts.length - 1) {
+        allNodes.push({ type: "paragraph", },);
+      }
+    }
+
+    return allNodes.length > 0 ? { type: "doc", content: allNodes, } : EMPTY_DOC;
   } catch {
     return EMPTY_DOC;
   }
@@ -66,7 +93,15 @@ export function md2json(markdown: string,): JSONContent {
 
 export function json2md(json: JSONContent,): string {
   try {
-    return getMarkdownManager().serialize(json,).replace(/&nbsp;/g, "",);
+    return (
+      getMarkdownManager()
+        .serialize(json,)
+        // Strip &nbsp; that tiptap/markdown emits for empty paragraphs.
+        // This leaves \n\n\n\n at empty paragraph boundaries (surrounding \n\n on each side).
+        .replace(/&nbsp;/g, "",)
+        // Collapse to exactly \n\n\n so the file uses two blank lines to mark empty paragraphs.
+        .replace(/\n{4,}/g, "\n\n\n",)
+    );
   } catch {
     return "";
   }
