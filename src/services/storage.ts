@@ -46,7 +46,7 @@ export async function loadDailyNote(date: string,): Promise<DailyNote | null> {
 
   const raw = await readTextFile(filepath,);
   const { city, body, } = parseFrontmatter(raw,);
-  const content = await resolveMarkdownImages(body,);
+  const content = await resolveMarkdownImages(body.replace(/&nbsp;/g, "",),);
   return { date, content, city, };
 }
 
