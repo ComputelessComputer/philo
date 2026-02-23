@@ -8,7 +8,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import { Table, TableCell, TableHeader, TableRow, } from "@tiptap/extension-table";
 import TaskList from "@tiptap/extension-task-list";
 import Underline from "@tiptap/extension-underline";
-import { Plugin, PluginKey, } from "@tiptap/pm/state";
+import { Plugin, PluginKey, Selection, TextSelection, } from "@tiptap/pm/state";
 import { EditorContent, useEditor, } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { forwardRef, useEffect, useImperativeHandle, useRef, } from "react";
@@ -135,6 +135,13 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
           class: "max-w-none focus:outline-hidden px-6 text-gray-900 dark:text-gray-100",
         },
         handleKeyDown: (_view, event,) => {
+          if ((event.metaKey || event.ctrlKey) && event.key === "a") {
+            const { doc, } = _view.state;
+            const from = Selection.atStart(doc,).from;
+            const to = Selection.atEnd(doc,).to;
+            _view.dispatch(_view.state.tr.setSelection(TextSelection.create(doc, from, to,),),);
+            return true;
+          }
           if (event.metaKey && event.key === "l") {
             event.preventDefault();
             editor?.chain().focus().toggleTaskList().run();
