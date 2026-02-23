@@ -274,7 +274,7 @@ export default function AppLayout() {
   return (
     <div
       ref={scrollRef}
-      className="h-screen bg-white dark:bg-gray-900 overflow-y-scroll relative"
+      className="h-screen bg-white dark:bg-gray-900 overflow-y-scroll overflow-x-hidden relative"
     >
       {/* Titlebar: drag region + pin button */}
       <div
