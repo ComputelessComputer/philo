@@ -93,15 +93,10 @@ export const CustomTaskItem = TaskItem.extend({
         }
       },);
 
-      content.contentEditable = "true";
-      content.style.cssText = "display: inline; outline: none;";
-
       label.contentEditable = "false";
-      label.style.cssText = "display: flex; align-items: flex-start; gap: 0.5rem;";
-
       label.appendChild(checkbox,);
-      label.appendChild(content,);
       listItem.appendChild(label,);
+      listItem.appendChild(content,);
 
       // Add rollover badge if originDate exists
       if (node.attrs.originDate && node.attrs.originDate !== node.attrs.checked) {
