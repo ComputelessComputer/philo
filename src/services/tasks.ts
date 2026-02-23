@@ -1,3 +1,4 @@
+import { json2md, md2json, parseJsonContent, } from "../lib/markdown";
 import { getDaysAgo, getToday, } from "../types/note";
 import type { DailyNote, } from "../types/note";
 import { loadDailyNote, saveDailyNote, } from "./storage";
@@ -141,29 +142,27 @@ function prependTasks(content: string, tasks: TaskLine[],): string {
  */
 export async function rolloverTasks(days: number = 30,): Promise<boolean> {
   const today = getToday();
-  // Map from task text → TaskLine (preserves indent, deduplicates by text)
   const taskMap = new Map<string, TaskLine>();
   const modifiedNotes: DailyNote[] = [];
 
-  // Scan past notes
   for (let i = 1; i <= days; i++) {
     const date = getDaysAgo(i,);
     const note = await loadDailyNote(date,);
     if (!note || !note.content.trim()) continue;
+    const markdown = json2md(parseJsonContent(note.content,),);
+    if (!markdown.trim()) continue;
 
-    // 1. Extract unchecked tasks → move to today (preserving nesting)
-    const { tasks, cleaned, } = extractUncheckedTasks(note.content,);
+    const { tasks, cleaned, } = extractUncheckedTasks(markdown,);
     if (tasks.length > 0) {
       tasks.forEach((t,) => {
         if (!taskMap.has(t.text,)) {
           taskMap.set(t.text, t,);
         }
       },);
-      modifiedNotes.push({ ...note, content: cleaned, },);
+      modifiedNotes.push({ ...note, content: JSON.stringify(md2json(cleaned,),), },);
     }
 
-    // 2. Find checked recurring tasks that are due again
-    const checkedRecurring = extractCheckedRecurringTasks(note.content,);
+    const checkedRecurring = extractCheckedRecurringTasks(markdown,);
     for (const taskText of checkedRecurring) {
       const recurrence = parseRecurrence(taskText,)!;
       const nextDue = addDaysToDate(date, recurrence.intervalDays,);
@@ -175,19 +174,15 @@ export async function rolloverTasks(days: number = 30,): Promise<boolean> {
 
   if (taskMap.size === 0) return false;
 
-  // Save cleaned past notes (unchecked tasks removed)
   await Promise.all(modifiedNotes.map((note,) => saveDailyNote(note,)),);
-
-  // Deduplicate against tasks already in today's note
   const todayNote = await loadDailyNote(today,);
-  const todayContent = todayNote?.content ?? "";
-  const existingTasks = extractAllTaskTexts(todayContent,);
+  const todayMarkdown = todayNote ? json2md(parseJsonContent(todayNote.content,),) : "";
+  const existingTasks = extractAllTaskTexts(todayMarkdown,);
   const newTasks = [...taskMap.values(),].filter((t,) => !existingTasks.has(t.text,));
-
   if (newTasks.length === 0) return false;
 
-  const updated = prependTasks(todayContent, newTasks,);
-  await saveDailyNote({ date: today, content: updated, },);
-
+  const updated = prependTasks(todayMarkdown, newTasks,);
+  const updatedJson = JSON.stringify(md2json(updated,),);
+  await saveDailyNote({ date: today, content: updatedJson, city: todayNote?.city, },);
   return true;
 }

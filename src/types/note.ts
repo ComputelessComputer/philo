@@ -1,6 +1,6 @@
 export interface DailyNote {
   date: string; // ISO date string (YYYY-MM-DD)
-  content: string; // markdown
+  content: string; // TipTap JSON string (in-memory), markdown on disk
   city?: string | null;
 }
 

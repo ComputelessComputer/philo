@@ -14,7 +14,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { forwardRef, useEffect, useImperativeHandle, useRef, } from "react";
 import { useDebounceCallback, } from "usehooks-ts";
 import "../editor/Editor.css";
-import { json2md, md2json, } from "../../lib/markdown";
+import { parseJsonContent, } from "../../lib/markdown";
 import { resolveAssetUrl, saveImage, } from "../../services/images";
 import { saveDailyNote, } from "../../services/storage";
 import type { DailyNote, } from "../../types/note";
@@ -44,8 +44,8 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
     const onSaveRef = useRef(onSave,);
     onSaveRef.current = onSave;
 
-    const saveDebounced = useDebounceCallback((markdown: string,) => {
-      const updated = { ...noteRef.current, content: markdown, };
+    const saveDebounced = useDebounceCallback((jsonStr: string,) => {
+      const updated = { ...noteRef.current, content: jsonStr, };
       if (onSaveRef.current) {
         onSaveRef.current(updated,);
       } else {
@@ -127,7 +127,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
           },
         },),
       ],
-      content: md2json(note.content,),
+      content: parseJsonContent(note.content,),
       editable: true,
       immediatelyRender: false,
       editorProps: {
@@ -163,7 +163,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
         },
       },
       onUpdate: ({ editor, },) => {
-        saveDebounced(json2md(editor.getJSON(),),);
+        saveDebounced(JSON.stringify(editor.getJSON(),),);
       },
     },);
 
@@ -182,7 +182,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
 
     useEffect(() => {
       if (!editor || editor.isDestroyed) return;
-      const incoming = md2json(note.content,);
+      const incoming = parseJsonContent(note.content,);
       if (!editor.isFocused) {
         editor.commands.setContent(incoming, { emitUpdate: false, },);
       }

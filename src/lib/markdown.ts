@@ -106,3 +106,13 @@ export function json2md(json: JSONContent,): string {
     return "";
   }
 }
+
+export function parseJsonContent(raw: string | undefined | null,): JSONContent {
+  if (typeof raw !== "string" || !raw.trim()) return EMPTY_DOC;
+  try {
+    const parsed = JSON.parse(raw,);
+    return isValidContent(parsed,) ? parsed : EMPTY_DOC;
+  } catch {
+    return EMPTY_DOC;
+  }
+}

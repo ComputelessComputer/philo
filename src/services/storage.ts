@@ -1,4 +1,5 @@
 import { exists, mkdir, readTextFile, writeTextFile, } from "@tauri-apps/plugin-fs";
+import { EMPTY_DOC, json2md, md2json, parseJsonContent, } from "../lib/markdown";
 import { DailyNote, getDaysAgo, } from "../types/note";
 import { resolveMarkdownImages, unresolveMarkdownImages, } from "./images";
 import { getNoteDir, getNotePath, } from "./paths";
@@ -31,7 +32,8 @@ export async function saveDailyNote(note: DailyNote,): Promise<void> {
   const noteDir = await getNoteDir(note.date,);
   await ensureDir(noteDir,);
   const filepath = await getNotePath(note.date,);
-  let body = unresolveMarkdownImages(note.content,);
+  const json = parseJsonContent(note.content,);
+  let body = unresolveMarkdownImages(json2md(json,),);
   if (!body.endsWith("\n",)) body += "\n";
   await writeTextFile(filepath, buildFrontmatter(note.city, body,),);
 }
@@ -46,14 +48,15 @@ export async function loadDailyNote(date: string,): Promise<DailyNote | null> {
 
   const raw = await readTextFile(filepath,);
   const { city, body, } = parseFrontmatter(raw,);
-  const content = await resolveMarkdownImages(body.replace(/&nbsp;/g, "",),);
+  const resolved = await resolveMarkdownImages(body.replace(/&nbsp;/g, "",),);
+  const content = JSON.stringify(md2json(resolved,),);
   return { date, content, city, };
 }
 
 export async function createEmptyDailyNote(date: string,): Promise<DailyNote> {
   const note: DailyNote = {
     date,
-    content: "",
+    content: JSON.stringify(EMPTY_DOC,),
   };
 
   await saveDailyNote(note,);
