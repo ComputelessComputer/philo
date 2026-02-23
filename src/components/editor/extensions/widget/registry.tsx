@@ -27,7 +27,7 @@ const barColors = {
   accent: "#7c3aed",
 };
 
-const font = "'IBM Plex Mono', monospace";
+const font = "'IBM Plex Sans', sans-serif";
 
 export const { registry, } = defineRegistry(widgetCatalog, {
   components: {

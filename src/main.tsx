@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import "@ibm/plex-mono/css/ibm-plex-mono-all.css";
+import "@ibm/plex-sans/css/ibm-plex-sans-all.css";
 import "@fontsource/instrument-serif/latin.css";
 import "@fontsource/instrument-serif/latin-italic.css";
 import "../vendor/hyprnote/packages/tiptap/styles.css";

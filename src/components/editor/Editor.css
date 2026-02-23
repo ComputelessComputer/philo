@@ -21,7 +21,7 @@
   border-radius: 4px;
   background: transparent;
   color: #d1d5db;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'IBM Plex Sans', sans-serif;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
@@ -111,7 +111,7 @@
 .widget-prompt {
   font-size: 12px;
   color: #9ca3af;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'IBM Plex Sans', sans-serif;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -133,7 +133,7 @@
   background: #ffffff;
   color: #6b7280;
   font-size: 12px;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'IBM Plex Sans', sans-serif;
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -197,14 +197,14 @@
   font-weight: 600;
   color: #ef4444;
   margin: 0 0 6px 0;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'IBM Plex Sans', sans-serif;
 }
 
 .widget-error-message {
   font-size: 12px;
   color: #9ca3af;
   margin: 0;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'IBM Plex Sans', sans-serif;
 }
 
 /* Widget loading state */
@@ -243,13 +243,13 @@
   font-size: 13px;
   font-weight: 500;
   color: #6b7280;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'IBM Plex Sans', sans-serif;
 }
 
 .widget-loading-prompt {
   font-size: 12px;
   color: #9ca3af;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'IBM Plex Sans', sans-serif;
   max-width: 300px;
   text-align: center;
   overflow: hidden;
