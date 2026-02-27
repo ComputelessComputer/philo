@@ -123,7 +123,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
 
       {/* Modal */}
       <div
-        className="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 max-h-[80vh] overflow-y-auto overflow-x-hidden"
+        className="modal-scroll relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 max-h-[80vh] overflow-y-auto overflow-x-hidden"
         onClick={(e,) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
@@ -167,7 +167,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
           </label>
           <div className="flex items-center gap-2">
             <div
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-500 bg-gray-50"
+              className="flex-1 min-w-0 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-500 bg-gray-50"
               style={mono}
               title={settings.vaultDir || settings.journalDir || defaultJournalDir}
             >

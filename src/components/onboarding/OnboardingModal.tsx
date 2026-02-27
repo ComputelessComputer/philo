@@ -128,7 +128,7 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
         data-tauri-drag-region
       />
       <div className="absolute inset-0 bg-black/35 backdrop-blur-sm" />
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto overflow-x-hidden">
+      <div className="modal-scroll relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <h2 className="text-lg font-medium text-gray-900 mb-5" style={mono}>
           Let&apos;s get started.
         </h2>
@@ -139,7 +139,7 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
           </label>
           <div className="flex items-center gap-2">
             <div
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-500 bg-gray-50"
+              className="flex-1 min-w-0 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-500 bg-gray-50"
               style={mono}
               title={vaultDir || "..."}
             >

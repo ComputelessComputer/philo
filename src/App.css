@@ -13,6 +13,8 @@ html, body {
 .vault-path {
   position: relative;
   display: block;
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
   overflow: hidden;
   white-space: nowrap;
@@ -22,10 +24,12 @@ html, body {
   display: flex;
   align-items: center;
   gap: 0.375rem;
+  width: 100%;
   min-width: 0;
 }
 
 .vault-path-label {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -74,6 +78,16 @@ html, body {
   align-items: center;
   gap: 0.375rem;
   padding-right: 1.75rem;
+}
+
+.modal-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.modal-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 @keyframes vault-path-marquee {
