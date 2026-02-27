@@ -6,6 +6,11 @@ export interface Settings {
   anthropicApiKey: string;
   journalDir: string;
   filenamePattern: string;
+  vaultDir: string;
+  dailyLogsFolder: string;
+  excalidrawFolder: string;
+  assetsFolder: string;
+  hasCompletedOnboarding: boolean;
 }
 
 const SETTINGS_FILE = "settings.json";
@@ -16,6 +21,11 @@ const DEFAULT_SETTINGS: Settings = {
   anthropicApiKey: "",
   journalDir: "",
   filenamePattern: "",
+  vaultDir: "",
+  dailyLogsFolder: "",
+  excalidrawFolder: "",
+  assetsFolder: "",
+  hasCompletedOnboarding: false,
 };
 
 async function getSettingsPath(): Promise<string> {
@@ -65,4 +75,24 @@ export async function getJournalDirSetting(): Promise<string> {
 export async function getFilenamePattern(): Promise<string> {
   const settings = await loadSettings();
   return settings.filenamePattern || DEFAULT_FILENAME_PATTERN;
+}
+
+export async function getVaultDirSetting(): Promise<string> {
+  const settings = await loadSettings();
+  return settings.vaultDir;
+}
+
+export async function getDailyLogsFolderSetting(): Promise<string> {
+  const settings = await loadSettings();
+  return settings.dailyLogsFolder;
+}
+
+export async function getExcalidrawFolderSetting(): Promise<string> {
+  const settings = await loadSettings();
+  return settings.excalidrawFolder;
+}
+
+export async function getAssetsFolderSetting(): Promise<string> {
+  const settings = await loadSettings();
+  return settings.assetsFolder;
 }

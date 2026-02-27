@@ -9,3 +9,64 @@
 html, body {
   overflow: hidden;
 }
+
+.vault-path {
+  position: relative;
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.vault-path-static {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.vault-path-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vault-path-icon {
+  flex-shrink: 0;
+}
+
+.vault-path-marquee-track {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  width: max-content;
+  min-width: 100%;
+  animation: vault-path-marquee 10s linear infinite;
+  pointer-events: none;
+}
+
+.vault-path--truncated:hover .vault-path-static {
+  visibility: hidden;
+}
+.vault-path--truncated:hover .vault-path-marquee-track {
+  display: flex;
+}
+
+.vault-path-segment {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding-right: 1.75rem;
+}
+
+@keyframes vault-path-marquee {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}

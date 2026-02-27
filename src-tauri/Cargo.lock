@@ -2652,7 +2652,7 @@ dependencies = [
 
 [[package]]
 name = "philo"
-version = "0.0.25"
+version = "0.0.26"
 dependencies = [
  "objc",
  "serde",

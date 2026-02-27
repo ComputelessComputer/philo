@@ -1,8 +1,11 @@
+import { join, } from "@tauri-apps/api/path";
 import { open as openDialog, } from "@tauri-apps/plugin-dialog";
 import { useEffect, useRef, useState, } from "react";
-import { applyFilenamePattern, getJournalDir, resetJournalDir, } from "../../services/paths";
+import { detectObsidianFolders, } from "../../services/obsidian";
+import { applyFilenamePattern, getJournalDir, initJournalScope, resetJournalDir, } from "../../services/paths";
 import { DEFAULT_FILENAME_PATTERN, loadSettings, saveSettings, type Settings, } from "../../services/settings";
 import { getToday, } from "../../types/note";
+import { VaultPathMarquee, } from "../shared/VaultPathMarquee";
 
 interface SettingsModalProps {
   open: boolean;
@@ -20,6 +23,7 @@ const mono = { fontFamily: "'IBM Plex Mono', monospace", };
 export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
   const [settings, setSettings,] = useState<Settings | null>(null,);
   const [saved, setSaved,] = useState(false,);
+  const [detectingFolders, setDetectingFolders,] = useState(false,);
   const [defaultJournalDir, setDefaultJournalDir,] = useState("",);
   const inputRef = useRef<HTMLInputElement>(null,);
 
@@ -47,9 +51,23 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
 
   const handleSave = async () => {
     try {
-      await saveSettings(settings,);
+      const normalizedVault = settings.vaultDir.trim();
+      const normalizedDaily = settings.dailyLogsFolder.trim();
+      const nextSettings = {
+        ...settings,
+        vaultDir: normalizedVault,
+        dailyLogsFolder: normalizedDaily,
+        excalidrawFolder: settings.excalidrawFolder.trim(),
+        assetsFolder: settings.assetsFolder.trim(),
+        journalDir: normalizedVault && normalizedDaily
+          ? await join(normalizedVault, normalizedDaily,)
+          : settings.journalDir,
+      };
+      await saveSettings(nextSettings,);
       // Reset cached journal dir so it picks up the new setting
-      await resetJournalDir(settings.journalDir || undefined,);
+      await resetJournalDir(nextSettings.journalDir || undefined,);
+      await initJournalScope();
+      setSettings(nextSettings,);
       setSaved(true,);
       setTimeout(() => setSaved(false,), 2000,);
     } catch (err) {
@@ -57,10 +75,33 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
     }
   };
 
-  const handleChooseFolder = async () => {
+  const detectFromVault = async (vaultDir: string,) => {
+    const normalizedVaultDir = vaultDir.trim();
+    if (!normalizedVaultDir) return;
+
+    setDetectingFolders(true,);
+    try {
+      const detected = await detectObsidianFolders(normalizedVaultDir,);
+      setSettings((current,) => {
+        if (!current) return current;
+        return {
+          ...current,
+          dailyLogsFolder: detected.dailyLogsFolder || current.dailyLogsFolder,
+          excalidrawFolder: detected.excalidrawFolder || current.excalidrawFolder,
+          assetsFolder: detected.assetsFolder || current.assetsFolder,
+        };
+      },);
+      setSaved(false,);
+    } finally {
+      setDetectingFolders(false,);
+    }
+  };
+
+  const handleChooseVault = async () => {
     const selected = await openDialog({ directory: true, multiple: false, },);
     if (selected) {
-      update({ journalDir: selected, },);
+      update({ vaultDir: selected, },);
+      await detectFromVault(selected,);
     }
   };
 
@@ -78,12 +119,17 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
       onClick={onClose}
       onKeyDown={handleKeyDown}
     >
+      <div
+        className="absolute top-0 left-0 right-0 h-[38px] z-[1]"
+        data-tauri-drag-region
+        onClick={(e,) => e.stopPropagation()}
+      />
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
 
       {/* Modal */}
       <div
-        className="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 max-h-[80vh] overflow-y-auto"
+        className="relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 max-h-[80vh] overflow-y-auto overflow-x-hidden"
         onClick={(e,) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
@@ -120,38 +166,83 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
         {/* Divider */}
         <div className="my-5 border-t border-gray-100" />
 
-        {/* Journal Location */}
+        {/* Vault Settings */}
         <div className="space-y-3">
           <label className="block text-sm text-gray-600" style={mono}>
-            Journal Location
+            Vault Location
           </label>
           <div className="flex items-center gap-2">
             <div
-              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-500 truncate bg-gray-50"
+              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-500 bg-gray-50"
               style={mono}
-              title={settings.journalDir || defaultJournalDir}
+              title={settings.vaultDir || settings.journalDir || defaultJournalDir}
             >
-              {settings.journalDir || defaultJournalDir || "..."}
+              <VaultPathMarquee
+                path={settings.vaultDir || settings.journalDir || defaultJournalDir || "..."}
+              />
             </div>
             <button
-              onClick={handleChooseFolder}
+              onClick={handleChooseVault}
               className="shrink-0 px-3 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer text-gray-700"
               style={mono}
             >
               Choose…
             </button>
           </div>
-          {settings.journalDir && (
+          <button
+            onClick={() => {
+              void detectFromVault(settings.vaultDir,);
+            }}
+            disabled={!settings.vaultDir.trim() || detectingFolders}
+            className="text-xs text-violet-600 hover:text-violet-800 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            style={mono}
+          >
+            {detectingFolders ? "Reading Obsidian config..." : "Auto-fill folders from Obsidian config"}
+          </button>
+          {settings.vaultDir && (
             <button
-              onClick={() => update({ journalDir: "", },)}
+              onClick={() => update({ vaultDir: "", },)}
               className="text-xs text-violet-600 hover:text-violet-800 transition-colors cursor-pointer"
               style={mono}
             >
               Reset to default
             </button>
           )}
+          <label className="block text-sm text-gray-600 pt-2" style={mono}>
+            Daily logs folder
+          </label>
+          <input
+            type="text"
+            value={settings.dailyLogsFolder}
+            onChange={(e,) => update({ dailyLogsFolder: e.target.value, },)}
+            placeholder="Daily Notes"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+            style={mono}
+          />
+          <label className="block text-sm text-gray-600 pt-2" style={mono}>
+            Excalidraw folder (optional)
+          </label>
+          <input
+            type="text"
+            value={settings.excalidrawFolder}
+            onChange={(e,) => update({ excalidrawFolder: e.target.value, },)}
+            placeholder="Excalidraw"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+            style={mono}
+          />
+          <label className="block text-sm text-gray-600 pt-2" style={mono}>
+            Assets folder (optional)
+          </label>
+          <input
+            type="text"
+            value={settings.assetsFolder}
+            onChange={(e,) => update({ assetsFolder: e.target.value, },)}
+            placeholder="assets"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+            style={mono}
+          />
           <p className="text-xs text-gray-400" style={mono}>
-            Where daily notes are stored. Use a synced folder (iCloud, Dropbox) to access notes across devices.
+            Philo uses these to resolve notes, `![[*.excalidraw]]` embeds, and pasted image paths inside your vault.
           </p>
           <p className="text-xs text-amber-600" style={mono}>
             Changing this will not move existing files.

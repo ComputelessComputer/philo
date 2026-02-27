@@ -117,8 +117,12 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center">
+      <div
+        className="absolute top-0 left-0 right-0 h-[38px] z-[1]"
+        data-tauri-drag-region
+      />
       <div className="absolute inset-0 bg-black/35 backdrop-blur-sm" />
-      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <h2 className="text-lg font-medium text-gray-900 mb-1" style={mono}>
           Set up your Obsidian vault
         </h2>

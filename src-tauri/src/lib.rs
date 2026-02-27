@@ -3,6 +3,7 @@
 extern crate objc;
 
 use std::path::PathBuf;
+use std::{env, fs};
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
@@ -22,6 +23,89 @@ fn set_window_opacity(_app: AppHandle, _opacity: f64) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+fn should_skip_dir(name: &str) -> bool {
+    if name.starts_with('.') && name != ".obsidian" {
+        return true;
+    }
+    matches!(
+        name,
+        "Library"
+            | "Applications"
+            | "Movies"
+            | "Pictures"
+            | "Music"
+            | "node_modules"
+            | "target"
+            | "dist"
+            | "build"
+    )
+}
+
+#[tauri::command]
+fn find_obsidian_vaults() -> Result<Vec<String>, String> {
+    let home = env::var("HOME").map_err(|_| "Could not resolve HOME directory".to_string())?;
+    let mut vaults: Vec<String> = Vec::new();
+    let mut stack: Vec<(PathBuf, usize)> = vec![(PathBuf::from(home), 0)];
+    let max_depth = 5usize;
+    let max_vaults = 25usize;
+
+    while let Some((dir, depth)) = stack.pop() {
+        if depth > max_depth {
+            continue;
+        }
+
+        let entries = match fs::read_dir(&dir) {
+            Ok(entries) => entries,
+            Err(_) => continue,
+        };
+
+        let mut has_obsidian = false;
+        let mut children: Vec<PathBuf> = Vec::new();
+
+        for entry_result in entries {
+            let entry = match entry_result {
+                Ok(entry) => entry,
+                Err(_) => continue,
+            };
+            let file_type = match entry.file_type() {
+                Ok(file_type) => file_type,
+                Err(_) => continue,
+            };
+            if !file_type.is_dir() {
+                continue;
+            }
+
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name == ".obsidian" {
+                has_obsidian = true;
+                break;
+            }
+            if should_skip_dir(&name) {
+                continue;
+            }
+            children.push(entry.path());
+        }
+
+        if has_obsidian {
+            vaults.push(dir.to_string_lossy().to_string());
+            if vaults.len() >= max_vaults {
+                break;
+            }
+            continue;
+        }
+
+        if depth < max_depth {
+            for child in children {
+                stack.push((child, depth + 1));
+            }
+        }
+    }
+
+    vaults.sort();
+    vaults.dedup();
+    Ok(vaults)
 }
 
 #[tauri::command]
@@ -47,6 +131,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             extend_fs_scope,
+            find_obsidian_vaults,
             set_window_opacity
         ])
         .setup(|app| {

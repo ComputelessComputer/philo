@@ -1,9 +1,23 @@
 import { invoke, } from "@tauri-apps/api/core";
 import { appDataDir, dirname, homeDir, join, } from "@tauri-apps/api/path";
-import { getFilenamePattern, getJournalDirSetting, } from "./settings";
+import {
+  getAssetsFolderSetting,
+  getDailyLogsFolderSetting,
+  getExcalidrawFolderSetting,
+  getFilenamePattern,
+  getJournalDirSetting,
+  getVaultDirSetting,
+} from "./settings";
 
 let resolvedBaseDir: string | null = null;
 let resolvedJournalDir: string | null = null;
+function normalizePathSegment(segment: string,): string {
+  return segment.replace(/^\.?\//, "",).replace(/\/$/, "",);
+}
+
+function isAbsolutePath(path: string,): boolean {
+  return path.startsWith("/",) || /^[A-Za-z]:[\\/]/.test(path,);
+}
 
 /**
  * Base directory for all app data.
@@ -33,8 +47,14 @@ export async function getJournalDir(): Promise<string> {
   if (customDir) {
     resolvedJournalDir = customDir;
   } else {
-    const base = await getBaseDir();
-    resolvedJournalDir = await join(base, "journal",);
+    const vaultDir = await getVaultDirSetting();
+    const dailyLogsFolder = normalizePathSegment(await getDailyLogsFolderSetting(),);
+    if (vaultDir) {
+      resolvedJournalDir = dailyLogsFolder ? await join(vaultDir, dailyLogsFolder,) : vaultDir;
+    } else {
+      const base = await getBaseDir();
+      resolvedJournalDir = await join(base, "journal",);
+    }
   }
   return resolvedJournalDir;
 }
@@ -55,15 +75,45 @@ export async function resetJournalDir(newDir?: string,): Promise<void> {
  * Call once from the app root.
  */
 export async function initJournalScope(): Promise<void> {
+  const paths = new Set<string>();
   const customDir = await getJournalDirSetting();
-  if (customDir) {
-    await invoke("extend_fs_scope", { path: customDir, },);
+  const journalDir = await getJournalDir();
+  const vaultDir = await getVaultDirSetting();
+  const excalidrawDir = await getExcalidrawDir();
+  const assetsDir = await getAssetsDir();
+
+  if (customDir) paths.add(customDir,);
+  if (journalDir) paths.add(journalDir,);
+  if (vaultDir) paths.add(vaultDir,);
+  if (excalidrawDir) paths.add(excalidrawDir,);
+  if (assetsDir) paths.add(assetsDir,);
+
+  for (const path of paths) {
+    await invoke("extend_fs_scope", { path, },);
   }
 }
 
 export async function getAssetsDir(): Promise<string> {
+  const configured = normalizePathSegment(await getAssetsFolderSetting(),);
+  if (!configured) {
+    const journal = await getJournalDir();
+    return await join(journal, "assets",);
+  }
+  if (isAbsolutePath(configured,)) return configured;
+  const vaultDir = await getVaultDirSetting();
+  if (vaultDir) return await join(vaultDir, configured,);
   const journal = await getJournalDir();
-  return await join(journal, "assets",);
+  return await join(journal, configured,);
+}
+
+export async function getExcalidrawDir(): Promise<string | null> {
+  const configured = normalizePathSegment(await getExcalidrawFolderSetting(),);
+  if (!configured) return null;
+  if (isAbsolutePath(configured,)) return configured;
+  const vaultDir = await getVaultDirSetting();
+  if (vaultDir) return await join(vaultDir, configured,);
+  const journal = await getJournalDir();
+  return await join(journal, configured,);
 }
 
 /**

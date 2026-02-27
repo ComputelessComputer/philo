@@ -2,11 +2,21 @@ import { convertFileSrc, } from "@tauri-apps/api/core";
 import { join, } from "@tauri-apps/api/path";
 import { exists, mkdir, writeFile, } from "@tauri-apps/plugin-fs";
 import { getAssetsDir, getJournalDir, } from "./paths";
+import { getAssetsFolderSetting, } from "./settings";
 
 function generateFilename(ext: string,): string {
   const ts = Date.now();
   const rand = Math.random().toString(36,).slice(2, 8,);
   return `${ts}-${rand}.${ext}`;
+}
+
+function normalizePathSegment(segment: string,): string {
+  return segment.replace(/^\.?\//, "",).replace(/\/$/, "",);
+}
+
+async function getAssetsRelativeRoot(): Promise<string> {
+  const configured = normalizePathSegment(await getAssetsFolderSetting(),);
+  return configured || "assets";
 }
 
 /**
@@ -15,6 +25,7 @@ function generateFilename(ext: string,): string {
  */
 export async function saveImage(file: File,): Promise<string> {
   const assetsDir = await getAssetsDir();
+  const assetsRelativeRoot = await getAssetsRelativeRoot();
   const dirExists = await exists(assetsDir,);
   if (!dirExists) {
     await mkdir(assetsDir, { recursive: true, },);
@@ -22,7 +33,7 @@ export async function saveImage(file: File,): Promise<string> {
 
   const ext = file.name.split(".",).pop() || "png";
   const filename = generateFilename(ext,);
-  const relativePath = `assets/${filename}`;
+  const relativePath = `${assetsRelativeRoot}/${filename}`;
   const fullPath = await join(assetsDir, filename,);
 
   const arrayBuffer = await file.arrayBuffer();
@@ -48,7 +59,12 @@ export async function resolveAssetUrl(relativePath: string,): Promise<string> {
  * Matches patterns like ![alt](assets/filename.ext) or ![alt](assets/filename.ext "title")
  */
 export async function resolveMarkdownImages(markdown: string,): Promise<string> {
-  const assetPattern = /!\[([^\]]*)\]\(((?:\.\.?\/)*assets\/[^)\s"]+)(?:\s+"([^"]*)")?\)/g;
+  const assetsRelativeRoot = await getAssetsRelativeRoot();
+  const escapedRoot = assetsRelativeRoot.replace(/[.*+?^${}()|[\]\\]/g, "\\$&",);
+  const assetPattern = new RegExp(
+    `!\\[([^\\]]*)\\]\\(((?:\\.\\.?\\/)*${escapedRoot}\\/[^)\\s"]+)(?:\\s+"([^"]*)")?\\)`,
+    "g",
+  );
   const matches = [...markdown.matchAll(assetPattern,),];
   if (matches.length === 0) return markdown;
 
@@ -76,11 +92,25 @@ export async function resolveMarkdownImages(markdown: string,): Promise<string> 
 export function unresolveMarkdownImages(markdown: string,): string {
   // Tauri v2 asset URLs look like: http://asset.localhost/path/to/appdata/.../assets/file.ext
   // or asset://localhost/path/to/appdata/.../assets/file.ext
-  // Match any path ending with assets/filename, regardless of parent directory structure.
+  // Match any asset URL and recover the final "folder/filename" path segment.
   const assetUrlPattern =
-    /!\[([^\]]*)\]\(((?:http:\/\/asset\.localhost|asset:\/\/localhost)[^)\s"]*\/(assets\/[^)\s"]+))(?:\s+"([^"]*)")?\)/g;
+    /!\[([^\]]*)\]\(((?:http:\/\/asset\.localhost|asset:\/\/localhost)[^)\s"]+)(?:\s+"([^"]*)")?\)/g;
 
-  return markdown.replace(assetUrlPattern, (_full, alt, _url, relativePath, title,) => {
+  return markdown.replace(assetUrlPattern, (_full, alt, url, title,) => {
+    let relativePath = "";
+    try {
+      const parsed = new URL(url,);
+      const match = decodeURIComponent(parsed.pathname,).match(/\/([^/]+\/[^/]+)$/,);
+      relativePath = match ? match[1] : "";
+    } catch {
+      const match = String(url,).match(/\/([^/]+\/[^/]+)$/,);
+      relativePath = match ? match[1] : "";
+    }
+    if (!relativePath) {
+      return title
+        ? `![${alt}](${url} "${title}")`
+        : `![${alt}](${url})`;
+    }
     return title
       ? `![${alt}](${relativePath} "${title}")`
       : `![${alt}](${relativePath})`;

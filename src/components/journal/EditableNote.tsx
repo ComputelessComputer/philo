@@ -20,6 +20,7 @@ import { saveDailyNote, } from "../../services/storage";
 import type { DailyNote, } from "../../types/note";
 import { EditorBubbleMenu, } from "../editor/EditorBubbleMenu";
 import { ClipboardTextSerializer, } from "../editor/extensions/clipboard";
+import { ExcalidrawExtension, } from "../editor/extensions/excalidraw/ExcalidrawExtension";
 import { HashtagExtension, } from "../editor/extensions/hashtag/HashtagExtension";
 import { CustomListKeymap, } from "../editor/extensions/list-keymap";
 import { CustomTaskItem, } from "../editor/extensions/task-item/TaskItemNode";
@@ -44,8 +45,11 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
     const onSaveRef = useRef(onSave,);
     onSaveRef.current = onSave;
 
+    const selfUpdateRef = useRef(false,);
+
     const saveDebounced = useDebounceCallback((jsonStr: string,) => {
       const updated = { ...noteRef.current, content: jsonStr, };
+      selfUpdateRef.current = true;
       if (onSaveRef.current) {
         onSaveRef.current(updated,);
       } else {
@@ -94,6 +98,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
         TableCell,
         Highlight,
         HashtagExtension,
+        ExcalidrawExtension,
         WidgetExtension,
         CustomListKeymap,
         ClipboardTextSerializer,
@@ -182,10 +187,12 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
 
     useEffect(() => {
       if (!editor || editor.isDestroyed) return;
-      const incoming = parseJsonContent(note.content,);
-      if (!editor.isFocused) {
-        editor.commands.setContent(incoming, { emitUpdate: false, },);
+      if (selfUpdateRef.current) {
+        selfUpdateRef.current = false;
+        return;
       }
+      const incoming = parseJsonContent(note.content,);
+      editor.commands.setContent(incoming, { emitUpdate: false, },);
     }, [note.content,],);
 
     return (

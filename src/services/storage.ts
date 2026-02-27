@@ -1,6 +1,7 @@
 import { exists, mkdir, readTextFile, writeTextFile, } from "@tauri-apps/plugin-fs";
 import { EMPTY_DOC, json2md, md2json, parseJsonContent, } from "../lib/markdown";
 import { DailyNote, getDaysAgo, } from "../types/note";
+import { resolveExcalidrawEmbeds, } from "./excalidraw";
 import { resolveMarkdownImages, unresolveMarkdownImages, } from "./images";
 import { getNoteDir, getNotePath, } from "./paths";
 
@@ -48,7 +49,8 @@ export async function loadDailyNote(date: string,): Promise<DailyNote | null> {
 
   const raw = await readTextFile(filepath,);
   const { city, body, } = parseFrontmatter(raw,);
-  const resolved = await resolveMarkdownImages(body.replace(/&nbsp;/g, "",),);
+  const withEmbeds = await resolveExcalidrawEmbeds(body.replace(/&nbsp;/g, "",),);
+  const resolved = await resolveMarkdownImages(withEmbeds,);
   const content = JSON.stringify(md2json(resolved,),);
   return { date, content, city, };
 }

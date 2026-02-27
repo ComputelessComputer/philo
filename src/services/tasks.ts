@@ -128,8 +128,7 @@ function prependTasks(content: string, tasks: TaskLine[],): string {
 
   const taskLines = tasks.map((t,) => `${t.indent}- [ ] ${t.text}`).join("\n",);
   const trimmed = content.trim();
-
-  if (!trimmed) return taskLines;
+  if (!trimmed) return `\n\n\n${taskLines}`;
   return `${taskLines}\n\n${trimmed}`;
 }
 
