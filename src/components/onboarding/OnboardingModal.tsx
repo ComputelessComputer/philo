@@ -2,7 +2,7 @@ import { invoke, } from "@tauri-apps/api/core";
 import { join, } from "@tauri-apps/api/path";
 import { open as openDialog, } from "@tauri-apps/plugin-dialog";
 import { useEffect, useMemo, useState, } from "react";
-import { detectObsidianFolders, } from "../../services/obsidian";
+import { detectObsidianFolders, ensureObsidianVaultStructure, } from "../../services/obsidian";
 import { initJournalScope, resetJournalDir, } from "../../services/paths";
 import { loadSettings, saveSettings, type Settings, } from "../../services/settings";
 import { VaultPathMarquee, } from "../shared/VaultPathMarquee";
@@ -94,6 +94,11 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
     setSaving(true,);
     setError("",);
     try {
+      await ensureObsidianVaultStructure(nextVaultDir, {
+        dailyLogsFolder: nextDailyLogsFolder,
+        excalidrawFolder: nextExcalidrawFolder,
+        assetsFolder: nextAssetsFolder,
+      },);
       const journalDir = await join(nextVaultDir, nextDailyLogsFolder,);
       const nextSettings: Settings = {
         ...settings,

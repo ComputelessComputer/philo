@@ -1,11 +1,17 @@
 import { invoke, } from "@tauri-apps/api/core";
 import { join, } from "@tauri-apps/api/path";
-import { exists, readTextFile, } from "@tauri-apps/plugin-fs";
+import { exists, mkdir, readTextFile, writeTextFile, } from "@tauri-apps/plugin-fs";
 
 interface FolderDetection {
   dailyLogsFolder: string;
   excalidrawFolder: string;
   assetsFolder: string;
+}
+
+interface VaultBootstrapOptions {
+  dailyLogsFolder: string;
+  excalidrawFolder?: string;
+  assetsFolder?: string;
 }
 
 function asRecord(value: unknown,): Record<string, unknown> | null {
@@ -22,6 +28,12 @@ function normalizeFolder(value: string | null,): string {
   if (!trimmed) return "";
   if (trimmed === "/" || trimmed === "./" || trimmed === ".") return ".";
   return trimmed.replace(/^\.?\//, "",).replace(/\/+$/, "",);
+}
+
+async function ensureVaultFolder(vaultDir: string, folder: string | null | undefined,) {
+  const normalized = normalizeFolder(folder ?? "",);
+  if (!normalized || normalized === ".") return;
+  await mkdir(await join(vaultDir, normalized,), { recursive: true, },);
 }
 
 async function readJson(path: string,): Promise<Record<string, unknown> | null> {
@@ -100,4 +112,66 @@ export async function detectObsidianFolders(vaultDir: string,): Promise<FolderDe
     excalidrawFolder: detectExcalidrawFolder(excalidrawConfig,),
     assetsFolder: detectAssetsFolder(appConfig,),
   };
+}
+
+export async function ensureObsidianVaultStructure(
+  vaultDir: string,
+  options: VaultBootstrapOptions,
+): Promise<void> {
+  const normalizedVaultDir = vaultDir.trim();
+  if (!normalizedVaultDir) return;
+
+  await invoke("extend_fs_scope", { path: normalizedVaultDir, },).catch(() => undefined);
+
+  const obsidianDir = await join(normalizedVaultDir, ".obsidian",);
+  if (await exists(obsidianDir,)) return;
+
+  await mkdir(obsidianDir, { recursive: true, },);
+
+  const normalizedDaily = normalizeFolder(options.dailyLogsFolder,);
+  const normalizedExcalidraw = normalizeFolder(options.excalidrawFolder ?? "",);
+  const normalizedAssets = normalizeFolder(options.assetsFolder ?? "",);
+
+  await ensureVaultFolder(normalizedVaultDir, normalizedDaily,);
+  await ensureVaultFolder(normalizedVaultDir, normalizedExcalidraw,);
+  await ensureVaultFolder(normalizedVaultDir, normalizedAssets,);
+
+  if (normalizedDaily && normalizedDaily !== ".") {
+    const dailyNotesPath = await join(obsidianDir, "daily-notes.json",);
+    await writeTextFile(
+      dailyNotesPath,
+      JSON.stringify(
+        {
+          format: "YYYY-MM-DD",
+          folder: normalizedDaily,
+          template: "",
+        },
+        null,
+        2,
+      ),
+    );
+  }
+
+  if (normalizedAssets && normalizedAssets !== ".") {
+    const appConfigPath = await join(obsidianDir, "app.json",);
+    await writeTextFile(
+      appConfigPath,
+      JSON.stringify(
+        {
+          attachmentFolderPath: normalizedAssets,
+        },
+        null,
+        2,
+      ),
+    );
+  }
+
+  if (normalizedExcalidraw && normalizedExcalidraw !== ".") {
+    const excalidrawPluginDir = await join(obsidianDir, "plugins", "obsidian-excalidraw-plugin",);
+    await mkdir(excalidrawPluginDir, { recursive: true, },);
+    await writeTextFile(
+      await join(excalidrawPluginDir, "data.json",),
+      JSON.stringify({ folder: normalizedExcalidraw, }, null, 2,),
+    );
+  }
 }
