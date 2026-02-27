@@ -8,6 +8,7 @@ import { MarkdownManager, } from "@tiptap/markdown";
 import type { JSONContent, } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 
+import { ExcalidrawExtension, } from "../components/editor/extensions/excalidraw/ExcalidrawExtension";
 import { HashtagExtension, } from "../components/editor/extensions/hashtag/HashtagExtension";
 import { CustomTaskItem, } from "../components/editor/extensions/task-item/TaskItemNode";
 import { WidgetExtension, } from "../components/editor/extensions/widget/WidgetExtension";
@@ -40,6 +41,7 @@ function getExtensions() {
     TableCell,
     Highlight,
     HashtagExtension,
+    ExcalidrawExtension,
     WidgetExtension,
     // FileHandler has no markdown relevance, excluded from MarkdownManager
   ];
@@ -58,8 +60,7 @@ function getMarkdownManager(): MarkdownManager {
 export function md2json(markdown: string,): JSONContent {
   try {
     const cleaned = markdown.replace(/&nbsp;/g, "",);
-    // Split on 3+ newlines — these mark where empty paragraphs should be injected.
-    // A single blank line (\n\n) is just a block separator; two blank lines (\n\n\n) = empty paragraph.
+    // Legacy support: older notes used 3+ newlines to represent explicit empty paragraphs.
     const parts = cleaned.split(/\n{3,}/,);
 
     if (parts.length <= 1) {
@@ -97,10 +98,10 @@ export function json2md(json: JSONContent,): string {
       getMarkdownManager()
         .serialize(json,)
         // Strip &nbsp; that tiptap/markdown emits for empty paragraphs.
-        // This leaves \n\n\n\n at empty paragraph boundaries (surrounding \n\n on each side).
+        // This leaves large newline runs at empty paragraph boundaries.
         .replace(/&nbsp;/g, "",)
-        // Collapse to exactly \n\n\n so the file uses two blank lines to mark empty paragraphs.
-        .replace(/\n{4,}/g, "\n\n\n",)
+        // Normalize blank lines in saved markdown to a single empty line.
+        .replace(/\n{3,}/g, "\n\n",)
     );
   } catch {
     return "";

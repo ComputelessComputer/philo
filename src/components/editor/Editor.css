@@ -1,5 +1,18 @@
 /* Philo-specific editor styles. Tiptap base styles come from vendor/hyprnote/packages/tiptap/styles.css */
 
+.tiptap > p {
+  margin-top: 0.85rem;
+  margin-bottom: 0.85rem;
+}
+
+.tiptap > p:first-child {
+  margin-top: 0;
+}
+
+.tiptap > p:last-child {
+  margin-bottom: 0;
+}
+
 /* ---- Bubble Menu ---- */
 
 .bubble-menu {
@@ -256,5 +269,75 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+/* ---- Excalidraw embed ---- */
 
+.excalidraw-node {
+  margin: 12px 0;
+}
+
+.excalidraw-container {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.excalidraw-selected .excalidraw-container {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+}
+
+.excalidraw-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  background: #fafafa;
+  cursor: grab;
+}
+
+.excalidraw-toolbar:active {
+  cursor: grabbing;
+}
+
+.excalidraw-title {
+  font-size: 12px;
+  color: #9ca3af;
+  font-family: 'IBM Plex Sans', sans-serif;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.excalidraw-render {
+  padding: 12px;
+  overflow-x: auto;
+}
+
+.excalidraw-render img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.excalidraw-loading {
+  padding: 20px;
+  color: #9ca3af;
+  font-size: 12px;
+  font-family: 'IBM Plex Sans', sans-serif;
+}
+
+.excalidraw-error {
+  padding: 20px;
+}
+
+.excalidraw-error-message {
+  margin: 0;
+  font-size: 12px;
+  color: #ef4444;
+  font-family: 'IBM Plex Sans', sans-serif;
+}
 
