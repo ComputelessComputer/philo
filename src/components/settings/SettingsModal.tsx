@@ -1,5 +1,6 @@
 import { join, } from "@tauri-apps/api/path";
 import { open as openDialog, } from "@tauri-apps/plugin-dialog";
+import { exists, } from "@tauri-apps/plugin-fs";
 import { useEffect, useRef, useState, } from "react";
 import { detectObsidianFolders, } from "../../services/obsidian";
 import { applyFilenamePattern, getJournalDir, initJournalScope, resetJournalDir, } from "../../services/paths";
@@ -93,7 +94,12 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
   };
 
   const handleChooseVault = async () => {
-    const selected = await openDialog({ directory: true, multiple: false, },);
+    const defaultPath = (settings.vaultDir || settings.journalDir || defaultJournalDir).trim();
+    const selected = await openDialog({
+      directory: true,
+      multiple: false,
+      defaultPath: defaultPath && await exists(defaultPath,) ? defaultPath : undefined,
+    },);
     if (selected) {
       update({ vaultDir: selected, },);
       await detectFromVault(selected,);
