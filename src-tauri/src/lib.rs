@@ -2,10 +2,10 @@
 #[macro_use]
 extern crate objc;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::{env, fs};
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::{json, Value};
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
@@ -154,6 +154,19 @@ fn contains_case_insensitive(haystack: &str, needle: &str) -> bool {
     haystack.to_lowercase().contains(&needle.to_lowercase())
 }
 
+fn ensure_folder_in_vault(vault_dir: &Path, folder: &str) -> Result<(), String> {
+    let normalized = normalize_folder(folder);
+    if normalized.is_empty() || normalized == "." {
+        return Ok(());
+    }
+    fs::create_dir_all(vault_dir.join(normalized)).map_err(|e| e.to_string())
+}
+
+fn write_json_file(path: &Path, value: Value) -> Result<(), String> {
+    let serialized = serde_json::to_string_pretty(&value).map_err(|e| e.to_string())?;
+    fs::write(path, serialized).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn detect_obsidian_settings(vault_dir: String) -> ObsidianSettingsDetection {
     if vault_dir.trim().is_empty() {
@@ -238,6 +251,68 @@ fn detect_obsidian_settings(vault_dir: String) -> ObsidianSettingsDetection {
         assets_folder,
         filename_pattern,
     }
+}
+
+#[tauri::command]
+fn bootstrap_obsidian_vault(
+    vault_dir: String,
+    daily_logs_folder: String,
+    excalidraw_folder: String,
+    assets_folder: String,
+) -> Result<(), String> {
+    let normalized_vault = vault_dir.trim();
+    if normalized_vault.is_empty() {
+        return Ok(());
+    }
+
+    let vault_path = PathBuf::from(normalized_vault);
+    let obsidian_dir = vault_path.join(".obsidian");
+    if obsidian_dir.exists() {
+        return Ok(());
+    }
+
+    fs::create_dir_all(&obsidian_dir).map_err(|e| e.to_string())?;
+
+    let normalized_daily = normalize_folder(&daily_logs_folder);
+    let normalized_excalidraw = normalize_folder(&excalidraw_folder);
+    let normalized_assets = normalize_folder(&assets_folder);
+
+    ensure_folder_in_vault(&vault_path, &normalized_daily)?;
+    ensure_folder_in_vault(&vault_path, &normalized_excalidraw)?;
+    ensure_folder_in_vault(&vault_path, &normalized_assets)?;
+
+    if !normalized_daily.is_empty() && normalized_daily != "." {
+        write_json_file(
+            &obsidian_dir.join("daily-notes.json"),
+            json!({
+                "format": "YYYY-MM-DD",
+                "folder": normalized_daily,
+                "template": ""
+            }),
+        )?;
+    }
+
+    if !normalized_assets.is_empty() && normalized_assets != "." {
+        write_json_file(
+            &obsidian_dir.join("app.json"),
+            json!({
+                "attachmentFolderPath": normalized_assets
+            }),
+        )?;
+    }
+
+    if !normalized_excalidraw.is_empty() && normalized_excalidraw != "." {
+        let plugin_dir = obsidian_dir.join("plugins/obsidian-excalidraw-plugin");
+        fs::create_dir_all(&plugin_dir).map_err(|e| e.to_string())?;
+        write_json_file(
+            &plugin_dir.join("data.json"),
+            json!({
+                "folder": normalized_excalidraw
+            }),
+        )?;
+    }
+
+    Ok(())
 }
 
 #[tauri::command]
@@ -330,6 +405,7 @@ pub fn run() {
             extend_fs_scope,
             find_obsidian_vaults,
             detect_obsidian_settings,
+            bootstrap_obsidian_vault,
             set_window_opacity
         ])
         .setup(|app| {

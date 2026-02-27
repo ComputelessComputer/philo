@@ -144,7 +144,12 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
       await initJournalScope();
       onComplete();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save onboarding settings.",);
+      const message = err instanceof Error
+        ? err.message
+        : typeof err === "string"
+        ? err
+        : "Failed to save onboarding settings.";
+      setError(message || "Failed to save onboarding settings.",);
     } finally {
       setSaving(false,);
     }
