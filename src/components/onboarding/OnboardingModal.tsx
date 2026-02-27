@@ -3,7 +3,7 @@ import { join, } from "@tauri-apps/api/path";
 import { open as openDialog, } from "@tauri-apps/plugin-dialog";
 import { useEffect, useMemo, useRef, useState, } from "react";
 import { detectObsidianFolders, ensureObsidianVaultStructure, } from "../../services/obsidian";
-import { initJournalScope, resetJournalDir, } from "../../services/paths";
+import { getJournalDir, initJournalScope, resetJournalDir, } from "../../services/paths";
 import { loadSettings, saveSettings, type Settings, } from "../../services/settings";
 import { VaultPathMarquee, } from "../shared/VaultPathMarquee";
 
@@ -30,9 +30,10 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
   useEffect(() => {
     if (!open) return;
 
-    loadSettings().then((current,) => {
+    loadSettings().then(async (current,) => {
       setSettings(current,);
-      setVaultDir(current.vaultDir || "",);
+      const originalVaultDir = current.vaultDir || current.journalDir || await getJournalDir();
+      setVaultDir(originalVaultDir || "",);
       setDailyLogsFolder(current.dailyLogsFolder || "Daily Notes",);
       setExcalidrawFolder(current.excalidrawFolder || "Excalidraw",);
       setAssetsFolder(current.assetsFolder || "assets",);
@@ -182,6 +183,9 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
               Choose…
             </button>
           </div>
+          <p className="text-xs text-gray-400" style={mono}>
+            want to use it with your existing obsidian vault?
+          </p>
 
           {vaultCandidates.length > 0 && (
             <div className="space-y-1.5 pt-1">
