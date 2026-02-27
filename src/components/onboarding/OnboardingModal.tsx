@@ -22,7 +22,6 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
   const [assetsFolder, setAssetsFolder,] = useState("assets",);
   const [vaultCandidates, setVaultCandidates,] = useState<string[]>([],);
   const [detectingFolders, setDetectingFolders,] = useState(false,);
-  const [detectedFromConfig, setDetectedFromConfig,] = useState(false,);
   const [detectedFilenamePattern, setDetectedFilenamePattern,] = useState("",);
   const [saving, setSaving,] = useState(false,);
   const [error, setError,] = useState("",);
@@ -67,12 +66,6 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
         setAssetsFolder((current,) => detected.assetsFolder || current || "assets");
       }
       setDetectedFilenamePattern(detected.filenamePattern || "",);
-      setDetectedFromConfig(
-        !!detected.dailyLogsFolder
-          || !!detected.excalidrawFolder
-          || !!detected.assetsFolder
-          || !!detected.filenamePattern,
-      );
     } finally {
       setDetectingFolders(false,);
     }
@@ -188,11 +181,6 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
                 </button>
               ))}
             </div>
-          )}
-          {detectedFromConfig && (
-            <p className="text-xs text-gray-400" style={mono}>
-              Folder values were populated from files in `.obsidian/`.
-            </p>
           )}
         </div>
 
