@@ -40,7 +40,7 @@ export async function loadDailyNote(date: string,): Promise<DailyNote | null> {
     return null;
   }
   const { city, body, } = parseFrontmatter(raw,);
-  const withEmbeds = await resolveExcalidrawEmbeds(body.replace(/&nbsp;/g, "",),);
+  const withEmbeds = await resolveExcalidrawEmbeds(body,);
   const resolved = await resolveMarkdownImages(withEmbeds,);
   const content = JSON.stringify(md2json(resolved,),);
   return { date, content, city, };

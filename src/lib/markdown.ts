@@ -59,10 +59,10 @@ function getMarkdownManager(): MarkdownManager {
 
 export function md2json(markdown: string,): JSONContent {
   try {
-    const cleaned = markdown.replace(/&nbsp;/g, "",);
-    const runs = Array.from(cleaned.matchAll(/\n{3,}/g,),);
+    const source = markdown;
+    const runs = Array.from(source.matchAll(/\n{3,}/g,),);
     if (runs.length === 0) {
-      const result = getMarkdownManager().parse(cleaned,);
+      const result = getMarkdownManager().parse(source,);
       return isValidContent(result,) ? result : EMPTY_DOC;
     }
 
@@ -71,7 +71,7 @@ export function md2json(markdown: string,): JSONContent {
 
     for (const run of runs) {
       const index = run.index ?? 0;
-      const part = cleaned.slice(cursor, index,).trim();
+      const part = source.slice(cursor, index,).trim();
 
       if (part) {
         const parsed = getMarkdownManager().parse(part,);
@@ -89,7 +89,7 @@ export function md2json(markdown: string,): JSONContent {
       cursor = index + newlineCount;
     }
 
-    const tail = cleaned.slice(cursor,).trim();
+    const tail = source.slice(cursor,).trim();
     if (tail) {
       const parsed = getMarkdownManager().parse(tail,);
       if (isValidContent(parsed,) && parsed.content) {
@@ -105,13 +105,7 @@ export function md2json(markdown: string,): JSONContent {
 
 export function json2md(json: JSONContent,): string {
   try {
-    return (
-      getMarkdownManager()
-        .serialize(json,)
-        // Strip &nbsp; that tiptap/markdown emits for empty paragraphs.
-        // This leaves newline runs at empty paragraph boundaries.
-        .replace(/&nbsp;/g, "",)
-    );
+    return getMarkdownManager().serialize(json,);
   } catch {
     return "";
   }
