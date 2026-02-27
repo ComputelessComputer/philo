@@ -224,9 +224,6 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
             style={mono}
           />
-          <p className="text-xs text-gray-400" style={mono}>
-            Used to resolve `![[*.excalidraw]]` embeds.
-          </p>
         </div>
 
         <div className="my-5 border-t border-gray-100" />
@@ -242,9 +239,6 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
             style={mono}
           />
-          <p className="text-xs text-gray-400" style={mono}>
-            Where pasted/dropped images are saved.
-          </p>
         </div>
 
         {error && (
