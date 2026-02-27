@@ -235,11 +235,11 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
           </p>
         )}
 
-        <div className="mt-6 flex justify-end">
+        <div className="mt-6 flex justify-start">
           <button
             onClick={handleSubmit}
             disabled={!canSubmit}
-            className="px-4 py-2 text-sm text-white rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-6 py-2 text-sm text-white rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               ...mono,
               background: "linear-gradient(to bottom, #7c3aed, #5b21b6)",
