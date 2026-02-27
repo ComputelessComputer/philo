@@ -1,7 +1,7 @@
 import { invoke, } from "@tauri-apps/api/core";
 import { join, } from "@tauri-apps/api/path";
 import { open as openDialog, } from "@tauri-apps/plugin-dialog";
-import { useEffect, useMemo, useState, } from "react";
+import { useEffect, useMemo, useRef, useState, } from "react";
 import { detectObsidianFolders, ensureObsidianVaultStructure, } from "../../services/obsidian";
 import { initJournalScope, resetJournalDir, } from "../../services/paths";
 import { loadSettings, saveSettings, type Settings, } from "../../services/settings";
@@ -25,6 +25,7 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
   const [detectedFilenamePattern, setDetectedFilenamePattern,] = useState("",);
   const [saving, setSaving,] = useState(false,);
   const [error, setError,] = useState("",);
+  const modalScrollRef = useRef<HTMLDivElement>(null,);
 
   useEffect(() => {
     if (!open) return;
@@ -49,9 +50,12 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
 
   if (!open || !settings) return null;
 
-  const handleDetectFolders = async (selectedVaultDir: string, overwriteWithDefaults: boolean = false,) => {
+  const handleDetectFolders = async (
+    selectedVaultDir: string,
+    overwriteWithDefaults: boolean = false,
+  ) => {
     const normalizedVaultDir = selectedVaultDir.trim();
-    if (!normalizedVaultDir) return;
+    if (!normalizedVaultDir) return null;
 
     setDetectingFolders(true,);
     try {
@@ -66,6 +70,7 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
         setAssetsFolder((current,) => detected.assetsFolder || current || "assets");
       }
       setDetectedFilenamePattern(detected.filenamePattern || "",);
+      return detected;
     } finally {
       setDetectingFolders(false,);
     }
@@ -73,7 +78,20 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
 
   const handleSelectVault = async (selectedVaultDir: string, fromDetectedChip: boolean = false,) => {
     setVaultDir(selectedVaultDir,);
-    await handleDetectFolders(selectedVaultDir, fromDetectedChip,);
+    const detected = await handleDetectFolders(selectedVaultDir, fromDetectedChip,);
+
+    if (
+      fromDetectedChip
+      && detected
+      && detected.dailyLogsFolder.trim()
+      && detected.excalidrawFolder.trim()
+      && detected.assetsFolder.trim()
+    ) {
+      requestAnimationFrame(() => {
+        if (!modalScrollRef.current) return;
+        modalScrollRef.current.scrollTop = modalScrollRef.current.scrollHeight;
+      },);
+    }
   };
 
   const handleChooseVault = async () => {
@@ -133,7 +151,10 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
         data-tauri-drag-region
       />
       <div className="absolute inset-0 bg-black/35 backdrop-blur-sm" />
-      <div className="modal-scroll relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto overflow-x-hidden">
+      <div
+        ref={modalScrollRef}
+        className="modal-scroll relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto overflow-x-hidden"
+      >
         <h2 className="text-lg font-medium text-gray-900 mb-5" style={mono}>
           Let&apos;s get started.
         </h2>
