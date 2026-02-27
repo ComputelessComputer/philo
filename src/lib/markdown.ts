@@ -60,18 +60,18 @@ function getMarkdownManager(): MarkdownManager {
 export function md2json(markdown: string,): JSONContent {
   try {
     const cleaned = markdown.replace(/&nbsp;/g, "",);
-    // Legacy support: older notes used 3+ newlines to represent explicit empty paragraphs.
-    const parts = cleaned.split(/\n{3,}/,);
-
-    if (parts.length <= 1) {
+    const runs = Array.from(cleaned.matchAll(/\n{3,}/g,),);
+    if (runs.length === 0) {
       const result = getMarkdownManager().parse(cleaned,);
       return isValidContent(result,) ? result : EMPTY_DOC;
     }
 
     const allNodes: JSONContent[] = [];
+    let cursor = 0;
 
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i].trim();
+    for (const run of runs) {
+      const index = run.index ?? 0;
+      const part = cleaned.slice(cursor, index,).trim();
 
       if (part) {
         const parsed = getMarkdownManager().parse(part,);
@@ -80,9 +80,20 @@ export function md2json(markdown: string,): JSONContent {
         }
       }
 
-      // Insert empty paragraph between chunks (not after the last one)
-      if (i < parts.length - 1) {
+      const newlineCount = run[0].length;
+      const emptyParagraphCount = Math.max(1, newlineCount - 2,);
+      for (let i = 0; i < emptyParagraphCount; i++) {
         allNodes.push({ type: "paragraph", },);
+      }
+
+      cursor = index + newlineCount;
+    }
+
+    const tail = cleaned.slice(cursor,).trim();
+    if (tail) {
+      const parsed = getMarkdownManager().parse(tail,);
+      if (isValidContent(parsed,) && parsed.content) {
+        allNodes.push(...parsed.content,);
       }
     }
 
@@ -98,10 +109,8 @@ export function json2md(json: JSONContent,): string {
       getMarkdownManager()
         .serialize(json,)
         // Strip &nbsp; that tiptap/markdown emits for empty paragraphs.
-        // This leaves large newline runs at empty paragraph boundaries.
+        // This leaves newline runs at empty paragraph boundaries.
         .replace(/&nbsp;/g, "",)
-        // Normalize blank lines in saved markdown to a single empty line.
-        .replace(/\n{3,}/g, "\n\n",)
     );
   } catch {
     return "";
