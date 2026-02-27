@@ -34,6 +34,21 @@ html, body {
 
 .vault-path-icon {
   flex-shrink: 0;
+  width: 1.15rem;
+  height: 1.15rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.vault-path-icon-svg {
+  width: 1.15rem;
+  height: 1.15rem;
+  display: block;
+}
+
+.vault-path-icon-glyph {
+  line-height: 1;
 }
 
 .vault-path-marquee-track {

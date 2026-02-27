@@ -45,6 +45,7 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
   const canSubmit = useMemo(() => {
     return !!vaultDir.trim() && !!dailyLogsFolder.trim() && !saving && !detectingFolders;
   }, [dailyLogsFolder, detectingFolders, saving, vaultDir,],);
+  const detectedVaults = useMemo(() => new Set(vaultCandidates,), [vaultCandidates,],);
 
   if (!open || !settings) return null;
 
@@ -128,12 +129,9 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
       />
       <div className="absolute inset-0 bg-black/35 backdrop-blur-sm" />
       <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto overflow-x-hidden">
-        <h2 className="text-lg font-medium text-gray-900 mb-1" style={mono}>
-          Set up your Obsidian vault
+        <h2 className="text-lg font-medium text-gray-900 mb-5" style={mono}>
+          Let&apos;s get started.
         </h2>
-        <p className="text-xs text-gray-500 mb-5" style={mono}>
-          Philo found Obsidian vaults by scanning for `.obsidian`. Pick one or choose manually.
-        </p>
 
         <div className="space-y-3">
           <label className="block text-sm text-gray-600" style={mono}>
@@ -145,7 +143,10 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
               style={mono}
               title={vaultDir || "..."}
             >
-              <VaultPathMarquee path={vaultDir || "..."} />
+              <VaultPathMarquee
+                path={vaultDir || "..."}
+                icon={vaultDir && detectedVaults.has(vaultDir,) ? "obsidian" : "folder"}
+              />
             </div>
             <button
               onClick={handleChooseVault}
@@ -171,7 +172,7 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
                   }`}
                   style={mono}
                 >
-                  <VaultPathMarquee path={candidate} />
+                  <VaultPathMarquee path={candidate} icon="obsidian" />
                 </button>
               ))}
             </div>
