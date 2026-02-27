@@ -1,0 +1,260 @@
+import { invoke, } from "@tauri-apps/api/core";
+import { join, } from "@tauri-apps/api/path";
+import { open as openDialog, } from "@tauri-apps/plugin-dialog";
+import { useEffect, useMemo, useState, } from "react";
+import { detectObsidianFolders, } from "../../services/obsidian";
+import { initJournalScope, resetJournalDir, } from "../../services/paths";
+import { loadSettings, saveSettings, type Settings, } from "../../services/settings";
+import { VaultPathMarquee, } from "../shared/VaultPathMarquee";
+
+interface OnboardingModalProps {
+  open: boolean;
+  onComplete: () => void;
+}
+
+const mono = { fontFamily: "'IBM Plex Mono', monospace", };
+
+export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
+  const [settings, setSettings,] = useState<Settings | null>(null,);
+  const [vaultDir, setVaultDir,] = useState("",);
+  const [dailyLogsFolder, setDailyLogsFolder,] = useState("Daily Notes",);
+  const [excalidrawFolder, setExcalidrawFolder,] = useState("Excalidraw",);
+  const [assetsFolder, setAssetsFolder,] = useState("assets",);
+  const [vaultCandidates, setVaultCandidates,] = useState<string[]>([],);
+  const [detectingFolders, setDetectingFolders,] = useState(false,);
+  const [detectedFromConfig, setDetectedFromConfig,] = useState(false,);
+  const [saving, setSaving,] = useState(false,);
+  const [error, setError,] = useState("",);
+
+  useEffect(() => {
+    if (!open) return;
+
+    loadSettings().then((current,) => {
+      setSettings(current,);
+      setVaultDir(current.vaultDir || "",);
+      setDailyLogsFolder(current.dailyLogsFolder || "Daily Notes",);
+      setExcalidrawFolder(current.excalidrawFolder || "Excalidraw",);
+      setAssetsFolder(current.assetsFolder || "assets",);
+    },).catch(console.error,);
+
+    invoke<string[]>("find_obsidian_vaults",)
+      .then((vaults,) => setVaultCandidates(vaults,))
+      .catch(() => setVaultCandidates([],));
+  }, [open,],);
+
+  const canSubmit = useMemo(() => {
+    return !!vaultDir.trim() && !!dailyLogsFolder.trim() && !saving && !detectingFolders;
+  }, [dailyLogsFolder, detectingFolders, saving, vaultDir,],);
+
+  if (!open || !settings) return null;
+
+  const handleDetectFolders = async (selectedVaultDir: string,) => {
+    const normalizedVaultDir = selectedVaultDir.trim();
+    if (!normalizedVaultDir) return;
+
+    setDetectingFolders(true,);
+    try {
+      const detected = await detectObsidianFolders(normalizedVaultDir,);
+      setDailyLogsFolder((current,) => detected.dailyLogsFolder || current || "Daily Notes");
+      setExcalidrawFolder((current,) => detected.excalidrawFolder || current || "Excalidraw");
+      setAssetsFolder((current,) => detected.assetsFolder || current || "assets");
+      setDetectedFromConfig(
+        !!detected.dailyLogsFolder || !!detected.excalidrawFolder || !!detected.assetsFolder,
+      );
+    } finally {
+      setDetectingFolders(false,);
+    }
+  };
+
+  const handleSelectVault = async (selectedVaultDir: string,) => {
+    setVaultDir(selectedVaultDir,);
+    await handleDetectFolders(selectedVaultDir,);
+  };
+
+  const handleChooseVault = async () => {
+    const selected = await openDialog({ directory: true, multiple: false, },);
+    if (selected) await handleSelectVault(selected,);
+  };
+
+  const handleSubmit = async () => {
+    const nextVaultDir = vaultDir.trim();
+    const nextDailyLogsFolder = dailyLogsFolder.trim();
+    const nextExcalidrawFolder = excalidrawFolder.trim();
+    const nextAssetsFolder = assetsFolder.trim();
+
+    if (!nextVaultDir) {
+      setError("Vault location is required.",);
+      return;
+    }
+    if (!nextDailyLogsFolder) {
+      setError("Daily logs folder is required.",);
+      return;
+    }
+
+    setSaving(true,);
+    setError("",);
+    try {
+      const journalDir = await join(nextVaultDir, nextDailyLogsFolder,);
+      const nextSettings: Settings = {
+        ...settings,
+        journalDir,
+        vaultDir: nextVaultDir,
+        dailyLogsFolder: nextDailyLogsFolder,
+        excalidrawFolder: nextExcalidrawFolder,
+        assetsFolder: nextAssetsFolder,
+        hasCompletedOnboarding: true,
+      };
+      await saveSettings(nextSettings,);
+      await resetJournalDir(journalDir,);
+      await initJournalScope();
+      onComplete();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save onboarding settings.",);
+    } finally {
+      setSaving(false,);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/35 backdrop-blur-sm" />
+      <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6 max-h-[90vh] overflow-y-auto">
+        <h2 className="text-lg font-medium text-gray-900 mb-1" style={mono}>
+          Set up your Obsidian vault
+        </h2>
+        <p className="text-xs text-gray-500 mb-5" style={mono}>
+          Philo found Obsidian vaults by scanning for `.obsidian`. Pick one or choose manually.
+        </p>
+
+        <div className="space-y-3">
+          <label className="block text-sm text-gray-600" style={mono}>
+            Vault Location
+          </label>
+          <div className="flex items-center gap-2">
+            <div
+              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-500 bg-gray-50"
+              style={mono}
+              title={vaultDir || "..."}
+            >
+              <VaultPathMarquee path={vaultDir || "..."} />
+            </div>
+            <button
+              onClick={handleChooseVault}
+              className="shrink-0 px-3 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors cursor-pointer text-gray-700"
+              style={mono}
+            >
+              Choose…
+            </button>
+          </div>
+
+          {vaultCandidates.length > 0 && (
+            <div className="space-y-1.5 pt-1">
+              {vaultCandidates.map((candidate,) => (
+                <button
+                  key={candidate}
+                  onClick={() => {
+                    void handleSelectVault(candidate,);
+                  }}
+                  className={`w-full px-2 py-1.5 text-xs rounded-md border transition-colors cursor-pointer text-left ${
+                    candidate === vaultDir
+                      ? "border-violet-400 bg-violet-50 text-violet-700"
+                      : "border-gray-200 text-gray-500 hover:border-gray-300"
+                  }`}
+                  style={mono}
+                >
+                  <VaultPathMarquee path={candidate} />
+                </button>
+              ))}
+            </div>
+          )}
+          <button
+            onClick={() => {
+              void handleDetectFolders(vaultDir,);
+            }}
+            disabled={!vaultDir.trim() || detectingFolders}
+            className="text-xs text-violet-600 hover:text-violet-800 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors cursor-pointer"
+            style={mono}
+          >
+            {detectingFolders ? "Reading Obsidian config..." : "Auto-fill folders from Obsidian config"}
+          </button>
+          {detectedFromConfig && (
+            <p className="text-xs text-gray-400" style={mono}>
+              Folder values were populated from files in `.obsidian/`.
+            </p>
+          )}
+        </div>
+
+        <div className="my-5 border-t border-gray-100" />
+
+        <div className="space-y-3">
+          <label className="block text-sm text-gray-600" style={mono}>
+            Daily logs folder (required)
+          </label>
+          <input
+            value={dailyLogsFolder}
+            onChange={(e,) => setDailyLogsFolder(e.target.value,)}
+            placeholder="Daily Notes"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+            style={mono}
+          />
+        </div>
+
+        <div className="my-5 border-t border-gray-100" />
+
+        <div className="space-y-3">
+          <label className="block text-sm text-gray-600" style={mono}>
+            Excalidraw folder (optional)
+          </label>
+          <input
+            value={excalidrawFolder}
+            onChange={(e,) => setExcalidrawFolder(e.target.value,)}
+            placeholder="Excalidraw"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+            style={mono}
+          />
+          <p className="text-xs text-gray-400" style={mono}>
+            Used to resolve `![[*.excalidraw]]` embeds.
+          </p>
+        </div>
+
+        <div className="my-5 border-t border-gray-100" />
+
+        <div className="space-y-3">
+          <label className="block text-sm text-gray-600" style={mono}>
+            Assets folder (optional)
+          </label>
+          <input
+            value={assetsFolder}
+            onChange={(e,) => setAssetsFolder(e.target.value,)}
+            placeholder="assets"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+            style={mono}
+          />
+          <p className="text-xs text-gray-400" style={mono}>
+            Where pasted/dropped images are saved.
+          </p>
+        </div>
+
+        {error && (
+          <p className="mt-4 text-xs text-red-600" style={mono}>
+            {error}
+          </p>
+        )}
+
+        <div className="mt-6 flex justify-end">
+          <button
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            className="px-4 py-2 text-sm text-white rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              ...mono,
+              background: "linear-gradient(to bottom, #7c3aed, #5b21b6)",
+            }}
+          >
+            {saving ? "Saving..." : "Start"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
