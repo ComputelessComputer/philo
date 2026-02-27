@@ -1,7 +1,6 @@
 import { invoke, } from "@tauri-apps/api/core";
 import { join, } from "@tauri-apps/api/path";
 import { open as openDialog, } from "@tauri-apps/plugin-dialog";
-import { exists, } from "@tauri-apps/plugin-fs";
 import { useEffect, useMemo, useRef, useState, } from "react";
 import { detectObsidianFolders, ensureObsidianVaultStructure, } from "../../services/obsidian";
 import { getJournalDir, initJournalScope, resetJournalDir, } from "../../services/paths";
@@ -101,7 +100,7 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
     const selected = await openDialog({
       directory: true,
       multiple: false,
-      defaultPath: defaultPath && await exists(defaultPath,) ? defaultPath : undefined,
+      defaultPath: defaultPath || undefined,
     },);
     if (selected) await handleSelectVault(selected,);
   };
