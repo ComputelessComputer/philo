@@ -9,6 +9,13 @@ interface FolderDetection {
   filenamePattern: string;
 }
 
+interface BackendFolderDetection {
+  dailyLogsFolder?: string;
+  excalidrawFolder?: string;
+  assetsFolder?: string;
+  filenamePattern?: string;
+}
+
 interface VaultBootstrapOptions {
   dailyLogsFolder: string;
   excalidrawFolder?: string;
@@ -140,10 +147,28 @@ function detectExcalidrawFolder(excalidrawConfig: Record<string, unknown> | null
   return "";
 }
 
+function normalizeDetectionFromBackend(value: BackendFolderDetection | null | undefined,): FolderDetection {
+  return {
+    dailyLogsFolder: normalizeFolder(asString(value?.dailyLogsFolder ?? "",),),
+    excalidrawFolder: normalizeFolder(asString(value?.excalidrawFolder ?? "",),),
+    assetsFolder: normalizeFolder(asString(value?.assetsFolder ?? "",),),
+    filenamePattern: asString(value?.filenamePattern ?? "",) ?? "",
+  };
+}
+
 export async function detectObsidianFolders(vaultDir: string,): Promise<FolderDetection> {
   const normalizedVaultDir = vaultDir.trim();
   if (!normalizedVaultDir) {
     return { dailyLogsFolder: "", excalidrawFolder: "", assetsFolder: "", filenamePattern: "", };
+  }
+
+  const detectedFromBackend = await invoke<BackendFolderDetection>("detect_obsidian_settings", {
+    vaultDir: normalizedVaultDir,
+  },).then(normalizeDetectionFromBackend,).catch(() => null);
+
+  if (detectedFromBackend) {
+    const hasDetectedValue = Object.values(detectedFromBackend,).some((value,) => value.trim().length > 0);
+    if (hasDetectedValue) return detectedFromBackend;
   }
 
   await invoke("extend_fs_scope", { path: normalizedVaultDir, },).catch(() => undefined);

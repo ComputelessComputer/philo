@@ -4,6 +4,8 @@ extern crate objc;
 
 use std::path::PathBuf;
 use std::{env, fs};
+use serde::Serialize;
+use serde_json::Value;
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
@@ -41,6 +43,201 @@ fn should_skip_dir(name: &str) -> bool {
             | "dist"
             | "build"
     )
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ObsidianSettingsDetection {
+    daily_logs_folder: String,
+    excalidraw_folder: String,
+    assets_folder: String,
+    filename_pattern: String,
+}
+
+fn normalize_folder(raw: &str) -> String {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    if trimmed == "/" || trimmed == "./" || trimmed == "." {
+        return ".".to_string();
+    }
+
+    let without_prefix = trimmed.trim_start_matches("./").trim_start_matches('/');
+    without_prefix.trim_end_matches('/').to_string()
+}
+
+fn read_json_file(path: &PathBuf) -> Option<Value> {
+    let raw = fs::read_to_string(path).ok()?;
+    serde_json::from_str::<Value>(&raw).ok()
+}
+
+fn get_string(value: &Value, key: &str) -> Option<String> {
+    let text = value.get(key)?.as_str()?.trim();
+    if text.is_empty() {
+        None
+    } else {
+        Some(text.to_string())
+    }
+}
+
+fn map_obsidian_date_format_to_filename_pattern(format: &str) -> String {
+    let mut cleaned = String::new();
+    let mut bracket_depth = 0;
+    for ch in format.trim().chars() {
+        if ch == '[' {
+            bracket_depth += 1;
+            continue;
+        }
+        if ch == ']' {
+            bracket_depth = (bracket_depth - 1).max(0);
+            continue;
+        }
+        if bracket_depth >= 0 {
+            cleaned.push(ch);
+        }
+    }
+
+    if cleaned.trim().is_empty() {
+        return String::new();
+    }
+
+    let chars: Vec<char> = cleaned.chars().collect();
+    let mut output = String::new();
+    let mut i = 0;
+    let mut seen_year = false;
+    let mut seen_month = false;
+    let mut seen_day = false;
+
+    while i < chars.len() {
+        let ch = chars[i];
+        let is_token_char = matches!(ch, 'Y' | 'y' | 'M' | 'D' | 'd');
+        if !is_token_char {
+            output.push(ch);
+            i += 1;
+            continue;
+        }
+
+        let mut j = i + 1;
+        while j < chars.len() && chars[j] == ch {
+            j += 1;
+        }
+        let token: String = chars[i..j].iter().collect();
+        match token.as_str() {
+            "YYYY" | "yyyy" => {
+                output.push_str("{YYYY}");
+                seen_year = true;
+            }
+            "MM" => {
+                output.push_str("{MM}");
+                seen_month = true;
+            }
+            "DD" | "dd" => {
+                output.push_str("{DD}");
+                seen_day = true;
+            }
+            _ => {
+                return String::new();
+            }
+        }
+        i = j;
+    }
+
+    if seen_year && seen_month && seen_day {
+        output
+    } else {
+        String::new()
+    }
+}
+
+fn contains_case_insensitive(haystack: &str, needle: &str) -> bool {
+    haystack.to_lowercase().contains(&needle.to_lowercase())
+}
+
+#[tauri::command]
+fn detect_obsidian_settings(vault_dir: String) -> ObsidianSettingsDetection {
+    if vault_dir.trim().is_empty() {
+        return ObsidianSettingsDetection {
+            daily_logs_folder: String::new(),
+            excalidraw_folder: String::new(),
+            assets_folder: String::new(),
+            filename_pattern: String::new(),
+        };
+    }
+
+    let obsidian_dir = PathBuf::from(vault_dir).join(".obsidian");
+    let daily_notes = read_json_file(&obsidian_dir.join("daily-notes.json"));
+    let periodic_notes = read_json_file(&obsidian_dir.join("plugins/periodic-notes/data.json"));
+    let app = read_json_file(&obsidian_dir.join("app.json"));
+    let excalidraw = read_json_file(&obsidian_dir.join("plugins/obsidian-excalidraw-plugin/data.json"));
+
+    let mut daily_logs_folder = String::new();
+    let mut filename_pattern = String::new();
+
+    if let Some(daily_notes_value) = daily_notes.as_ref() {
+        if let Some(folder) = get_string(daily_notes_value, "folder") {
+            daily_logs_folder = normalize_folder(&folder);
+        }
+        if let Some(format) = get_string(daily_notes_value, "format") {
+            filename_pattern = map_obsidian_date_format_to_filename_pattern(&format);
+        }
+    }
+
+    if let Some(periodic_notes_value) = periodic_notes.as_ref().and_then(|v| v.get("daily")) {
+        if daily_logs_folder.is_empty() {
+            if let Some(folder) = periodic_notes_value.get("folder").and_then(|v| v.as_str()) {
+                daily_logs_folder = normalize_folder(folder);
+            }
+        }
+        if filename_pattern.is_empty() {
+            if let Some(format) = periodic_notes_value.get("format").and_then(|v| v.as_str()) {
+                filename_pattern = map_obsidian_date_format_to_filename_pattern(format);
+            }
+        }
+    }
+
+    let assets_folder = app
+        .as_ref()
+        .and_then(|v| get_string(v, "attachmentFolderPath"))
+        .map(|value| normalize_folder(&value))
+        .unwrap_or_default();
+
+    let mut excalidraw_folder = String::new();
+    if let Some(excalidraw_value) = excalidraw.as_ref() {
+        for key in ["folder", "excalidrawFolder", "drawingFolder", "drawingFolderPath", "folderPath"] {
+            if let Some(value) = get_string(excalidraw_value, key) {
+                excalidraw_folder = normalize_folder(&value);
+                break;
+            }
+        }
+
+        if excalidraw_folder.is_empty() {
+            if let Some(obj) = excalidraw_value.as_object() {
+                for (key, value) in obj {
+                    let Some(text) = value.as_str() else { continue; };
+                    if !(contains_case_insensitive(key, "folder")
+                        || contains_case_insensitive(key, "path")
+                        || contains_case_insensitive(key, "dir"))
+                    {
+                        continue;
+                    }
+                    if contains_case_insensitive(key, "excalidraw")
+                        || contains_case_insensitive(text, "excalidraw")
+                    {
+                        excalidraw_folder = normalize_folder(text);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    ObsidianSettingsDetection {
+        daily_logs_folder,
+        excalidraw_folder,
+        assets_folder,
+        filename_pattern,
+    }
 }
 
 #[tauri::command]
@@ -132,6 +329,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             extend_fs_scope,
             find_obsidian_vaults,
+            detect_obsidian_settings,
             set_window_opacity
         ])
         .setup(|app| {
