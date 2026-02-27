@@ -63,7 +63,7 @@ function getMarkdownManager(): MarkdownManager {
 export function md2json(markdown: string,): JSONContent {
   try {
     const source = markdown.replace(/\r\n?/g, "\n",);
-    const runs = Array.from(source.matchAll(/(?:\n[ \t]*){3,}/g,),);
+    const runs = Array.from(source.matchAll(/(?:\n[ \t]*){2,}/g,),);
     if (runs.length === 0) {
       const result = getMarkdownManager().parse(source,);
       return isValidContent(result,) ? result : EMPTY_DOC;
@@ -108,7 +108,7 @@ export function md2json(markdown: string,): JSONContent {
 
 export function json2md(json: JSONContent,): string {
   try {
-    return getMarkdownManager().serialize(json,);
+    return getMarkdownManager().serialize(json,).replace(/\n{3,}/g, "\n\n",);
   } catch {
     return "";
   }
