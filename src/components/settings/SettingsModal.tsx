@@ -23,7 +23,6 @@ const mono = { fontFamily: "'IBM Plex Mono', monospace", };
 export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
   const [settings, setSettings,] = useState<Settings | null>(null,);
   const [saved, setSaved,] = useState(false,);
-  const [detectingFolders, setDetectingFolders,] = useState(false,);
   const [defaultJournalDir, setDefaultJournalDir,] = useState("",);
   const inputRef = useRef<HTMLInputElement>(null,);
 
@@ -79,22 +78,17 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
     const normalizedVaultDir = vaultDir.trim();
     if (!normalizedVaultDir) return;
 
-    setDetectingFolders(true,);
-    try {
-      const detected = await detectObsidianFolders(normalizedVaultDir,);
-      setSettings((current,) => {
-        if (!current) return current;
-        return {
-          ...current,
-          dailyLogsFolder: detected.dailyLogsFolder || current.dailyLogsFolder,
-          excalidrawFolder: detected.excalidrawFolder || current.excalidrawFolder,
-          assetsFolder: detected.assetsFolder || current.assetsFolder,
-        };
-      },);
-      setSaved(false,);
-    } finally {
-      setDetectingFolders(false,);
-    }
+    const detected = await detectObsidianFolders(normalizedVaultDir,);
+    setSettings((current,) => {
+      if (!current) return current;
+      return {
+        ...current,
+        dailyLogsFolder: detected.dailyLogsFolder || current.dailyLogsFolder,
+        excalidrawFolder: detected.excalidrawFolder || current.excalidrawFolder,
+        assetsFolder: detected.assetsFolder || current.assetsFolder,
+      };
+    },);
+    setSaved(false,);
   };
 
   const handleChooseVault = async () => {
@@ -189,16 +183,6 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
               Choose…
             </button>
           </div>
-          <button
-            onClick={() => {
-              void detectFromVault(settings.vaultDir,);
-            }}
-            disabled={!settings.vaultDir.trim() || detectingFolders}
-            className="text-xs text-violet-600 hover:text-violet-800 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors cursor-pointer"
-            style={mono}
-          >
-            {detectingFolders ? "Reading Obsidian config..." : "Auto-fill folders from Obsidian config"}
-          </button>
           {settings.vaultDir && (
             <button
               onClick={() => update({ vaultDir: "", },)}

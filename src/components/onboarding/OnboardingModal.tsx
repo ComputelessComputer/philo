@@ -177,16 +177,6 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
               ))}
             </div>
           )}
-          <button
-            onClick={() => {
-              void handleDetectFolders(vaultDir,);
-            }}
-            disabled={!vaultDir.trim() || detectingFolders}
-            className="text-xs text-violet-600 hover:text-violet-800 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors cursor-pointer"
-            style={mono}
-          >
-            {detectingFolders ? "Reading Obsidian config..." : "Auto-fill folders from Obsidian config"}
-          </button>
           {detectedFromConfig && (
             <p className="text-xs text-gray-400" style={mono}>
               Folder values were populated from files in `.obsidian/`.
