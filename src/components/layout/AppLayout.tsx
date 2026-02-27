@@ -6,13 +6,15 @@ import { useCallback, useEffect, useMemo, useRef, useState, } from "react";
 import { useCurrentDate, } from "../../hooks/useCurrentDate";
 import { useTimezoneCity, } from "../../hooks/useTimezoneCity";
 import type { LibraryItem, } from "../../services/library";
-import { getJournalDir, getNotePath, initJournalScope, } from "../../services/paths";
+import { getJournalDir, initJournalScope, } from "../../services/paths";
+import { loadSettings, } from "../../services/settings";
 import { getOrCreateDailyNote, loadDailyNote, saveDailyNote, } from "../../services/storage";
 import { rolloverTasks, } from "../../services/tasks";
 import { checkForUpdate, type UpdateInfo, } from "../../services/updater";
 import { DailyNote, formatDate, getDaysAgo, isToday, } from "../../types/note";
 import EditableNote, { type EditableNoteHandle, } from "../journal/EditableNote";
 import { LibraryDrawer, } from "../library/LibraryDrawer";
+import { OnboardingModal, } from "../onboarding/OnboardingModal";
 import { SettingsModal, } from "../settings/SettingsModal";
 import { UpdateBanner, } from "../UpdateBanner";
 
@@ -20,6 +22,11 @@ function applyCity(savedCity: string | null | undefined, newCity: string,): stri
   if (!savedCity || savedCity === newCity) return newCity;
   const from = savedCity.includes(" → ",) ? savedCity.split(" → ",)[0] : savedCity;
   return `${from} → ${newCity}`;
+}
+
+function noteChanged(current: DailyNote | null, incoming: DailyNote,): boolean {
+  if (!current) return true;
+  return current.content !== incoming.content || current.city !== incoming.city;
 }
 
 function DateHeader({ date, city, }: { date: string; city?: string | null; },) {
@@ -92,6 +99,9 @@ export default function AppLayout() {
   const pastDates = useMemo(() => Array.from({ length: 30, }, (_, i,) => getDaysAgo(i + 1,),), [today,],);
   const [settingsOpen, setSettingsOpen,] = useState(false,);
   const [libraryOpen, setLibraryOpen,] = useState(false,);
+  const [onboardingOpen, setOnboardingOpen,] = useState(false,);
+  const [isConfigured, setIsConfigured,] = useState(false,);
+  const [storageRevision, setStorageRevision,] = useState(0,);
   const [updateInfo, setUpdateInfo,] = useState<UpdateInfo | null>(null,);
   const [isPinned, setIsPinned,] = useState(false,);
   const [opacity, setOpacity,] = useState(1,);
@@ -102,9 +112,30 @@ export default function AppLayout() {
     todayNoteRef.current = todayNote;
   }, [todayNote,],);
 
-  // Extend FS scope for custom journal dir on mount
+  const syncTodayNoteFromDisk = useCallback(() => {
+    loadDailyNote(today,)
+      .then((reloaded,) => {
+        if (!reloaded) return;
+        if (noteChanged(todayNoteRef.current, reloaded,)) {
+          setTodayNote(reloaded,);
+        }
+      },)
+      .catch(console.error,);
+  }, [today,],);
+
+  // Load configuration and extend FS scope on mount
   useEffect(() => {
-    initJournalScope().catch(console.error,);
+    loadSettings()
+      .then(async (settings,) => {
+        const hasJournalConfig = !!settings.journalDir || !!settings.vaultDir;
+        if (settings.hasCompletedOnboarding || hasJournalConfig) {
+          await initJournalScope();
+          setIsConfigured(true,);
+        } else {
+          setOnboardingOpen(true,);
+        }
+      },)
+      .catch(console.error,);
   }, [],);
 
   // Check for app updates on mount
@@ -132,23 +163,15 @@ export default function AppLayout() {
 
   // Re-read today's note from disk when the window regains focus (handles external edits)
   useEffect(() => {
-    const handleFocus = () => {
-      loadDailyNote(today,)
-        .then((reloaded,) => {
-          if (!reloaded) return;
-          if (reloaded.content.trimEnd() !== (todayNoteRef.current?.content ?? "").trimEnd()) {
-            selfWriteTimer.current = Date.now();
-            setTodayNote(reloaded,);
-          }
-        },)
-        .catch(console.error,);
-    };
+    if (!isConfigured) return;
+    const handleFocus = () => syncTodayNoteFromDisk();
     window.addEventListener("focus", handleFocus,);
     return () => window.removeEventListener("focus", handleFocus,);
-  }, [today,],);
+  }, [isConfigured, syncTodayNoteFromDisk,],);
 
   // Roll over unchecked tasks from past days, then load today's note
   useEffect(() => {
+    if (!isConfigured) return;
     async function load() {
       await rolloverTasks(30,);
 
@@ -160,21 +183,17 @@ export default function AppLayout() {
       cityRef.current = effectiveCity ?? currentCity ?? "";
       setTodayNote(todayWithCity,);
       if (effectiveCity !== note.city) {
-        selfWriteTimer.current = Date.now();
         saveDailyNote(todayWithCity,).catch(console.error,);
       }
-
-      // Track today's path so the file watcher can identify external changes
-      const todayPath = await getNotePath(today,);
-      notePathsRef.current = new Map([[todayPath, today,],],);
     }
     load();
-  }, [today,],);
+  }, [isConfigured, storageRevision, today,],);
 
   // Detect same-day timezone change (travel): update today's note with transition city.
   // Guard (note.date === today) prevents this from running when both today and currentCity
   // change simultaneously (cross-date-line travel) — the [today] load effect handles that.
   useEffect(() => {
+    if (!isConfigured) return;
     const prevCity = prevCityRef.current;
     prevCityRef.current = currentCity;
     if (prevCity === currentCity) return;
@@ -186,36 +205,20 @@ export default function AppLayout() {
     cityRef.current = transition;
     const updated = { ...note, city: transition, };
     setTodayNote(updated,);
-    selfWriteTimer.current = Date.now();
     saveDailyNote(updated,).catch(console.error,);
-  }, [currentCity,],);
+  }, [currentCity, isConfigured, today,],);
 
   // Watch the journal directory for external changes
   useEffect(() => {
+    if (!isConfigured) return;
     let unwatch: (() => void) | null = null;
 
     getJournalDir().then(async (dir,) => {
       unwatch = await watch(
         dir,
         (event,) => {
-          // Ignore events triggered by our own saves
-          if (Date.now() - selfWriteTimer.current < 3000) return;
-
-          const mdPaths = event.paths.filter((p,) => p.endsWith(".md",));
-          if (mdPaths.length === 0) return;
-
-          for (const changedPath of mdPaths) {
-            const date = notePathsRef.current.get(changedPath,);
-            if (!date) continue;
-
-            if (date === today) {
-              loadDailyNote(today,)
-                .then((reloaded,) => {
-                  if (reloaded) setTodayNote(reloaded,);
-                },)
-                .catch(console.error,);
-            }
-          }
+          if (!event.paths.some((path,) => path.endsWith(".md",))) return;
+          syncTodayNoteFromDisk();
         },
         { recursive: true, },
       );
@@ -224,11 +227,10 @@ export default function AppLayout() {
     return () => {
       unwatch?.();
     };
-  }, [today,],);
+  }, [isConfigured, storageRevision, syncTodayNoteFromDisk,],);
 
   const handleTodaySave = useCallback(
     (note: DailyNote,) => {
-      selfWriteTimer.current = Date.now();
       saveDailyNote(note,).catch(console.error,);
       setTodayNote(note,);
     },
@@ -238,8 +240,6 @@ export default function AppLayout() {
   const todayEditorRef = useRef<EditableNoteHandle>(null,);
   const todayRef = useRef<HTMLDivElement>(null,);
   const scrollRef = useRef<HTMLDivElement>(null,);
-  const selfWriteTimer = useRef(0,);
-  const notePathsRef = useRef<Map<string, string>>(new Map(),);
 
   // "Go to Today" badge when scrolled away
   const [todayDirection, setTodayDirection,] = useState<"above" | "below" | null>(null,);
@@ -393,6 +393,14 @@ export default function AppLayout() {
 
       {/* Settings modal — triggered by macOS menu bar Cmd+, */}
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false,)} />
+      <OnboardingModal
+        open={onboardingOpen}
+        onComplete={() => {
+          setOnboardingOpen(false,);
+          setIsConfigured(true,);
+          setStorageRevision((value,) => value + 1);
+        }}
+      />
     </div>
   );
 }
