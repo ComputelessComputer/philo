@@ -83,6 +83,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
       if (!current) return current;
       return {
         ...current,
+        filenamePattern: detected.filenamePattern || current.filenamePattern,
         dailyLogsFolder: detected.dailyLogsFolder || current.dailyLogsFolder,
         excalidrawFolder: detected.excalidrawFolder || current.excalidrawFolder,
         assetsFolder: detected.assetsFolder || current.assetsFolder,

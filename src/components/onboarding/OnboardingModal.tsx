@@ -23,6 +23,7 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
   const [vaultCandidates, setVaultCandidates,] = useState<string[]>([],);
   const [detectingFolders, setDetectingFolders,] = useState(false,);
   const [detectedFromConfig, setDetectedFromConfig,] = useState(false,);
+  const [detectedFilenamePattern, setDetectedFilenamePattern,] = useState("",);
   const [saving, setSaving,] = useState(false,);
   const [error, setError,] = useState("",);
 
@@ -59,8 +60,12 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
       setDailyLogsFolder((current,) => detected.dailyLogsFolder || current || "Daily Notes");
       setExcalidrawFolder((current,) => detected.excalidrawFolder || current || "Excalidraw");
       setAssetsFolder((current,) => detected.assetsFolder || current || "assets");
+      setDetectedFilenamePattern(detected.filenamePattern || "",);
       setDetectedFromConfig(
-        !!detected.dailyLogsFolder || !!detected.excalidrawFolder || !!detected.assetsFolder,
+        !!detected.dailyLogsFolder
+          || !!detected.excalidrawFolder
+          || !!detected.assetsFolder
+          || !!detected.filenamePattern,
       );
     } finally {
       setDetectingFolders(false,);
@@ -105,6 +110,7 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
         ...settings,
         journalDir,
         vaultDir: nextVaultDir,
+        filenamePattern: detectedFilenamePattern || settings.filenamePattern,
         dailyLogsFolder: nextDailyLogsFolder,
         excalidrawFolder: nextExcalidrawFolder,
         assetsFolder: nextAssetsFolder,

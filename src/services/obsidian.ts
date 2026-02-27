@@ -6,6 +6,7 @@ interface FolderDetection {
   dailyLogsFolder: string;
   excalidrawFolder: string;
   assetsFolder: string;
+  filenamePattern: string;
 }
 
 interface VaultBootstrapOptions {
@@ -62,6 +63,54 @@ function detectDailyLogsFolder(
   return "";
 }
 
+function mapObsidianDateFormatToFilenamePattern(format: string | null,): string {
+  if (!format) return "";
+
+  const source = format.trim().replace(/\[([^\]]*)\]/g, "$1",);
+  if (!source) return "";
+
+  let output = "";
+  let last = 0;
+
+  for (const match of source.matchAll(/[YyMDd]+/g,)) {
+    const token = match[0];
+    const index = match.index ?? 0;
+    output += source.slice(last, index,);
+
+    if (/^[Yy]{4}$/.test(token,)) {
+      output += "{YYYY}";
+    } else if (/^M{2}$/.test(token,)) {
+      output += "{MM}";
+    } else if (/^[Dd]{2}$/.test(token,)) {
+      output += "{DD}";
+    } else {
+      return "";
+    }
+
+    last = index + token.length;
+  }
+
+  output += source.slice(last,);
+  if (!output.includes("{YYYY}",) || !output.includes("{MM}",) || !output.includes("{DD}",)) {
+    return "";
+  }
+  return output;
+}
+
+function detectFilenamePattern(
+  dailyNotesConfig: Record<string, unknown> | null,
+  periodicNotesConfig: Record<string, unknown> | null,
+): string {
+  const fromDailyNotes = mapObsidianDateFormatToFilenamePattern(asString(dailyNotesConfig?.format,),);
+  if (fromDailyNotes) return fromDailyNotes;
+
+  const periodicDaily = asRecord(periodicNotesConfig?.daily,);
+  const fromPeriodicNotes = mapObsidianDateFormatToFilenamePattern(asString(periodicDaily?.format,),);
+  if (fromPeriodicNotes) return fromPeriodicNotes;
+
+  return "";
+}
+
 function detectAssetsFolder(appConfig: Record<string, unknown> | null,): string {
   return normalizeFolder(asString(appConfig?.attachmentFolderPath,),);
 }
@@ -94,7 +143,7 @@ function detectExcalidrawFolder(excalidrawConfig: Record<string, unknown> | null
 export async function detectObsidianFolders(vaultDir: string,): Promise<FolderDetection> {
   const normalizedVaultDir = vaultDir.trim();
   if (!normalizedVaultDir) {
-    return { dailyLogsFolder: "", excalidrawFolder: "", assetsFolder: "", };
+    return { dailyLogsFolder: "", excalidrawFolder: "", assetsFolder: "", filenamePattern: "", };
   }
 
   await invoke("extend_fs_scope", { path: normalizedVaultDir, },).catch(() => undefined);
@@ -111,6 +160,7 @@ export async function detectObsidianFolders(vaultDir: string,): Promise<FolderDe
     dailyLogsFolder: detectDailyLogsFolder(dailyNotesConfig, periodicNotesConfig,),
     excalidrawFolder: detectExcalidrawFolder(excalidrawConfig,),
     assetsFolder: detectAssetsFolder(appConfig,),
+    filenamePattern: detectFilenamePattern(dailyNotesConfig, periodicNotesConfig,),
   };
 }
 
