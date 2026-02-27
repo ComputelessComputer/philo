@@ -1,9 +1,9 @@
-import { exists, mkdir, readTextFile, writeTextFile, } from "@tauri-apps/plugin-fs";
+import { invoke, } from "@tauri-apps/api/core";
 import { EMPTY_DOC, json2md, md2json, parseJsonContent, } from "../lib/markdown";
 import { DailyNote, getDaysAgo, } from "../types/note";
 import { resolveExcalidrawEmbeds, } from "./excalidraw";
 import { resolveMarkdownImages, unresolveMarkdownImages, } from "./images";
-import { getNoteDir, getNotePath, } from "./paths";
+import { getNotePath, } from "./paths";
 
 const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n?/;
 
@@ -22,32 +22,23 @@ function buildFrontmatter(city: string | null | undefined, body: string,): strin
   return `---\ncity: ${city}\n---\n${body}`;
 }
 
-async function ensureDir(dir: string,) {
-  const dirExists = await exists(dir,);
-  if (!dirExists) {
-    await mkdir(dir, { recursive: true, },);
-  }
-}
-
 export async function saveDailyNote(note: DailyNote,): Promise<void> {
-  const noteDir = await getNoteDir(note.date,);
-  await ensureDir(noteDir,);
   const filepath = await getNotePath(note.date,);
   const json = parseJsonContent(note.content,);
   let body = unresolveMarkdownImages(json2md(json,),);
   if (!body.endsWith("\n",)) body += "\n";
-  await writeTextFile(filepath, buildFrontmatter(note.city, body,),);
+  await invoke("write_markdown_file", {
+    path: filepath,
+    content: buildFrontmatter(note.city, body,),
+  },);
 }
 
 export async function loadDailyNote(date: string,): Promise<DailyNote | null> {
   const filepath = await getNotePath(date,);
-  const fileExists = await exists(filepath,);
-
-  if (!fileExists) {
+  const raw = await invoke<string | null>("read_markdown_file", { path: filepath, },);
+  if (!raw) {
     return null;
   }
-
-  const raw = await readTextFile(filepath,);
   const { city, body, } = parseFrontmatter(raw,);
   const withEmbeds = await resolveExcalidrawEmbeds(body.replace(/&nbsp;/g, "",),);
   const resolved = await resolveMarkdownImages(withEmbeds,);

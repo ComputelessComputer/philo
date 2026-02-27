@@ -27,6 +27,40 @@ fn set_window_opacity(_app: AppHandle, _opacity: f64) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn read_markdown_file(path: String) -> Result<Option<String>, String> {
+    let normalized_path = path.trim();
+    if normalized_path.is_empty() {
+        return Ok(None);
+    }
+
+    match fs::read_to_string(normalized_path) {
+        Ok(content) => Ok(Some(content)),
+        Err(err) => {
+            if err.kind() == std::io::ErrorKind::NotFound {
+                Ok(None)
+            } else {
+                Err(err.to_string())
+            }
+        }
+    }
+}
+
+#[tauri::command]
+fn write_markdown_file(path: String, content: String) -> Result<(), String> {
+    let normalized_path = path.trim();
+    if normalized_path.is_empty() {
+        return Ok(());
+    }
+
+    let target = PathBuf::from(normalized_path);
+    if let Some(parent) = target.parent() {
+        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+    }
+
+    fs::write(target, content).map_err(|e| e.to_string())
+}
+
 fn should_skip_dir(name: &str) -> bool {
     if name.starts_with('.') && name != ".obsidian" {
         return true;
@@ -406,6 +440,8 @@ pub fn run() {
             find_obsidian_vaults,
             detect_obsidian_settings,
             bootstrap_obsidian_vault,
+            read_markdown_file,
+            write_markdown_file,
             set_window_opacity
         ])
         .setup(|app| {
