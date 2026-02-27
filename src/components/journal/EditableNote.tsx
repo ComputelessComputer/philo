@@ -23,6 +23,7 @@ import { ClipboardTextSerializer, } from "../editor/extensions/clipboard";
 import { ExcalidrawExtension, } from "../editor/extensions/excalidraw/ExcalidrawExtension";
 import { HashtagExtension, } from "../editor/extensions/hashtag/HashtagExtension";
 import { CustomListKeymap, } from "../editor/extensions/list-keymap";
+import { CustomParagraph, } from "../editor/extensions/paragraph/ParagraphExtension";
 import { CustomTaskItem, } from "../editor/extensions/task-item/TaskItemNode";
 import { WidgetExtension, } from "../editor/extensions/widget/WidgetExtension";
 
@@ -62,10 +63,14 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
         StarterKit.configure({
           heading: { levels: [1, 2, 3, 4, 5, 6,], },
           listKeymap: false,
+          paragraph: false,
         },),
+        CustomParagraph,
         Image.configure({ inline: true, allowBase64: false, },),
         Underline,
-        Placeholder.configure({ placeholder, },),
+        Placeholder.configure({
+          placeholder: ({ editor, },) => (editor.isEmpty ? placeholder : ""),
+        },),
         Link.extend({
           inclusive() {
             return false;

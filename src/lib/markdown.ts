@@ -10,6 +10,7 @@ import StarterKit from "@tiptap/starter-kit";
 
 import { ExcalidrawExtension, } from "../components/editor/extensions/excalidraw/ExcalidrawExtension";
 import { HashtagExtension, } from "../components/editor/extensions/hashtag/HashtagExtension";
+import { CustomParagraph, } from "../components/editor/extensions/paragraph/ParagraphExtension";
 import { CustomTaskItem, } from "../components/editor/extensions/task-item/TaskItemNode";
 import { WidgetExtension, } from "../components/editor/extensions/widget/WidgetExtension";
 
@@ -29,7 +30,9 @@ function getExtensions() {
     StarterKit.configure({
       heading: { levels: [1, 2, 3, 4, 5, 6,], },
       listKeymap: false,
+      paragraph: false,
     },),
+    CustomParagraph,
     Image.configure({ inline: true, allowBase64: false, },),
     Underline,
     Link.configure({ openOnClick: false, },),
@@ -81,7 +84,7 @@ export function md2json(markdown: string,): JSONContent {
       }
 
       const newlineCount = run[0].length;
-      const emptyParagraphCount = Math.max(1, newlineCount - 2,);
+      const emptyParagraphCount = Math.max(1, Math.floor((newlineCount - 1) / 2,),);
       for (let i = 0; i < emptyParagraphCount; i++) {
         allNodes.push({ type: "paragraph", },);
       }
