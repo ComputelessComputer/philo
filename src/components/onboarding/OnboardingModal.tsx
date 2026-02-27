@@ -50,16 +50,22 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
 
   if (!open || !settings) return null;
 
-  const handleDetectFolders = async (selectedVaultDir: string,) => {
+  const handleDetectFolders = async (selectedVaultDir: string, overwriteWithDefaults: boolean = false,) => {
     const normalizedVaultDir = selectedVaultDir.trim();
     if (!normalizedVaultDir) return;
 
     setDetectingFolders(true,);
     try {
       const detected = await detectObsidianFolders(normalizedVaultDir,);
-      setDailyLogsFolder((current,) => detected.dailyLogsFolder || current || "Daily Notes");
-      setExcalidrawFolder((current,) => detected.excalidrawFolder || current || "Excalidraw");
-      setAssetsFolder((current,) => detected.assetsFolder || current || "assets");
+      if (overwriteWithDefaults) {
+        setDailyLogsFolder(detected.dailyLogsFolder || "Daily Notes",);
+        setExcalidrawFolder(detected.excalidrawFolder || "Excalidraw",);
+        setAssetsFolder(detected.assetsFolder || "assets",);
+      } else {
+        setDailyLogsFolder((current,) => detected.dailyLogsFolder || current || "Daily Notes");
+        setExcalidrawFolder((current,) => detected.excalidrawFolder || current || "Excalidraw");
+        setAssetsFolder((current,) => detected.assetsFolder || current || "assets");
+      }
       setDetectedFilenamePattern(detected.filenamePattern || "",);
       setDetectedFromConfig(
         !!detected.dailyLogsFolder
@@ -72,9 +78,9 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
     }
   };
 
-  const handleSelectVault = async (selectedVaultDir: string,) => {
+  const handleSelectVault = async (selectedVaultDir: string, fromDetectedChip: boolean = false,) => {
     setVaultDir(selectedVaultDir,);
-    await handleDetectFolders(selectedVaultDir,);
+    await handleDetectFolders(selectedVaultDir, fromDetectedChip,);
   };
 
   const handleChooseVault = async () => {
@@ -169,7 +175,7 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
                 <button
                   key={candidate}
                   onClick={() => {
-                    void handleSelectVault(candidate,);
+                    void handleSelectVault(candidate, true,);
                   }}
                   className={`w-full px-2 py-1.5 text-xs rounded-md border transition-colors cursor-pointer text-left ${
                     candidate === vaultDir
