@@ -9,6 +9,8 @@
     "core:window:allow-set-always-on-top",
     "opener:default",
     "fs:default",
+    "fs:allow-watch",
+    "fs:allow-unwatch",
     "updater:default",
     "process:allow-restart",
     "dialog:default",
