@@ -445,6 +445,17 @@ pub fn run() {
             set_window_opacity
         ])
         .setup(|app| {
+            let app_name = if cfg!(debug_assertions) {
+                "Philo Dev"
+            } else {
+                "Philo"
+            };
+            let about_title = if cfg!(debug_assertions) {
+                "About Philo Dev"
+            } else {
+                "About Philo"
+            };
+
             #[cfg(desktop)]
             app.handle()
                 .plugin(tauri_plugin_updater::Builder::new().build())?;
@@ -459,8 +470,8 @@ pub fn run() {
             let check_updates =
                 MenuItemBuilder::with_id("check-updates", "Check for Updates...").build(app)?;
 
-            let app_menu = SubmenuBuilder::new(app, "Philo")
-                .item(&PredefinedMenuItem::about(app, Some("About Philo"), None)?)
+            let app_menu = SubmenuBuilder::new(app, app_name)
+                .item(&PredefinedMenuItem::about(app, Some(about_title), None)?)
                 .item(&check_updates)
                 .separator()
                 .item(&settings)
