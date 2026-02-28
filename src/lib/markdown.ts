@@ -63,7 +63,7 @@ function getMarkdownManager(): MarkdownManager {
 export function md2json(markdown: string,): JSONContent {
   try {
     const source = markdown.replace(/\r\n?/g, "\n",);
-    const runs = Array.from(source.matchAll(/(?:\n[ \t]*){3,}/g,),);
+    const runs = Array.from(source.matchAll(/(?:\n[ \t]*){2,}/g,),);
     if (runs.length === 0) {
       const result = getMarkdownManager().parse(source,);
       return isValidContent(result,) ? result : EMPTY_DOC;
@@ -84,7 +84,7 @@ export function md2json(markdown: string,): JSONContent {
       }
 
       const newlineCount = (run[0].match(/\n/g,) || []).length;
-      const emptyParagraphCount = Math.max(1, newlineCount - 2,);
+      const emptyParagraphCount = Math.max(1, newlineCount - 1,);
       for (let i = 0; i < emptyParagraphCount; i++) {
         allNodes.push({ type: "paragraph", },);
       }
@@ -109,7 +109,7 @@ export function md2json(markdown: string,): JSONContent {
 export function json2md(json: JSONContent,): string {
   try {
     const serialized = getMarkdownManager().serialize(json,);
-    return serialized.replace(/\n{4,}/g, (run,) => "\n".repeat(Math.floor(run.length / 2,) + 1,),);
+    return serialized.replace(/\n{4,}/g, (run,) => "\n".repeat(Math.floor(run.length / 2,),),);
   } catch {
     return "";
   }
