@@ -4,10 +4,12 @@ import { exists, mkdir, writeFile, } from "@tauri-apps/plugin-fs";
 import { getAssetsDir, getJournalDir, } from "./paths";
 import { getAssetsFolderSetting, } from "./settings";
 
+let imageIndex = 0;
+
 function generateFilename(ext: string,): string {
   const ts = Date.now();
-  const rand = Math.random().toString(36,).slice(2, 8,);
-  return `${ts}-${rand}.${ext}`;
+  const index = imageIndex++;
+  return `image_${ts}_${index}.${ext.toLowerCase()}`;
 }
 
 function normalizePathSegment(segment: string,): string {
@@ -28,12 +30,16 @@ function getAssetSuffix(
   assetsRelativeRoot: string,
 ): string | null {
   const normalized = normalizeRelativeAssetPath(relativePath,);
+  if (!normalized) return null;
   const prefix = `${assetsRelativeRoot}/`;
   if (normalized === assetsRelativeRoot) {
     return "";
   }
   if (normalized.startsWith(prefix,)) {
     return normalized.slice(prefix.length,);
+  }
+  if (!normalized.includes("/",)) {
+    return normalized;
   }
   return null;
 }
@@ -50,13 +56,8 @@ async function resolveAssetAbsolutePath(relativePath: string,): Promise<string> 
   return await join(journalDir, normalizeRelativeAssetPath(relativePath,),);
 }
 
-/**
- * Save an image file to journal/assets/ and return the relative path
- * suitable for storing in markdown (e.g. "assets/1234567890-abc123.png").
- */
 export async function saveImage(file: File,): Promise<string> {
   const assetsDir = await getAssetsDir();
-  const assetsRelativeRoot = await getAssetsRelativeRoot();
   const dirExists = await exists(assetsDir,);
   if (!dirExists) {
     await mkdir(assetsDir, { recursive: true, },);
@@ -64,7 +65,6 @@ export async function saveImage(file: File,): Promise<string> {
 
   const ext = file.name.split(".",).pop() || "png";
   const filename = generateFilename(ext,);
-  const relativePath = `${assetsRelativeRoot}/${filename}`;
   const fullPath = await join(assetsDir, filename,);
 
   const arrayBuffer = await file.arrayBuffer();
@@ -72,37 +72,36 @@ export async function saveImage(file: File,): Promise<string> {
 
   await writeFile(fullPath, uint8Array,);
 
-  return relativePath;
+  return filename;
 }
 
-/**
- * Resolve a relative asset path (e.g. "assets/img.png") to a URL
- * the Tauri webview can display via the asset protocol.
- */
 export async function resolveAssetUrl(relativePath: string,): Promise<string> {
   const absolutePath = await resolveAssetAbsolutePath(relativePath,);
   return convertFileSrc(absolutePath,);
 }
 
-/**
- * Convert all relative asset paths in markdown to asset:// URLs for display.
- * Matches patterns like ![alt](assets/filename.ext) or ![alt](assets/filename.ext "title")
- */
+function isNonAssetUrl(path: string,): boolean {
+  return /^(?:[a-z]+:)?\/\//i.test(path,)
+    || /^[a-z]+:/i.test(path,)
+    || path.startsWith("/",)
+    || path.startsWith("#",);
+}
+
 export async function resolveMarkdownImages(markdown: string,): Promise<string> {
-  const assetsRelativeRoot = await getAssetsRelativeRoot();
-  const escapedRoot = assetsRelativeRoot.replace(/[.*+?^${}()|[\]\\]/g, "\\$&",);
-  const assetPattern = new RegExp(
-    `!\\[([^\\]]*)\\]\\(((?:\\.\\.?\\/)*${escapedRoot}\\/[^)\\s"]+)(?:\\s+"([^"]*)")?\\)`,
-    "g",
-  );
-  const matches = [...markdown.matchAll(assetPattern,),];
+  const imagePattern = /!\[([^\]]*)\]\(([^)\s"]+)(?:\s+"([^"]*)")?\)/g;
+  const matches = [...markdown.matchAll(imagePattern,),];
   if (matches.length === 0) return markdown;
 
   let result = markdown;
 
   for (const match of matches) {
-    const [full, alt, relativePath, title,] = match;
+    const [full, alt, path, title,] = match;
+    if (isNonAssetUrl(path,)) continue;
+
+    const relativePath = normalizeRelativeAssetPath(path,);
     const absolutePath = await resolveAssetAbsolutePath(relativePath,);
+    if (!(await exists(absolutePath,))) continue;
+
     const assetUrl = convertFileSrc(absolutePath,);
     const replacement = title
       ? `![${alt}](${assetUrl} "${title}")`
@@ -113,34 +112,27 @@ export async function resolveMarkdownImages(markdown: string,): Promise<string> 
   return result;
 }
 
-/**
- * Convert all asset:// URLs in markdown back to relative paths for storage.
- * Matches the asset protocol URL pattern and extracts the relative assets/ path.
- */
 export function unresolveMarkdownImages(markdown: string,): string {
-  // Tauri v2 asset URLs look like: http://asset.localhost/path/to/appdata/.../assets/file.ext
-  // or asset://localhost/path/to/appdata/.../assets/file.ext
-  // Match any asset URL and recover the final "folder/filename" path segment.
   const assetUrlPattern =
     /!\[([^\]]*)\]\(((?:http:\/\/asset\.localhost|asset:\/\/localhost)[^)\s"]+)(?:\s+"([^"]*)")?\)/g;
 
   return markdown.replace(assetUrlPattern, (_full, alt, url, title,) => {
-    let relativePath = "";
+    let filename = "";
     try {
       const parsed = new URL(url,);
-      const match = decodeURIComponent(parsed.pathname,).match(/\/([^/]+\/[^/]+)$/,);
-      relativePath = match ? match[1] : "";
+      const segments = decodeURIComponent(parsed.pathname,).split("/",).filter(Boolean,);
+      filename = segments[segments.length - 1] || "";
     } catch {
-      const match = String(url,).match(/\/([^/]+\/[^/]+)$/,);
-      relativePath = match ? match[1] : "";
+      const match = String(url,).match(/\/([^/]+)$/,);
+      filename = match ? match[1] : "";
     }
-    if (!relativePath) {
+    if (!filename) {
       return title
         ? `![${alt}](${url} "${title}")`
         : `![${alt}](${url})`;
     }
     return title
-      ? `![${alt}](${relativePath} "${title}")`
-      : `![${alt}](${relativePath})`;
+      ? `![${alt}](${filename} "${title}")`
+      : `![${alt}](${filename})`;
   },);
 }
