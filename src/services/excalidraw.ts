@@ -1,6 +1,7 @@
 import { exportToSvg, } from "@excalidraw/excalidraw";
 import { join, } from "@tauri-apps/api/path";
 import { exists, readTextFile, } from "@tauri-apps/plugin-fs";
+import { decompressFromBase64, } from "lz-string";
 import { getExcalidrawDir, getJournalDir, } from "./paths";
 import { getVaultDirSetting, } from "./settings";
 
@@ -91,10 +92,26 @@ function parseScene(raw: string,): ExcalidrawScene {
     // ignore and continue
   }
 
-  const fencedBlockRe = /```(?:json)?\s*([\s\S]*?)```/g;
+  const fencedBlockRe = /```([^\n`]*)\n([\s\S]*?)```/g;
   for (const match of trimmed.matchAll(fencedBlockRe,)) {
+    const lang = match[1].trim().toLowerCase();
+    const block = match[2].trim();
+    if (!block) continue;
+
+    if (lang === "compressed-json") {
+      const decoded = decompressFromBase64(block.replace(/\s+/g, "",),);
+      if (!decoded) continue;
+      try {
+        const parsed = JSON.parse(decoded,);
+        const scene = asScene(parsed,);
+        if (scene) return scene;
+      } catch {
+        continue;
+      }
+    }
+
     try {
-      const parsed = JSON.parse(match[1],);
+      const parsed = JSON.parse(block,);
       const scene = asScene(parsed,);
       if (scene) return scene;
     } catch {
