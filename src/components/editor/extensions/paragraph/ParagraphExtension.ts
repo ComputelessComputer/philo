@@ -6,10 +6,6 @@ export const CustomParagraph = Paragraph.extend({
   parseMarkdown: (token, helpers,) => {
     const tokens = token.tokens || [];
 
-    if (tokens.length === 1 && tokens[0].type === "image") {
-      return helpers.parseChildren([tokens[0],],);
-    }
-
     const content = helpers.parseInline(tokens,);
 
     if (
