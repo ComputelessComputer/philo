@@ -27,12 +27,32 @@ function escapeAttr(s: string,): string {
 function normalizeEmbedTarget(target: string,): string {
   const [pathOnly,] = target.split("|", 1,);
   const trimmed = pathOnly.trim();
-  return trimmed.endsWith(".excalidraw",) ? trimmed : `${trimmed}.excalidraw`;
+  if (!trimmed) return "";
+  const lower = trimmed.toLowerCase();
+  if (lower.endsWith(".excalidraw",) || lower.endsWith(".excalidraw.md",)) {
+    return trimmed;
+  }
+  return `${trimmed}.excalidraw`;
+}
+
+function getEmbedTargetVariants(target: string,): string[] {
+  const normalized = normalizeEmbedTarget(target,);
+  if (!normalized) return [];
+
+  const lower = normalized.toLowerCase();
+  if (lower.endsWith(".excalidraw.md",)) {
+    return [normalized, normalized.slice(0, -3,),];
+  }
+  if (lower.endsWith(".excalidraw",)) {
+    return [normalized, `${normalized}.md`,];
+  }
+  return [normalized,];
 }
 
 function isExcalidrawEmbed(target: string,): boolean {
   const [pathOnly,] = target.split("|", 1,);
-  return pathOnly.trim().toLowerCase().endsWith(".excalidraw",);
+  const normalized = pathOnly.trim().toLowerCase();
+  return normalized.endsWith(".excalidraw",) || normalized.endsWith(".excalidraw.md",);
 }
 
 async function findExistingPath(candidates: string[],): Promise<string | null> {
@@ -86,19 +106,29 @@ function parseScene(raw: string,): ExcalidrawScene {
 }
 
 export async function resolveExcalidrawEmbedPath(target: string,): Promise<string | null> {
-  const normalized = normalizeEmbedTarget(target,);
-  const basename = normalized.split("/",).filter(Boolean,).pop() ?? normalized;
+  const variants = getEmbedTargetVariants(target,);
+  if (variants.length === 0) return null;
+
   const journalDir = await getJournalDir();
   const vaultDir = await getVaultDirSetting();
   const excalidrawDir = await getExcalidrawDir();
   const candidates = new Set<string>();
 
-  if (isAbsolutePath(normalized,)) {
-    candidates.add(normalized,);
-  } else if (normalized.includes("/",)) {
-    if (vaultDir) candidates.add(await join(vaultDir, normalized,),);
-    candidates.add(await join(journalDir, normalized,),);
-  } else {
+  for (const normalized of variants) {
+    const basename = normalized.split("/",).filter(Boolean,).pop() ?? normalized;
+
+    if (isAbsolutePath(normalized,)) {
+      candidates.add(normalized,);
+      continue;
+    }
+
+    if (normalized.includes("/",)) {
+      if (vaultDir) candidates.add(await join(vaultDir, normalized,),);
+      candidates.add(await join(journalDir, normalized,),);
+      if (excalidrawDir) candidates.add(await join(excalidrawDir, basename,),);
+      continue;
+    }
+
     if (excalidrawDir) candidates.add(await join(excalidrawDir, basename,),);
     if (vaultDir) candidates.add(await join(vaultDir, basename,),);
     candidates.add(await join(journalDir, basename,),);
