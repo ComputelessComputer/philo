@@ -19,6 +19,37 @@ async function getAssetsRelativeRoot(): Promise<string> {
   return configured || "assets";
 }
 
+function normalizeRelativeAssetPath(path: string,): string {
+  return path.replace(/^(?:\.\.?\/)+/, "",);
+}
+
+function getAssetSuffix(
+  relativePath: string,
+  assetsRelativeRoot: string,
+): string | null {
+  const normalized = normalizeRelativeAssetPath(relativePath,);
+  const prefix = `${assetsRelativeRoot}/`;
+  if (normalized === assetsRelativeRoot) {
+    return "";
+  }
+  if (normalized.startsWith(prefix,)) {
+    return normalized.slice(prefix.length,);
+  }
+  return null;
+}
+
+async function resolveAssetAbsolutePath(relativePath: string,): Promise<string> {
+  const assetsRelativeRoot = await getAssetsRelativeRoot();
+  const assetSuffix = getAssetSuffix(relativePath, assetsRelativeRoot,);
+  if (assetSuffix !== null) {
+    const assetsDir = await getAssetsDir();
+    return assetSuffix ? await join(assetsDir, assetSuffix,) : assetsDir;
+  }
+
+  const journalDir = await getJournalDir();
+  return await join(journalDir, normalizeRelativeAssetPath(relativePath,),);
+}
+
 /**
  * Save an image file to journal/assets/ and return the relative path
  * suitable for storing in markdown (e.g. "assets/1234567890-abc123.png").
@@ -49,8 +80,7 @@ export async function saveImage(file: File,): Promise<string> {
  * the Tauri webview can display via the asset protocol.
  */
 export async function resolveAssetUrl(relativePath: string,): Promise<string> {
-  const journalDir = await getJournalDir();
-  const absolutePath = await join(journalDir, relativePath,);
+  const absolutePath = await resolveAssetAbsolutePath(relativePath,);
   return convertFileSrc(absolutePath,);
 }
 
@@ -68,13 +98,11 @@ export async function resolveMarkdownImages(markdown: string,): Promise<string> 
   const matches = [...markdown.matchAll(assetPattern,),];
   if (matches.length === 0) return markdown;
 
-  const journalDir = await getJournalDir();
   let result = markdown;
 
   for (const match of matches) {
     const [full, alt, relativePath, title,] = match;
-    const normalizedPath = relativePath.replace(/^(?:\.\.?\/)+/, "",);
-    const absolutePath = await join(journalDir, normalizedPath,);
+    const absolutePath = await resolveAssetAbsolutePath(relativePath,);
     const assetUrl = convertFileSrc(absolutePath,);
     const replacement = title
       ? `![${alt}](${assetUrl} "${title}")`
