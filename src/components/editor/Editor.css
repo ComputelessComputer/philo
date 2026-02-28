@@ -4,6 +4,10 @@
   margin: 0;
 }
 
+.tiptap a:hover {
+  cursor: pointer;
+}
+
 /* ---- Bubble Menu ---- */
 
 .bubble-menu {
