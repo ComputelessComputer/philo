@@ -27,6 +27,33 @@ fn set_window_opacity(_app: AppHandle, _opacity: f64) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(target_os = "macos")]
+fn set_macos_process_name(name: &str) {
+    use std::ffi::CString;
+
+    let Ok(c_name) = CString::new(name) else {
+        return;
+    };
+
+    unsafe {
+        let ns_string_class = match objc::runtime::Class::get("NSString") {
+            Some(class) => class,
+            None => return,
+        };
+        let allocated: *mut objc::runtime::Object = objc::msg_send![ns_string_class, alloc];
+        let ns_name: *mut objc::runtime::Object =
+            objc::msg_send![allocated, initWithUTF8String:c_name.as_ptr()];
+
+        let process_info_class = match objc::runtime::Class::get("NSProcessInfo") {
+            Some(class) => class,
+            None => return,
+        };
+        let process_info: *mut objc::runtime::Object =
+            objc::msg_send![process_info_class, processInfo];
+        let _: () = objc::msg_send![process_info, setProcessName: ns_name];
+    }
+}
+
 #[tauri::command]
 fn read_markdown_file(path: String) -> Result<Option<String>, String> {
     let normalized_path = path.trim();
@@ -455,6 +482,10 @@ pub fn run() {
             } else {
                 "About Philo"
             };
+            #[cfg(target_os = "macos")]
+            if cfg!(debug_assertions) {
+                set_macos_process_name(app_name);
+            }
 
             #[cfg(desktop)]
             app.handle()
