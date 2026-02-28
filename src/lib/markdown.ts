@@ -84,7 +84,7 @@ export function md2json(markdown: string,): JSONContent {
       }
 
       const newlineCount = (run[0].match(/\n/g,) || []).length;
-      const emptyParagraphCount = Math.floor((newlineCount - 1) / 2,);
+      const emptyParagraphCount = Math.max(1, Math.floor((newlineCount - 1) / 2,),);
       for (let i = 0; i < emptyParagraphCount; i++) {
         allNodes.push({ type: "paragraph", },);
       }
@@ -108,7 +108,7 @@ export function md2json(markdown: string,): JSONContent {
 
 export function json2md(json: JSONContent,): string {
   try {
-    return getMarkdownManager().serialize(json,);
+    return getMarkdownManager().serialize(json,).replace(/\n{3,}/g, "\n\n",);
   } catch {
     return "";
   }
