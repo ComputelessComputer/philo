@@ -2,12 +2,13 @@ import { invoke, } from "@tauri-apps/api/core";
 import { listen, } from "@tauri-apps/api/event";
 import { getCurrentWindow, } from "@tauri-apps/api/window";
 import { watch, } from "@tauri-apps/plugin-fs";
+import { openPath, } from "@tauri-apps/plugin-opener";
 import { useCallback, useEffect, useMemo, useRef, useState, } from "react";
 import { useCurrentDate, } from "../../hooks/useCurrentDate";
 import { useTimezoneCity, } from "../../hooks/useTimezoneCity";
 import type { LibraryItem, } from "../../services/library";
 import { getJournalDir, initJournalScope, } from "../../services/paths";
-import { loadSettings, } from "../../services/settings";
+import { getVaultDirSetting, loadSettings, } from "../../services/settings";
 import { getOrCreateDailyNote, loadDailyNote, saveDailyNote, } from "../../services/storage";
 import { rolloverTasks, } from "../../services/tasks";
 import { checkForUpdate, type UpdateInfo, } from "../../services/updater";
@@ -27,6 +28,13 @@ function applyCity(savedCity: string | null | undefined, newCity: string,): stri
 function noteChanged(current: DailyNote | null, incoming: DailyNote,): boolean {
   if (!current) return true;
   return current.content !== incoming.content || current.city !== incoming.city;
+}
+
+interface GlobalSearchResult {
+  path: string;
+  relativePath: string;
+  title: string;
+  snippet: string;
 }
 
 function DateHeader({ date, city, }: { date: string; city?: string | null; },) {
@@ -105,9 +113,15 @@ export default function AppLayout() {
   const [updateInfo, setUpdateInfo,] = useState<UpdateInfo | null>(null,);
   const [isPinned, setIsPinned,] = useState(false,);
   const [opacity, setOpacity,] = useState(1,);
+  const [globalSearchOpen, setGlobalSearchOpen,] = useState(false,);
+  const [globalSearchQuery, setGlobalSearchQuery,] = useState("",);
+  const [globalSearchResults, setGlobalSearchResults,] = useState<GlobalSearchResult[]>([],);
+  const [globalSearchLoading, setGlobalSearchLoading,] = useState(false,);
+  const [globalSearchError, setGlobalSearchError,] = useState<string | null>(null,);
   const cityRef = useRef(currentCity,);
   const prevCityRef = useRef(currentCity,);
   const todayNoteRef = useRef<DailyNote | null>(null,);
+  const searchInputRef = useRef<HTMLInputElement>(null,);
   useEffect(() => {
     todayNoteRef.current = todayNote;
   }, [todayNote,],);
@@ -122,6 +136,18 @@ export default function AppLayout() {
       },)
       .catch(console.error,);
   }, [today,],);
+
+  const openGlobalSearch = useCallback(() => {
+    setGlobalSearchOpen(true,);
+  }, [],);
+
+  const closeGlobalSearch = useCallback(() => {
+    setGlobalSearchOpen(false,);
+    setGlobalSearchQuery("",);
+    setGlobalSearchResults([],);
+    setGlobalSearchLoading(false,);
+    setGlobalSearchError(null,);
+  }, [],);
 
   // Load configuration and extend FS scope on mount
   useEffect(() => {
@@ -149,6 +175,7 @@ export default function AppLayout() {
   useEffect(() => {
     const unlistenSettings = listen("open-settings", () => setSettingsOpen(true,),);
     const unlistenLibrary = listen("toggle-library", () => setLibraryOpen((prev,) => !prev),);
+    const unlistenGlobalSearch = listen("open-global-search", () => openGlobalSearch(),);
     const unlistenUpdate = listen("update-available", () => {
       checkForUpdate().then((info,) => {
         if (info) setUpdateInfo(info,);
@@ -157,9 +184,80 @@ export default function AppLayout() {
     return () => {
       unlistenSettings.then((fn,) => fn());
       unlistenLibrary.then((fn,) => fn());
+      unlistenGlobalSearch.then((fn,) => fn());
       unlistenUpdate.then((fn,) => fn());
     };
-  }, [],);
+  }, [openGlobalSearch,],);
+
+  useEffect(() => {
+    const handleHotkey = (event: KeyboardEvent,) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        openGlobalSearch();
+        return;
+      }
+      if (event.key === "Escape" && globalSearchOpen) {
+        event.preventDefault();
+        closeGlobalSearch();
+      }
+    };
+    window.addEventListener("keydown", handleHotkey,);
+    return () => window.removeEventListener("keydown", handleHotkey,);
+  }, [closeGlobalSearch, globalSearchOpen, openGlobalSearch,],);
+
+  useEffect(() => {
+    if (!globalSearchOpen) return;
+    const timer = window.setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 0,);
+    return () => window.clearTimeout(timer,);
+  }, [globalSearchOpen,],);
+
+  useEffect(() => {
+    if (!globalSearchOpen) return;
+    const query = globalSearchQuery.trim();
+    if (!query) {
+      setGlobalSearchResults([],);
+      setGlobalSearchLoading(false,);
+      setGlobalSearchError(null,);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setGlobalSearchLoading(true,);
+      setGlobalSearchError(null,);
+      (async () => {
+        try {
+          const vaultDir = (await getVaultDirSetting()).trim();
+          const rootDir = vaultDir || await getJournalDir();
+          const results = await invoke<GlobalSearchResult[]>("search_markdown_files", {
+            rootDir,
+            query,
+            limit: 120,
+          },);
+          if (!cancelled) {
+            setGlobalSearchResults(results,);
+          }
+        } catch (error) {
+          if (!cancelled) {
+            const message = error instanceof Error ? error.message : "Search failed.";
+            setGlobalSearchError(message,);
+            setGlobalSearchResults([],);
+          }
+        } finally {
+          if (!cancelled) {
+            setGlobalSearchLoading(false,);
+          }
+        }
+      })().catch(console.error,);
+    }, 200,);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer,);
+    };
+  }, [globalSearchOpen, globalSearchQuery,],);
 
   // Re-read today's note from disk when the window regains focus (handles external edits)
   useEffect(() => {
@@ -326,48 +424,127 @@ export default function AppLayout() {
         </button>
       </div>
 
-      {updateInfo && <UpdateBanner update={updateInfo} onDismiss={() => setUpdateInfo(null,)} />}
-      <div className="w-full max-w-3xl">
-        {/* Today */}
-        <div
-          ref={todayRef}
-          className="min-h-[400px]"
-          onClick={() => todayEditorRef.current?.focus()}
-        >
-          <div className="px-6 pt-6 pb-4">
-            <DateHeader date={today} city={currentCity} />
-          </div>
-          {todayNote && (
-            <EditableNote
-              ref={todayEditorRef}
-              note={todayNote}
-              onSave={handleTodaySave}
+      {globalSearchOpen
+        ? (
+          <div className="w-full max-w-3xl px-6 pt-6 pb-10">
+            <div className="flex items-center justify-between gap-3">
+              <h2
+                className="text-sm uppercase tracking-[0.2em] text-gray-500 dark:text-gray-400"
+                style={{ fontFamily: "'IBM Plex Mono', monospace", }}
+              >
+                Global Search
+              </h2>
+              <button
+                onClick={closeGlobalSearch}
+                className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                style={{ fontFamily: "'IBM Plex Mono', monospace", }}
+              >
+                esc
+              </button>
+            </div>
+
+            <input
+              ref={searchInputRef}
+              value={globalSearchQuery}
+              onChange={(event,) => setGlobalSearchQuery(event.target.value,)}
+              placeholder="Search all markdown notes..."
+              className="mt-3 w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white/90 dark:bg-gray-900/80 px-4 py-3 text-sm text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-hidden focus:border-gray-400 dark:focus:border-gray-500"
+              style={{ fontFamily: "'IBM Plex Mono', monospace", }}
             />
-          )}
-        </div>
 
-        {/* Past notes — loaded lazily as they scroll into view */}
-        {pastDates.map((date,) => (
-          <div key={date}>
-            <div className="mx-6 border-t border-gray-200 dark:border-gray-700" />
-            <LazyNote date={date} />
+            <div className="mt-4 space-y-2">
+              {globalSearchLoading && (
+                <p
+                  className="text-xs text-gray-400 dark:text-gray-500"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace", }}
+                >
+                  searching...
+                </p>
+              )}
+
+              {globalSearchError && (
+                <p
+                  className="text-xs text-red-500"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace", }}
+                >
+                  {globalSearchError}
+                </p>
+              )}
+
+              {!globalSearchLoading && !globalSearchError && globalSearchQuery.trim()
+                && globalSearchResults.length === 0 && (
+                <p
+                  className="text-xs text-gray-400 dark:text-gray-500"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace", }}
+                >
+                  no results
+                </p>
+              )}
+
+              {globalSearchResults.map((result,) => (
+                <button
+                  key={result.path}
+                  className="w-full text-left rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
+                  onClick={() => {
+                    openPath(result.path,).catch(console.error,);
+                  }}
+                >
+                  <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{result.title}</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{result.snippet}</p>
+                  <p
+                    className="mt-2 text-[10px] text-gray-400 dark:text-gray-500"
+                    style={{ fontFamily: "'IBM Plex Mono', monospace", }}
+                  >
+                    {result.relativePath}
+                  </p>
+                </button>
+              ))}
+            </div>
           </div>
-        ))}
-      </div>
+        )
+        : (
+          <>
+            {updateInfo && <UpdateBanner update={updateInfo} onDismiss={() => setUpdateInfo(null,)} />}
+            <div className="w-full max-w-3xl">
+              <div
+                ref={todayRef}
+                className="min-h-[400px]"
+                onClick={() => todayEditorRef.current?.focus()}
+              >
+                <div className="px-6 pt-6 pb-4">
+                  <DateHeader date={today} city={currentCity} />
+                </div>
+                {todayNote && (
+                  <EditableNote
+                    ref={todayEditorRef}
+                    note={todayNote}
+                    onSave={handleTodaySave}
+                  />
+                )}
+              </div>
 
-      {/* Go to Today badge */}
-      {todayDirection && (
-        <button
-          onClick={scrollToToday}
-          className="fixed left-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium uppercase tracking-wide text-white font-sans shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer"
-          style={{
-            background: "linear-gradient(to bottom, #4b5563, #1f2937)",
-            ...(todayDirection === "above" ? { top: 16, } : { bottom: 16, }),
-          }}
-        >
-          {todayDirection === "above" ? "↑" : "↓"} today
-        </button>
-      )}
+              {pastDates.map((date,) => (
+                <div key={date}>
+                  <div className="mx-6 border-t border-gray-200 dark:border-gray-700" />
+                  <LazyNote date={date} />
+                </div>
+              ))}
+            </div>
+
+            {todayDirection && (
+              <button
+                onClick={scrollToToday}
+                className="fixed left-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium uppercase tracking-wide text-white font-sans shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                style={{
+                  background: "linear-gradient(to bottom, #4b5563, #1f2937)",
+                  ...(todayDirection === "above" ? { top: 16, } : { bottom: 16, }),
+                }}
+              >
+                {todayDirection === "above" ? "↑" : "↓"} today
+              </button>
+            )}
+          </>
+        )}
 
       {/* Library drawer — triggered by macOS menu bar Cmd+J */}
       <LibraryDrawer

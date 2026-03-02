@@ -228,6 +228,165 @@ fn write_json_file(path: &Path, value: Value) -> Result<(), String> {
     fs::write(path, serialized).map_err(|e| e.to_string())
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MarkdownSearchResult {
+    path: String,
+    relative_path: String,
+    title: String,
+    snippet: String,
+}
+
+fn truncate_chars(input: &str, max: usize) -> String {
+    if max == 0 {
+        return String::new();
+    }
+    let mut chars = input.chars();
+    let taken: String = chars.by_ref().take(max).collect();
+    if chars.next().is_some() {
+        format!("{taken}...")
+    } else {
+        taken
+    }
+}
+
+fn normalize_snippet_line(line: &str) -> String {
+    let compact = line.split_whitespace().collect::<Vec<_>>().join(" ");
+    truncate_chars(&compact, 220)
+}
+
+fn extract_markdown_title(path: &Path, content: &str) -> String {
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if !trimmed.starts_with('#') {
+            continue;
+        }
+        let heading = trimmed.trim_start_matches('#').trim();
+        if !heading.is_empty() {
+            return truncate_chars(heading, 80);
+        }
+    }
+    path.file_stem()
+        .and_then(|stem| stem.to_str())
+        .map(|stem| truncate_chars(stem, 80))
+        .unwrap_or_else(|| "Untitled".to_string())
+}
+
+fn find_query_snippet(content: &str, query: &str) -> Option<String> {
+    let lowered_query = query.to_lowercase();
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        if trimmed.to_lowercase().contains(&lowered_query) {
+            return Some(normalize_snippet_line(trimmed));
+        }
+    }
+    None
+}
+
+fn should_skip_search_dir(name: &str) -> bool {
+    should_skip_dir(name) || name == ".obsidian"
+}
+
+fn collect_markdown_search_results(
+    root: &Path,
+    query: &str,
+    limit: usize,
+) -> Result<Vec<MarkdownSearchResult>, String> {
+    let mut results: Vec<MarkdownSearchResult> = Vec::new();
+    let mut stack: Vec<PathBuf> = vec![root.to_path_buf()];
+
+    while let Some(dir) = stack.pop() {
+        let entries = fs::read_dir(&dir).map_err(|e| e.to_string())?;
+        for entry in entries {
+            let entry = match entry {
+                Ok(value) => value,
+                Err(_) => continue,
+            };
+            let file_type = match entry.file_type() {
+                Ok(value) => value,
+                Err(_) => continue,
+            };
+            let name = entry.file_name().to_string_lossy().to_string();
+            let path = entry.path();
+
+            if file_type.is_dir() {
+                if should_skip_search_dir(&name) {
+                    continue;
+                }
+                stack.push(path);
+                continue;
+            }
+
+            if !file_type.is_file() {
+                continue;
+            }
+            if !path
+                .extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext.eq_ignore_ascii_case("md"))
+                .unwrap_or(false)
+            {
+                continue;
+            }
+
+            let content = match fs::read_to_string(&path) {
+                Ok(value) => value,
+                Err(_) => continue,
+            };
+            let Some(snippet) = find_query_snippet(&content, query) else {
+                continue;
+            };
+
+            let relative_path = path
+                .strip_prefix(root)
+                .ok()
+                .map(|value| value.to_string_lossy().to_string())
+                .unwrap_or_else(|| path.to_string_lossy().to_string());
+
+            results.push(MarkdownSearchResult {
+                path: path.to_string_lossy().to_string(),
+                relative_path,
+                title: extract_markdown_title(&path, &content),
+                snippet,
+            });
+
+            if results.len() >= limit {
+                return Ok(results);
+            }
+        }
+    }
+
+    Ok(results)
+}
+
+#[tauri::command]
+fn search_markdown_files(
+    root_dir: String,
+    query: String,
+    limit: Option<u16>,
+) -> Result<Vec<MarkdownSearchResult>, String> {
+    let normalized_root = root_dir.trim();
+    if normalized_root.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let normalized_query = query.trim();
+    if normalized_query.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let root = PathBuf::from(normalized_root);
+    if !root.exists() || !root.is_dir() {
+        return Ok(Vec::new());
+    }
+
+    let clamped_limit = limit.unwrap_or(80).clamp(1, 500) as usize;
+    collect_markdown_search_results(&root, normalized_query, clamped_limit)
+}
+
 #[tauri::command]
 fn detect_obsidian_settings(vault_dir: String) -> ObsidianSettingsDetection {
     if vault_dir.trim().is_empty() {
@@ -469,7 +628,8 @@ pub fn run() {
             bootstrap_obsidian_vault,
             read_markdown_file,
             write_markdown_file,
-            set_window_opacity
+            set_window_opacity,
+            search_markdown_files
         ])
         .setup(|app| {
             let app_name = if cfg!(debug_assertions) {
@@ -498,6 +658,10 @@ pub fn run() {
                 .accelerator("CmdOrCtrl+J")
                 .build(app)?;
 
+            let global_search = MenuItemBuilder::with_id("global-search", "Global Search")
+                .accelerator("CmdOrCtrl+K")
+                .build(app)?;
+
             let check_updates =
                 MenuItemBuilder::with_id("check-updates", "Check for Updates...").build(app)?;
 
@@ -507,6 +671,7 @@ pub fn run() {
                 .separator()
                 .item(&settings)
                 .item(&library)
+                .item(&global_search)
                 .separator()
                 .item(&PredefinedMenuItem::hide(app, None)?)
                 .item(&PredefinedMenuItem::hide_others(app, None)?)
@@ -542,6 +707,8 @@ pub fn run() {
                     let _ = app_handle.emit("open-settings", ());
                 } else if event.id() == "library" {
                     let _ = app_handle.emit("toggle-library", ());
+                } else if event.id() == "global-search" {
+                    let _ = app_handle.emit("open-global-search", ());
                 } else if event.id() == "check-updates" {
                     let handle = app_handle.clone();
                     tauri::async_runtime::spawn(async move {
