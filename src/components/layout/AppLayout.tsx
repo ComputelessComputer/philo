@@ -113,6 +113,7 @@ export default function AppLayout() {
   const [updateInfo, setUpdateInfo,] = useState<UpdateInfo | null>(null,);
   const [isPinned, setIsPinned,] = useState(false,);
   const [opacity, setOpacity,] = useState(1,);
+  const [isWindowFocused, setIsWindowFocused,] = useState(() => document.hasFocus());
   const [globalSearchOpen, setGlobalSearchOpen,] = useState(false,);
   const [globalSearchQuery, setGlobalSearchQuery,] = useState("",);
   const [globalSearchResults, setGlobalSearchResults,] = useState<GlobalSearchResult[]>([],);
@@ -259,6 +260,23 @@ export default function AppLayout() {
     };
   }, [globalSearchOpen, globalSearchQuery,],);
 
+  useEffect(() => {
+    const handleFocus = () => setIsWindowFocused(true,);
+    const handleBlur = () => setIsWindowFocused(false,);
+    window.addEventListener("focus", handleFocus,);
+    window.addEventListener("blur", handleBlur,);
+    return () => {
+      window.removeEventListener("focus", handleFocus,);
+      window.removeEventListener("blur", handleBlur,);
+    };
+  }, [],);
+
+  useEffect(() => {
+    const inactiveOpacity = Math.max(0.2, Math.min(opacity * 0.55, 0.85,),);
+    const targetOpacity = isPinned && !isWindowFocused ? inactiveOpacity : opacity;
+    invoke("set_window_opacity", { opacity: targetOpacity, },).catch(console.error,);
+  }, [isPinned, isWindowFocused, opacity,],);
+
   // Re-read today's note from disk when the window regains focus (handles external edits)
   useEffect(() => {
     if (!isConfigured) return;
@@ -394,7 +412,6 @@ export default function AppLayout() {
           onChange={(e,) => {
             const v = Number(e.target.value,);
             setOpacity(v,);
-            invoke("set_window_opacity", { opacity: v, },);
           }}
           className="w-16 h-1 mr-1 appearance-none bg-gray-300 dark:bg-gray-600 rounded-full cursor-pointer opacity-0 hover:opacity-100 focus:opacity-100 transition-opacity [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-2.5 [&::-webkit-slider-thumb]:h-2.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gray-500 [&::-webkit-slider-thumb]:dark:bg-gray-400"
           title={`Window opacity: ${Math.round(opacity * 100,)}%`}
