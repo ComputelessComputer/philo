@@ -224,15 +224,21 @@ export default function AppLayout() {
 
       if (globalSearchOpen && globalSearchResults.length > 0 && event.key === "ArrowDown") {
         event.preventDefault();
-        setGlobalSearchSelectedIndex((prev,) => (prev + 1) % globalSearchResults.length);
+        setGlobalSearchSelectedIndex((prev,) => {
+          const lastIndex = globalSearchResults.length - 1;
+          if (prev < 0) return 0;
+          if (prev >= lastIndex) return lastIndex;
+          return prev + 1;
+        },);
         return;
       }
 
       if (globalSearchOpen && globalSearchResults.length > 0 && event.key === "ArrowUp") {
         event.preventDefault();
-        setGlobalSearchSelectedIndex((prev,) => (
-          prev <= 0 ? globalSearchResults.length - 1 : prev - 1
-        ));
+        setGlobalSearchSelectedIndex((prev,) => {
+          if (prev <= 0) return 0;
+          return prev - 1;
+        },);
         return;
       }
 
