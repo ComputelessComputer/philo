@@ -3,7 +3,7 @@ import { listen, } from "@tauri-apps/api/event";
 import { getCurrentWindow, } from "@tauri-apps/api/window";
 import { watch, } from "@tauri-apps/plugin-fs";
 import { openPath, } from "@tauri-apps/plugin-opener";
-import { useCallback, useEffect, useMemo, useRef, useState, } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, } from "react";
 import { useCurrentDate, } from "../../hooks/useCurrentDate";
 import { useTimezoneCity, } from "../../hooks/useTimezoneCity";
 import type { LibraryItem, } from "../../services/library";
@@ -35,6 +35,23 @@ interface GlobalSearchResult {
   relativePath: string;
   title: string;
   snippet: string;
+}
+
+function renderSearchSnippet(snippet: string,) {
+  const parts = snippet.split(/(\[[^\]]+\])/,);
+  return parts.filter(Boolean,).map((part, index,) => {
+    if (part.startsWith("[",) && part.endsWith("]",) && part.length > 2) {
+      return (
+        <mark
+          key={`h-${index}`}
+          className="bg-yellow-200 dark:bg-yellow-500/70 text-gray-900 rounded px-0.5"
+        >
+          {part.slice(1, -1,)}
+        </mark>
+      );
+    }
+    return <Fragment key={`t-${index}`}>{part}</Fragment>;
+  },);
 }
 
 function DateHeader({ date, city, }: { date: string; city?: string | null; },) {
@@ -116,12 +133,14 @@ export default function AppLayout() {
   const [globalSearchOpen, setGlobalSearchOpen,] = useState(false,);
   const [globalSearchQuery, setGlobalSearchQuery,] = useState("",);
   const [globalSearchResults, setGlobalSearchResults,] = useState<GlobalSearchResult[]>([],);
+  const [globalSearchSelectedIndex, setGlobalSearchSelectedIndex,] = useState(-1,);
   const [globalSearchLoading, setGlobalSearchLoading,] = useState(false,);
   const [globalSearchError, setGlobalSearchError,] = useState<string | null>(null,);
   const cityRef = useRef(currentCity,);
   const prevCityRef = useRef(currentCity,);
   const todayNoteRef = useRef<DailyNote | null>(null,);
   const searchInputRef = useRef<HTMLInputElement>(null,);
+  const searchResultRefs = useRef<(HTMLButtonElement | null)[]>([],);
   useEffect(() => {
     todayNoteRef.current = todayNote;
   }, [todayNote,],);
@@ -145,8 +164,14 @@ export default function AppLayout() {
     setGlobalSearchOpen(false,);
     setGlobalSearchQuery("",);
     setGlobalSearchResults([],);
+    setGlobalSearchSelectedIndex(-1,);
     setGlobalSearchLoading(false,);
     setGlobalSearchError(null,);
+  }, [],);
+
+  const openGlobalSearchResult = useCallback((result: GlobalSearchResult | undefined,) => {
+    if (!result) return;
+    openPath(result.path,).catch(console.error,);
   }, [],);
 
   // Load configuration and extend FS scope on mount
@@ -196,6 +221,27 @@ export default function AppLayout() {
         openGlobalSearch();
         return;
       }
+
+      if (globalSearchOpen && globalSearchResults.length > 0 && event.key === "ArrowDown") {
+        event.preventDefault();
+        setGlobalSearchSelectedIndex((prev,) => (prev + 1) % globalSearchResults.length);
+        return;
+      }
+
+      if (globalSearchOpen && globalSearchResults.length > 0 && event.key === "ArrowUp") {
+        event.preventDefault();
+        setGlobalSearchSelectedIndex((prev,) => (
+          prev <= 0 ? globalSearchResults.length - 1 : prev - 1
+        ));
+        return;
+      }
+
+      if (globalSearchOpen && event.key === "Enter" && globalSearchSelectedIndex >= 0) {
+        event.preventDefault();
+        openGlobalSearchResult(globalSearchResults[globalSearchSelectedIndex],);
+        return;
+      }
+
       if (event.key === "Escape" && globalSearchOpen) {
         event.preventDefault();
         closeGlobalSearch();
@@ -203,7 +249,14 @@ export default function AppLayout() {
     };
     window.addEventListener("keydown", handleHotkey,);
     return () => window.removeEventListener("keydown", handleHotkey,);
-  }, [closeGlobalSearch, globalSearchOpen, openGlobalSearch,],);
+  }, [
+    closeGlobalSearch,
+    globalSearchOpen,
+    globalSearchResults,
+    globalSearchSelectedIndex,
+    openGlobalSearch,
+    openGlobalSearchResult,
+  ],);
 
   useEffect(() => {
     if (!globalSearchOpen) return;
@@ -218,6 +271,7 @@ export default function AppLayout() {
     const query = globalSearchQuery.trim();
     if (!query) {
       setGlobalSearchResults([],);
+      setGlobalSearchSelectedIndex(-1,);
       setGlobalSearchLoading(false,);
       setGlobalSearchError(null,);
       return;
@@ -238,12 +292,14 @@ export default function AppLayout() {
           },);
           if (!cancelled) {
             setGlobalSearchResults(results,);
+            setGlobalSearchSelectedIndex(results.length > 0 ? 0 : -1,);
           }
         } catch (error) {
           if (!cancelled) {
             const message = error instanceof Error ? error.message : "Search failed.";
             setGlobalSearchError(message,);
             setGlobalSearchResults([],);
+            setGlobalSearchSelectedIndex(-1,);
           }
         } finally {
           if (!cancelled) {
@@ -258,6 +314,14 @@ export default function AppLayout() {
       window.clearTimeout(timer,);
     };
   }, [globalSearchOpen, globalSearchQuery,],);
+
+  useEffect(() => {
+    if (!globalSearchOpen || globalSearchSelectedIndex < 0) return;
+    searchResultRefs.current[globalSearchSelectedIndex]?.scrollIntoView({
+      block: "nearest",
+      behavior: "smooth",
+    },);
+  }, [globalSearchOpen, globalSearchSelectedIndex,],);
 
   useEffect(() => {
     const handleFocus = () => setIsWindowFocused(true,);
@@ -485,16 +549,26 @@ export default function AppLayout() {
                 </p>
               )}
 
-              {globalSearchResults.map((result,) => (
+              {globalSearchResults.map((result, index,) => (
                 <button
                   key={result.path}
-                  className="w-full text-left rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3 hover:border-gray-300 dark:hover:border-gray-600 transition-colors"
+                  ref={(element,) => {
+                    searchResultRefs.current[index] = element;
+                  }}
+                  className={`w-full text-left rounded-xl border px-4 py-3 transition-colors ${
+                    globalSearchSelectedIndex === index
+                      ? "border-gray-400 dark:border-gray-500 bg-gray-50 dark:bg-gray-800/80"
+                      : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-gray-600"
+                  }`}
+                  onMouseEnter={() => setGlobalSearchSelectedIndex(index,)}
                   onClick={() => {
-                    openPath(result.path,).catch(console.error,);
+                    openGlobalSearchResult(result,);
                   }}
                 >
                   <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{result.title}</p>
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{result.snippet}</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    {renderSearchSnippet(result.snippet,)}
+                  </p>
                   <p
                     className="mt-2 text-[10px] text-gray-400 dark:text-gray-500"
                     style={{ fontFamily: "'IBM Plex Mono', monospace", }}
