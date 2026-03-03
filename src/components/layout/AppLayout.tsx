@@ -141,6 +141,7 @@ export default function AppLayout() {
   const todayNoteRef = useRef<DailyNote | null>(null,);
   const searchInputRef = useRef<HTMLInputElement>(null,);
   const searchResultRefs = useRef<(HTMLButtonElement | null)[]>([],);
+  const searchNavigationModeRef = useRef<"mouse" | "keyboard">("mouse",);
   useEffect(() => {
     todayNoteRef.current = todayNote;
   }, [todayNote,],);
@@ -224,6 +225,7 @@ export default function AppLayout() {
 
       if (globalSearchOpen && globalSearchResults.length > 0 && event.key === "ArrowDown") {
         event.preventDefault();
+        searchNavigationModeRef.current = "keyboard";
         setGlobalSearchSelectedIndex((prev,) => {
           const lastIndex = globalSearchResults.length - 1;
           if (prev < 0) return 0;
@@ -235,6 +237,7 @@ export default function AppLayout() {
 
       if (globalSearchOpen && globalSearchResults.length > 0 && event.key === "ArrowUp") {
         event.preventDefault();
+        searchNavigationModeRef.current = "keyboard";
         setGlobalSearchSelectedIndex((prev,) => {
           if (prev <= 0) return 0;
           return prev - 1;
@@ -266,10 +269,20 @@ export default function AppLayout() {
 
   useEffect(() => {
     if (!globalSearchOpen) return;
+    searchNavigationModeRef.current = "mouse";
     const timer = window.setTimeout(() => {
       searchInputRef.current?.focus();
     }, 0,);
     return () => window.clearTimeout(timer,);
+  }, [globalSearchOpen,],);
+
+  useEffect(() => {
+    if (!globalSearchOpen) return;
+    const handleMouseMove = () => {
+      searchNavigationModeRef.current = "mouse";
+    };
+    window.addEventListener("mousemove", handleMouseMove, { passive: true, },);
+    return () => window.removeEventListener("mousemove", handleMouseMove,);
   }, [globalSearchOpen,],);
 
   useEffect(() => {
@@ -566,7 +579,10 @@ export default function AppLayout() {
                       ? "border-gray-400 dark:border-gray-500 bg-gray-50 dark:bg-gray-800/80"
                       : "border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 hover:border-gray-300 dark:hover:border-gray-600"
                   }`}
-                  onMouseEnter={() => setGlobalSearchSelectedIndex(index,)}
+                  onMouseEnter={() => {
+                    if (searchNavigationModeRef.current !== "mouse") return;
+                    setGlobalSearchSelectedIndex(index,);
+                  }}
                   onClick={() => {
                     openGlobalSearchResult(result,);
                   }}
