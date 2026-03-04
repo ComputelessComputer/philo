@@ -3,5 +3,15 @@
   "framework": "astro",
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm --filter @philo/landing build",
-  "outputDirectory": "apps/landing/dist"
+  "outputDirectory": "apps/landing/dist",
+  "rewrites": [
+    {
+      "source": "/docs",
+      "destination": "https://philo.mintlify.dev/docs"
+    },
+    {
+      "source": "/docs/:match*",
+      "destination": "https://philo.mintlify.dev/docs/:match*"
+    }
+  ]
 }
