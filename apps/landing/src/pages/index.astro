@@ -94,9 +94,9 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
             Capture notes. Track tasks that roll forward. Generate tiny tools in place when you
             need them.
           </p>
-          <p class="release-note">
-            Download Philo from <a href="https://github.com/ComputelessComputer/philo/releases/latest">GitHub Releases</a>.
-          </p>
+          <a class="download-button" href="https://github.com/ComputelessComputer/philo/releases/latest">
+            Download for macOS →
+          </a>
           <div class="video-mobile">
             <p class="video-label">Product walkthrough</p>
             <div class="video-frame">
@@ -113,13 +113,6 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
               </video>
             </div>
           </div>
-          <form class="waitlist" action="#" method="post">
-            <label for="email">Get early access</label>
-            <div class="input-row">
-              <input id="email" type="email" name="email" placeholder="name@domain.com" />
-              <button type="submit">→</button>
-            </div>
-          </form>
         </section>
 
         <section class="panel enter" style="--delay: 140ms;">
@@ -396,73 +389,30 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
     color: #3f3f3d;
   }
 
-  .release-note {
-    margin: 10px 0 0;
-    color: #52524e;
+  .download-button {
+    margin-top: 14px;
+    color: var(--accent);
     font-size: var(--fs-sm);
+    font-weight: 500;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    text-decoration: none;
+    border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line));
+    background: color-mix(in srgb, var(--accent) 8%, #ffffff);
+    padding: 8px 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
   }
 
-  .release-note a {
-    color: var(--accent);
-    text-underline-offset: 2px;
+  .download-button:hover {
+    border-color: color-mix(in srgb, var(--accent) 44%, var(--line));
+    background: color-mix(in srgb, var(--accent) 14%, #ffffff);
   }
 
   .video-mobile {
     display: none;
     margin-top: 18px;
-  }
-
-  .waitlist {
-    margin-top: 36px;
-    max-width: 430px;
-  }
-
-  .waitlist label {
-    display: block;
-    margin-bottom: 10px;
-    color: #3f3f3d;
-    font-size: var(--fs-sm);
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  .input-row {
-    display: flex;
-    border: 1px solid var(--line);
-    background: var(--bg-soft);
-  }
-
-  .input-row input {
-    flex: 1;
-    border: 0;
-    padding: 12px 13px;
-    font: inherit;
-    color: inherit;
-    background: transparent;
-  }
-
-  .input-row input::placeholder {
-    color: #a8a8a3;
-  }
-
-  .input-row input:focus {
-    outline: none;
-  }
-
-  .input-row button {
-    width: 52px;
-    border: 0;
-    border-left: 1px solid var(--line);
-    background: #ecece8;
-    color: #9e9e98;
-    font: inherit;
-    font-size: var(--fs-md);
-    cursor: pointer;
-    transition: color 150ms ease;
-  }
-
-  .input-row button:hover {
-    color: var(--accent);
   }
 
   .panel {
