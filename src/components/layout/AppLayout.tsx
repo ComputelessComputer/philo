@@ -8,7 +8,7 @@ import { useCurrentDate, } from "../../hooks/useCurrentDate";
 import { useTimezoneCity, } from "../../hooks/useTimezoneCity";
 import type { LibraryItem, } from "../../services/library";
 import { getJournalDir, initJournalScope, } from "../../services/paths";
-import { getVaultDirSetting, loadSettings, } from "../../services/settings";
+import { loadSettings, } from "../../services/settings";
 import { getOrCreateDailyNote, loadDailyNote, saveDailyNote, } from "../../services/storage";
 import { rolloverTasks, } from "../../services/tasks";
 import { checkForUpdate, type UpdateInfo, } from "../../services/updater";
@@ -302,8 +302,7 @@ export default function AppLayout() {
       setGlobalSearchError(null,);
       (async () => {
         try {
-          const vaultDir = (await getVaultDirSetting()).trim();
-          const rootDir = vaultDir || await getJournalDir();
+          const rootDir = await getJournalDir();
           const results = await invoke<GlobalSearchResult[]>("search_markdown_files", {
             rootDir,
             query,
