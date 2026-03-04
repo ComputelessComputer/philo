@@ -7,11 +7,11 @@
   "rewrites": [
     {
       "source": "/docs",
-      "destination": "https://philo.mintlify.dev/docs"
+      "destination": "https://computelesscomputer-philo-48.mintlify.dev/docs"
     },
     {
       "source": "/docs/:match*",
-      "destination": "https://philo.mintlify.dev/docs/:match*"
+      "destination": "https://computelesscomputer-philo-48.mintlify.dev/docs/:match*"
     }
   ]
 }
