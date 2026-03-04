@@ -334,16 +334,22 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
     position: relative;
     width: min(100%, 1160px);
     margin: 0 auto;
-    padding: 68px 24px 88px;
-    display: grid;
-    grid-template-columns: minmax(0, 720px) minmax(0, 320px);
+    padding: 0 24px;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
     gap: 34px;
-    align-items: start;
   }
 
   .shell {
     position: relative;
     width: 100%;
+    max-width: 720px;
+    flex: 1 1 auto;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 68px 0 88px;
+    scrollbar-gutter: stable;
   }
 
   .brand-row {
@@ -607,9 +613,9 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
   }
 
   .video-column {
-    position: sticky;
-    top: 50vh;
-    transform: translateY(-50%);
+    position: relative;
+    flex: 0 0 320px;
+    width: 320px;
     padding-top: 0;
   }
 
@@ -678,10 +684,25 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
     }
   }
 
+  @media (min-width: 981px) {
+    body {
+      overflow: hidden;
+    }
+  }
+
   @media (max-width: 980px) {
     .page-layout {
-      grid-template-columns: 1fr;
-      gap: 0;
+      display: block;
+      min-height: 0;
+      padding: 42px 18px 62px;
+    }
+
+    .shell {
+      max-width: none;
+      height: auto;
+      overflow: visible;
+      padding: 0;
+      scrollbar-gutter: auto;
     }
 
     .video-column {
@@ -698,10 +719,6 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
   }
 
   @media (max-width: 720px) {
-    .page-layout {
-      padding: 42px 18px 62px;
-    }
-
     .shell {
       width: 100%;
     }
