@@ -4,20 +4,26 @@ on:
   push:
     branches: [main]
     paths:
-      - "src/**"
+      - "apps/desktop/src/**"
+      - "apps/desktop/index.html"
+      - "apps/desktop/package.json"
+      - "apps/desktop/postcss.config.js"
+      - "apps/desktop/tsconfig*.json"
+      - "apps/desktop/vite.config.*"
       - "package.json"
       - "bun.lock"
-      - "tsconfig*.json"
-      - "vite.config.*"
       - "dprint.json"
   pull_request:
     branches: [main]
     paths:
-      - "src/**"
+      - "apps/desktop/src/**"
+      - "apps/desktop/index.html"
+      - "apps/desktop/package.json"
+      - "apps/desktop/postcss.config.js"
+      - "apps/desktop/tsconfig*.json"
+      - "apps/desktop/vite.config.*"
       - "package.json"
       - "bun.lock"
-      - "tsconfig*.json"
-      - "vite.config.*"
       - "dprint.json"
 
 concurrency:

@@ -4,11 +4,11 @@ on:
   push:
     branches: [main]
     paths:
-      - "src-tauri/**"
+      - "apps/desktop/src-tauri/**"
   pull_request:
     branches: [main]
     paths:
-      - "src-tauri/**"
+      - "apps/desktop/src-tauri/**"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -35,16 +35,16 @@ jobs:
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri -> target
+          workspaces: apps/desktop/src-tauri -> target
 
       - name: Check
         run: cargo check
-        working-directory: src-tauri
+        working-directory: apps/desktop/src-tauri
 
       - name: Clippy
         run: cargo clippy -- -D warnings
-        working-directory: src-tauri
+        working-directory: apps/desktop/src-tauri
 
       - name: Test
         run: cargo test
-        working-directory: src-tauri
+        working-directory: apps/desktop/src-tauri
