@@ -95,7 +95,9 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
             need them.
           </p>
           <a class="download-button" href="https://github.com/ComputelessComputer/philo/releases/latest">
-            Download for macOS →
+            Download for macOS
+            <span class="download-beta">beta</span>
+            <span aria-hidden="true">→</span>
           </a>
           <div class="video-mobile">
             <p class="video-label">Product walkthrough</p>
@@ -403,6 +405,15 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
     display: inline-flex;
     align-items: center;
     gap: 8px;
+  }
+
+  .download-beta {
+    border: 1px solid color-mix(in srgb, var(--accent) 30%, var(--line));
+    background: color-mix(in srgb, var(--accent) 12%, #ffffff);
+    padding: 2px 5px;
+    font-size: var(--fs-xs);
+    letter-spacing: 0.05em;
+    line-height: 1;
   }
 
   .download-button:hover {
