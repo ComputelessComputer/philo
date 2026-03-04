@@ -6,6 +6,11 @@ A daily journaling app that builds things for you.
 
 Write your notes in a timeline, manage tasks that carry forward automatically, and hit **⌘↵** to generate custom mini-apps — a calorie tracker, a world clock, a habit chart — embedded right inside your journal.
 
+## Links
+
+- Website: https://philo.johnjeong.com
+- Docs: https://philo.johnjeong.com/docs
+
 ## How it works
 
 1. **Journal** — write daily notes in a scrollable timeline (tomorrow → today → past)
