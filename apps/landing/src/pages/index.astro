@@ -312,6 +312,7 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
   body {
     margin: 0;
     min-height: 100vh;
+    overflow-x: hidden;
     font-family: "IBM Plex Mono", "SFMono-Regular", Menlo, monospace;
     font-weight: 400;
     font-size: var(--fs-md);
@@ -631,6 +632,8 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
   .product-video {
     display: block;
     width: 100%;
+    max-width: 100%;
+    height: auto;
     aspect-ratio: 16 / 9;
     border: 1px dashed color-mix(in srgb, var(--line) 82%, #bfc2ce);
     background: #efefe9;
@@ -697,6 +700,10 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
 
     .video-mobile {
       display: block;
+    }
+
+    .video-mobile .product-video {
+      aspect-ratio: auto;
     }
   }
 
