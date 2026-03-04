@@ -84,7 +84,6 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
         <header class="enter" style="--delay: 0ms;">
           <div class="brand-row">
             <p class="brand">Philo</p>
-            <p class="status">macOS beta</p>
           </div>
         </header>
 
@@ -350,9 +349,6 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
   }
 
   .brand-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     margin-bottom: 22px;
   }
 
@@ -361,18 +357,6 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
     font-size: 16px;
     font-weight: 500;
     letter-spacing: 0.01em;
-  }
-
-  .status {
-    margin: 0;
-    font-size: var(--fs-xs);
-    font-weight: 500;
-    color: var(--accent);
-    background: color-mix(in srgb, var(--accent) 10%, white);
-    padding: 5px 9px;
-    border: 1px solid color-mix(in srgb, var(--accent) 20%, white);
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
   }
 
   .hero h1 {
@@ -725,11 +709,6 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
 
     .brand {
       font-size: 15px;
-    }
-
-    .status {
-      font-size: var(--fs-xs);
-      padding: 4px 8px;
     }
 
     .hero h1 {
