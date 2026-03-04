@@ -6,9 +6,17 @@ name = "philo"
 script = ""
 
 [[actions]]
-name = "Run"
+name = "Desktop"
 icon = "run"
 command = '''
-pnpm install
-pnpm tauri dev
+pnpm i
+pnpm --filter @philo/desktop tauri dev
+'''
+
+[[actions]]
+name = "Web"
+icon = "run"
+command = '''
+pnpm i
+pnpm --filter @philo/landing dev
 '''
