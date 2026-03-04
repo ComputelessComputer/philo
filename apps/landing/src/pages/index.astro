@@ -99,7 +99,6 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
             <span aria-hidden="true">→</span>
           </a>
           <div class="video-mobile">
-            <p class="video-label">Product walkthrough</p>
             <div class="video-frame">
               <video
                 class="product-video"
@@ -208,7 +207,6 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
       </main>
 
       <aside class="video-column enter" style="--delay: 120ms;">
-        <p class="video-label">Product walkthrough</p>
         <div class="video-frame">
           <video
             class="product-video"
@@ -612,15 +610,6 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
     position: sticky;
     top: 20px;
     padding-top: 0;
-  }
-
-  .video-label {
-    margin: 0 0 10px;
-    color: #3f3f3d;
-    font-size: var(--fs-sm);
-    font-weight: 500;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
   }
 
   .video-frame {
