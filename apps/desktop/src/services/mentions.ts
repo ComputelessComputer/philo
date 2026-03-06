@@ -94,6 +94,10 @@ function sanitizeToken(token: string,): string {
   return token.toLowerCase().replace(/[^a-z0-9]+/g, "_",).replace(/^_+|_+$/g, "",);
 }
 
+function toTitleCase(value: string,): string {
+  return value.replace(/\b\w/g, (match,) => match.toUpperCase(),);
+}
+
 function monthIndex(input: string,): number {
   const normalized = input.toLowerCase();
   return MONTHS.findIndex((month,) => month.startsWith(normalized,));
@@ -141,7 +145,7 @@ function resolveWeekdayDate(query: string, reference: Date,): MentionSuggestion 
   }
 
   const date = toIsoDate(addDays(reference, offset,),);
-  const label = nextMatch ? `next ${WEEKDAYS[weekdayIndex]}` : WEEKDAYS[weekdayIndex];
+  const label = nextMatch ? `Next ${toTitleCase(WEEKDAYS[weekdayIndex],)}` : toTitleCase(WEEKDAYS[weekdayIndex],);
   return buildDateSuggestion(date, label,);
 }
 
@@ -195,12 +199,12 @@ function resolveDateQuery(query: string, reference: Date,): MentionSuggestion | 
   const normalized = normalizeToken(query,);
   if (!normalized) return null;
 
-  if (normalized === "today") return buildDateSuggestion(toIsoDate(reference,), "today",);
+  if (normalized === "today") return buildDateSuggestion(toIsoDate(reference,), "Today",);
   if (normalized === "tomorrow" || normalized === "tmrw") {
-    return buildDateSuggestion(toIsoDate(addDays(reference, 1,),), "tmrw",);
+    return buildDateSuggestion(toIsoDate(addDays(reference, 1,),), "Tomorrow",);
   }
   if (normalized === "yesterday") {
-    return buildDateSuggestion(toIsoDate(addDays(reference, -1,),), "yesterday",);
+    return buildDateSuggestion(toIsoDate(addDays(reference, -1,),), "Yesterday",);
   }
   if (ISO_DATE_RE.test(normalized,)) {
     return buildDateSuggestion(normalized, formatDisplayDate(normalized,),);
@@ -211,8 +215,8 @@ function resolveDateQuery(query: string, reference: Date,): MentionSuggestion | 
 
 function buildDefaultDateSuggestions(reference: Date,): MentionSuggestion[] {
   return [
-    buildDateSuggestion(toIsoDate(reference,), "today",),
-    buildDateSuggestion(toIsoDate(addDays(reference, 1,),), "tmrw",),
+    buildDateSuggestion(toIsoDate(reference,), "Today",),
+    buildDateSuggestion(toIsoDate(addDays(reference, 1,),), "Tomorrow",),
     resolveWeekdayDate("next monday", reference,),
     resolveWeekdayDate("next friday", reference,),
   ].filter((item,): item is MentionSuggestion => item !== null);
