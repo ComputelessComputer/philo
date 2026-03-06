@@ -227,7 +227,7 @@ function buildRecurringSuggestions(query: string,): MentionSuggestion[] {
   const normalized = normalizeToken(query,);
   return tokens
     .filter((token,) => !normalized || token.startsWith(normalized,))
-    .map((token,) => buildRecurringSuggestion(token,));
+    .map((token,) => buildRecurringSuggestion(token, toTitleCase(token,),));
 }
 
 function dedupeSuggestions(items: MentionSuggestion[],): MentionSuggestion[] {

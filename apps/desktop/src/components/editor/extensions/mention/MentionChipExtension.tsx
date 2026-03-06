@@ -145,9 +145,9 @@ const MentionMenu = forwardRef<
                 value={recurrence}
                 onChange={(event,) => setRecurrence(event.target.value,)}
               >
-                <option value="daily">daily</option>
-                <option value="weekly">weekly</option>
-                <option value="monthly">monthly</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
               </select>
             </div>
           )}
