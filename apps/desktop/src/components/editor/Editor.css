@@ -13,6 +13,12 @@
   display: none;
 }
 
+.tiptap hr {
+  margin: 1rem 0;
+  border: 0;
+  border-top: 1px dashed #a3a3a3;
+}
+
 .tiptap .mention-chip {
   display: inline-flex;
   align-items: center;
