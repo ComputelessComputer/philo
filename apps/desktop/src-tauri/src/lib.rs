@@ -2,13 +2,13 @@
 #[macro_use]
 extern crate objc;
 
+use rusqlite::{params, Connection};
+use serde::Serialize;
+use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 use std::{env, fs};
-use rusqlite::{params, Connection};
-use serde::Serialize;
-use serde_json::{json, Value};
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
@@ -436,7 +436,14 @@ fn refresh_markdown_index(conn: &mut Connection, root: &Path) -> Result<(), Stri
                     content = excluded.content,
                     mtime = excluded.mtime
                 "#,
-                params![absolute_path, &root_key, relative_path, title, content, mtime],
+                params![
+                    absolute_path,
+                    &root_key,
+                    relative_path,
+                    title,
+                    content,
+                    mtime
+                ],
             )
             .map_err(|e| e.to_string())?;
         }
@@ -504,17 +511,14 @@ fn search_markdown_files(
         .map_err(|e| e.to_string())?;
 
     let rows = stmt
-        .query_map(
-            params![root_key, fts_query, clamped_limit as i64],
-            |row| {
-                Ok(MarkdownSearchResult {
-                    path: row.get(0)?,
-                    relative_path: row.get(1)?,
-                    title: row.get(2)?,
-                    snippet: row.get::<_, Option<String>>(3)?.unwrap_or_default(),
-                })
-            },
-        )
+        .query_map(params![root_key, fts_query, clamped_limit as i64], |row| {
+            Ok(MarkdownSearchResult {
+                path: row.get(0)?,
+                relative_path: row.get(1)?,
+                title: row.get(2)?,
+                snippet: row.get::<_, Option<String>>(3)?.unwrap_or_default(),
+            })
+        })
         .map_err(|e| e.to_string())?;
 
     let mut results = Vec::new();
@@ -539,7 +543,8 @@ fn detect_obsidian_settings(vault_dir: String) -> ObsidianSettingsDetection {
     let daily_notes = read_json_file(&obsidian_dir.join("daily-notes.json"));
     let periodic_notes = read_json_file(&obsidian_dir.join("plugins/periodic-notes/data.json"));
     let app = read_json_file(&obsidian_dir.join("app.json"));
-    let excalidraw = read_json_file(&obsidian_dir.join("plugins/obsidian-excalidraw-plugin/data.json"));
+    let excalidraw =
+        read_json_file(&obsidian_dir.join("plugins/obsidian-excalidraw-plugin/data.json"));
 
     let mut daily_logs_folder = String::new();
     let mut filename_pattern = String::new();
@@ -574,7 +579,13 @@ fn detect_obsidian_settings(vault_dir: String) -> ObsidianSettingsDetection {
 
     let mut excalidraw_folder = String::new();
     if let Some(excalidraw_value) = excalidraw.as_ref() {
-        for key in ["folder", "excalidrawFolder", "drawingFolder", "drawingFolderPath", "folderPath"] {
+        for key in [
+            "folder",
+            "excalidrawFolder",
+            "drawingFolder",
+            "drawingFolderPath",
+            "folderPath",
+        ] {
             if let Some(value) = get_string(excalidraw_value, key) {
                 excalidraw_folder = normalize_folder(&value);
                 break;
@@ -584,7 +595,9 @@ fn detect_obsidian_settings(vault_dir: String) -> ObsidianSettingsDetection {
         if excalidraw_folder.is_empty() {
             if let Some(obj) = excalidraw_value.as_object() {
                 for (key, value) in obj {
-                    let Some(text) = value.as_str() else { continue; };
+                    let Some(text) = value.as_str() else {
+                        continue;
+                    };
                     if !(contains_case_insensitive(key, "folder")
                         || contains_case_insensitive(key, "path")
                         || contains_case_insensitive(key, "dir"))
