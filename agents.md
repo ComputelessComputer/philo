@@ -29,6 +29,7 @@ alwaysApply: true
 
 - Avoid creating unnecessary structs, enums, or traits if they are not shared. Prefer inlining types when they're only used in one place.
 - Run `pnpm typecheck && pnpm fmt` before committing.
+- Run `cargo fmt --check` and apply `cargo fmt` before committing Rust changes.
 - Run `cargo clippy` and fix any warnings before committing Rust changes.
 - Run `cargo check` periodically while making Rust changes to catch errors early — don't wait until the end.
 - Run `cargo build` after Rust code changes to verify compilation before committing.
