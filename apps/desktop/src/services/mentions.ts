@@ -86,6 +86,14 @@ function formatDisplayDate(date: string,): string {
   },);
 }
 
+function normalizeDateLabel(label: string,): string {
+  const normalized = label.trim().toLowerCase();
+  if (normalized === "today") return "Today";
+  if (normalized === "tomorrow") return "Tomorrow";
+  if (normalized === "yesterday") return "Yesterday";
+  return label.trim();
+}
+
 function normalizeToken(token: string,): string {
   return token.trim().toLowerCase().replace(/\s+/g, " ",);
 }
@@ -246,7 +254,7 @@ function parseMentionTarget(target: string, label?: string | null,): MentionChip
     return {
       id: target,
       kind: "date",
-      label: label?.trim() || formatDisplayDate(date,),
+      label: label ? normalizeDateLabel(label,) : formatDisplayDate(date,),
     };
   }
 
