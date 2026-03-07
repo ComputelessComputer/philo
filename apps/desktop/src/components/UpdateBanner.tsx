@@ -1,5 +1,6 @@
+import { openUrl, } from "@tauri-apps/plugin-opener";
 import { useState, } from "react";
-import type { UpdateInfo, } from "../services/updater";
+import { relaunch, type UpdateInfo, } from "../services/updater";
 
 interface UpdateBannerProps {
   update: UpdateInfo;
@@ -9,6 +10,7 @@ interface UpdateBannerProps {
 export function UpdateBanner({ update, onDismiss, }: UpdateBannerProps,) {
   const [updating, setUpdating,] = useState(false,);
   const [progress, setProgress,] = useState<number | null>(null,);
+  const [installed, setInstalled,] = useState(false,);
 
   const handleUpdate = async () => {
     setUpdating(true,);
@@ -16,12 +18,41 @@ export function UpdateBanner({ update, onDismiss, }: UpdateBannerProps,) {
       await update.downloadAndInstall((downloaded, total,) => {
         if (total > 0) setProgress(Math.round((downloaded / total) * 100,),);
       },);
+      setInstalled(true,);
     } catch (err) {
       console.error("Update failed:", err,);
       setUpdating(false,);
       setProgress(null,);
     }
   };
+
+  if (installed) {
+    return (
+      <div
+        className="sticky top-0 z-50 flex items-center justify-center gap-3 px-4 py-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/80"
+        style={{ fontFamily: "'IBM Plex Mono', monospace", }}
+      >
+        <span className="text-xs text-gray-600 dark:text-gray-300">
+          v{update.version} installed
+        </span>
+
+        <button
+          onClick={() => openUrl(update.releaseUrl,)}
+          className="text-xs px-2.5 py-0.5 rounded-md border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors cursor-pointer"
+        >
+          Changelog
+        </button>
+
+        <button
+          onClick={() => relaunch()}
+          className="text-xs px-2.5 py-0.5 rounded-md text-white transition-all cursor-pointer"
+          style={{ background: "linear-gradient(to bottom, #4b5563, #1f2937)", }}
+        >
+          Restart
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div

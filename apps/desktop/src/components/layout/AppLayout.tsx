@@ -190,11 +190,16 @@ export default function AppLayout() {
       .catch(console.error,);
   }, [],);
 
-  // Check for app updates on mount
+  // Poll for app updates every 5 minutes
   useEffect(() => {
-    checkForUpdate().then((info,) => {
-      if (info) setUpdateInfo(info,);
-    },);
+    const poll = () => {
+      checkForUpdate().then((info,) => {
+        if (info) setUpdateInfo(info,);
+      },);
+    };
+    poll();
+    const id = setInterval(poll, 5 * 60 * 1000,);
+    return () => clearInterval(id,);
   }, [],);
 
   // Listen for macOS menu bar events
