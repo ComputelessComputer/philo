@@ -1,7 +1,9 @@
+import { getVersion, } from "@tauri-apps/api/app";
 import { relaunch as tauriRelaunch, } from "@tauri-apps/plugin-process";
 import { check, } from "@tauri-apps/plugin-updater";
 
 const RELEASE_URL_PREFIX = "https://github.com/ComputelessComputer/philo/releases/tag";
+const PENDING_UPDATED_VERSION_KEY = "philo.pending-updated-version";
 
 export interface UpdateInfo {
   version: string;
@@ -10,8 +12,35 @@ export interface UpdateInfo {
   downloadAndInstall: (onProgress?: (downloaded: number, total: number,) => void,) => Promise<void>;
 }
 
+export interface PostUpdateInfo {
+  version: string;
+  releaseUrl: string;
+}
+
+function getReleaseUrl(version: string,) {
+  return `${RELEASE_URL_PREFIX}/v${version}`;
+}
+
 export function relaunch() {
   tauriRelaunch();
+}
+
+export function markPendingPostUpdate(version: string,) {
+  localStorage.setItem(PENDING_UPDATED_VERSION_KEY, version,);
+}
+
+export async function consumePendingPostUpdate(): Promise<PostUpdateInfo | null> {
+  const pendingVersion = localStorage.getItem(PENDING_UPDATED_VERSION_KEY,);
+  if (!pendingVersion) return null;
+
+  const currentVersion = await getVersion();
+  if (pendingVersion !== currentVersion) return null;
+
+  localStorage.removeItem(PENDING_UPDATED_VERSION_KEY,);
+  return {
+    version: pendingVersion,
+    releaseUrl: getReleaseUrl(pendingVersion,),
+  };
 }
 
 export async function checkForUpdate(): Promise<UpdateInfo | null> {
@@ -22,7 +51,7 @@ export async function checkForUpdate(): Promise<UpdateInfo | null> {
     return {
       version: update.version,
       body: update.body ?? null,
-      releaseUrl: `${RELEASE_URL_PREFIX}/v${update.version}`,
+      releaseUrl: getReleaseUrl(update.version,),
       downloadAndInstall: async (onProgress,) => {
         let downloaded = 0;
         let contentLength = 0;

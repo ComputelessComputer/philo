@@ -11,7 +11,12 @@ import { getJournalDir, initJournalScope, } from "../../services/paths";
 import { loadSettings, } from "../../services/settings";
 import { getOrCreateDailyNote, loadDailyNote, saveDailyNote, } from "../../services/storage";
 import { rolloverTasks, } from "../../services/tasks";
-import { checkForUpdate, type UpdateInfo, } from "../../services/updater";
+import {
+  checkForUpdate,
+  consumePendingPostUpdate,
+  type PostUpdateInfo,
+  type UpdateInfo,
+} from "../../services/updater";
 import { DailyNote, formatDate, getDaysAgo, isToday, } from "../../types/note";
 import EditableNote, { type EditableNoteHandle, } from "../journal/EditableNote";
 import { LibraryDrawer, } from "../library/LibraryDrawer";
@@ -128,6 +133,7 @@ export default function AppLayout() {
   const [isConfigured, setIsConfigured,] = useState(false,);
   const [storageRevision, setStorageRevision,] = useState(0,);
   const [updateInfo, setUpdateInfo,] = useState<UpdateInfo | null>(null,);
+  const [postUpdateInfo, setPostUpdateInfo,] = useState<PostUpdateInfo | null>(null,);
   const [isPinned, setIsPinned,] = useState(false,);
   const [isWindowFocused, setIsWindowFocused,] = useState(() => document.hasFocus());
   const [globalSearchOpen, setGlobalSearchOpen,] = useState(false,);
@@ -200,6 +206,14 @@ export default function AppLayout() {
     poll();
     const id = setInterval(poll, 5 * 60 * 1000,);
     return () => clearInterval(id,);
+  }, [],);
+
+  useEffect(() => {
+    consumePendingPostUpdate()
+      .then((info,) => {
+        if (info) setPostUpdateInfo(info,);
+      },)
+      .catch(console.error,);
   }, [],);
 
   // Listen for macOS menu bar events
@@ -608,7 +622,15 @@ export default function AppLayout() {
         )
         : (
           <>
-            {updateInfo && <UpdateBanner update={updateInfo} onDismiss={() => setUpdateInfo(null,)} />}
+            {postUpdateInfo
+              ? (
+                <UpdateBanner
+                  mode="updated"
+                  update={postUpdateInfo}
+                  onDismiss={() => setPostUpdateInfo(null,)}
+                />
+              )
+              : updateInfo && <UpdateBanner update={updateInfo} onDismiss={() => setUpdateInfo(null,)} />}
             <div className="w-full max-w-3xl">
               <div
                 ref={todayRef}
