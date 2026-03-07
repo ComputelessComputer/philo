@@ -1,4 +1,4 @@
-import { Extension, } from "@tiptap/core";
+import { Extension, mergeAttributes, Node, } from "@tiptap/core";
 import Highlight from "@tiptap/extension-highlight";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
@@ -39,6 +39,81 @@ const BlankLineExtension = Extension.create({
   },
 },);
 
+const MarkdownOrderedList = Node.create({
+  name: "orderedList",
+
+  group: "block list",
+
+  content: "listItem+",
+
+  addAttributes() {
+    return {
+      start: {
+        default: 1,
+        parseHTML: element => {
+          return element.hasAttribute("start",) ? parseInt(element.getAttribute("start",) || "", 10,) : 1;
+        },
+      },
+      type: {
+        default: null,
+        parseHTML: element => element.getAttribute("type",),
+      },
+    };
+  },
+
+  parseHTML() {
+    return [
+      {
+        tag: "ol",
+      },
+    ];
+  },
+
+  renderHTML({ HTMLAttributes, },) {
+    const { start, ...attributesWithoutStart } = HTMLAttributes;
+
+    return start === 1
+      ? ["ol", mergeAttributes(attributesWithoutStart,), 0,]
+      : ["ol", mergeAttributes(HTMLAttributes,), 0,];
+  },
+
+  markdownTokenName: "list",
+
+  parseMarkdown: (token, helpers,) => {
+    if (token.type !== "list" || !token.ordered) {
+      return [];
+    }
+
+    const startValue = token.start || 1;
+    const content = token.items ? helpers.parseChildren(token.items,) : [];
+
+    if (startValue !== 1) {
+      return {
+        type: "orderedList",
+        attrs: { start: startValue, },
+        content,
+      };
+    }
+
+    return {
+      type: "orderedList",
+      content,
+    };
+  },
+
+  renderMarkdown: (node, helpers,) => {
+    if (!node.content) {
+      return "";
+    }
+
+    return helpers.renderChildren(node.content, "\n",);
+  },
+
+  markdownOptions: {
+    indentsContent: true,
+  },
+},);
+
 export function isValidContent(content: unknown,): content is JSONContent {
   if (!content || typeof content !== "object") return false;
   const obj = content as Record<string, unknown>;
@@ -50,8 +125,10 @@ function getExtensions() {
     StarterKit.configure({
       heading: { levels: [1, 2, 3, 4, 5, 6,], },
       listKeymap: false,
+      orderedList: false,
       paragraph: false,
     },),
+    MarkdownOrderedList,
     CustomParagraph,
     BlankLineExtension,
     Image.configure({ inline: true, allowBase64: false, },),
