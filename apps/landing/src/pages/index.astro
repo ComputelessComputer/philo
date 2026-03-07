@@ -93,11 +93,17 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
             Capture notes. Track tasks that roll forward. Generate tiny tools in place when you
             need them.
           </p>
-          <a class="download-button" href="https://github.com/ComputelessComputer/philo/releases/latest">
-            Download for macOS
-            <span class="download-beta">beta</span>
-            <span aria-hidden="true">→</span>
-          </a>
+          <div class="download-split" data-download>
+            <a class="download-button" data-download-primary href="https://github.com/ComputelessComputer/philo/releases/latest">
+              Download for macOS
+              <span class="download-beta">beta</span>
+            </a><button type="button" class="download-chevron" data-download-toggle aria-label="Other platforms">▾</button>
+            <div class="download-menu" data-download-menu>
+              <a data-download-macos href="https://github.com/ComputelessComputer/philo/releases/latest">macOS</a>
+              <a data-download-windows href="https://github.com/ComputelessComputer/philo/releases/latest">Windows</a>
+              <a data-download-linux href="https://github.com/ComputelessComputer/philo/releases/latest">Linux</a>
+            </div>
+          </div>
           <div class="video-mobile">
             <div class="video-frame">
               <video
@@ -231,9 +237,20 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
     const REPO = "ComputelessComputer/philo";
     const FALLBACK = `https://github.com/${REPO}/releases/latest`;
     const primary = document.querySelector("[data-download-primary]",);
+    const toggle = document.querySelector("[data-download-toggle]",);
+    const menu = document.querySelector("[data-download-menu]",);
     const macLink = document.querySelector("[data-download-macos]",);
     const winLink = document.querySelector("[data-download-windows]",);
     const linuxLink = document.querySelector("[data-download-linux]",);
+
+    toggle?.addEventListener("click", (e,) => {
+      e.stopPropagation();
+      menu?.classList.toggle("is-open",);
+    },);
+
+    document.addEventListener("click", () => {
+      menu?.classList.remove("is-open",);
+    },);
 
     try {
       const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`,);
@@ -454,9 +471,15 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
     color: #3f3f3d;
   }
 
+  .download-split {
+    position: relative;
+    display: inline-flex;
+    margin-top: 14px;
+  }
+
   .download-button {
-    margin-top: 0;
     color: var(--accent);
+    font-family: inherit;
     font-size: var(--fs-sm);
     font-weight: 500;
     letter-spacing: 0.03em;
@@ -484,31 +507,58 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
     background: color-mix(in srgb, var(--accent) 14%, #ffffff);
   }
 
-  .download-group {
-    margin-top: 14px;
+  .download-chevron {
+    font-family: inherit;
+    font-size: var(--fs-sm);
+    color: var(--accent);
+    border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line));
+    border-left: 0;
+    background: color-mix(in srgb, var(--accent) 8%, #ffffff);
+    padding: 0 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
   }
 
-  .download-platforms {
+  .download-chevron:hover {
+    border-color: color-mix(in srgb, var(--accent) 44%, var(--line));
+    background: color-mix(in srgb, var(--accent) 14%, #ffffff);
+  }
+
+  .download-menu {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 4px;
+    border: 1px solid color-mix(in srgb, var(--accent) 26%, var(--line));
+    background: #ffffff;
+    z-index: 10;
+  }
+
+  .download-menu.is-open {
     display: flex;
-    gap: 14px;
-    margin-top: 8px;
+    flex-direction: column;
   }
 
-  .download-platforms a {
-    color: var(--muted);
-    font-size: var(--fs-xs);
+  .download-menu a {
+    padding: 7px 10px;
+    color: var(--text);
+    font-size: var(--fs-sm);
     font-weight: 500;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.03em;
     text-transform: uppercase;
     text-decoration: none;
   }
 
-  .download-platforms a:hover {
+  .download-menu a:hover {
+    background: color-mix(in srgb, var(--accent) 8%, #ffffff);
     color: var(--accent);
   }
 
-  .download-platforms a.is-current {
-    color: var(--accent);
+  .download-menu a.is-current {
+    display: none;
   }
 
   .video-mobile {
