@@ -28,7 +28,7 @@ alwaysApply: true
 ## General
 
 - Avoid creating unnecessary structs, enums, or traits if they are not shared. Prefer inlining types when they're only used in one place.
-- Run `pnpm typecheck && pnpm fmt` before committing.
+- Run `turbo typecheck --force && dprint fmt` before committing.
 - Run `cargo fmt --check` and apply `cargo fmt` before committing Rust changes.
 - Run `cargo clippy` and fix any warnings before committing Rust changes.
 - Run `cargo check` periodically while making Rust changes to catch errors early — don't wait until the end.
@@ -38,4 +38,4 @@ alwaysApply: true
 ## TypeScript
 
 - Avoid creating a bunch of types/interfaces if they are not shared. Especially for function props. Just inline them.
-- After some amount of TypeScript changes, run `pnpm -r typecheck`.
+- After some amount of TypeScript changes, run `turbo typecheck`.
