@@ -20,6 +20,9 @@ export const EMPTY_DOC: JSONContent = {
   content: [{ type: "paragraph", },],
 };
 
+const FENCED_CODE_BLOCK_RE = /(```[\s\S]*?```)/g;
+const EMPTY_PARAGRAPH_MARKDOWN = "&nbsp;";
+
 export function isValidContent(content: unknown,): content is JSONContent {
   if (!content || typeof content !== "object") return false;
   const obj = content as Record<string, unknown>;
@@ -62,47 +65,27 @@ function getMarkdownManager(): MarkdownManager {
   return _manager;
 }
 
+function normalizeBlankLines(markdown: string,): string {
+  return markdown
+    .split(FENCED_CODE_BLOCK_RE,)
+    .map((part, index,) => {
+      if (index % 2 === 1) return part;
+
+      return part.replace(/(?:\n[ \t]*){2,}/g, (run,) => {
+        const newlineCount = (run.match(/\n/g,) || []).length;
+        if (newlineCount <= 2) return "\n\n";
+
+        return `\n\n${Array.from({ length: newlineCount - 2, }, () => `${EMPTY_PARAGRAPH_MARKDOWN}\n\n`,).join("",)}`;
+      },);
+    },)
+    .join("",);
+}
+
 export function md2json(markdown: string,): JSONContent {
   try {
-    const source = markdown.replace(/\r\n?/g, "\n",);
-    const runs = Array.from(source.matchAll(/(?:\n[ \t]*){2,}/g,),);
-    if (runs.length === 0) {
-      const result = getMarkdownManager().parse(source,);
-      return isValidContent(result,) ? result : EMPTY_DOC;
-    }
-
-    const allNodes: JSONContent[] = [];
-    let cursor = 0;
-
-    for (const run of runs) {
-      const index = run.index ?? 0;
-      const part = source.slice(cursor, index,).trim();
-
-      if (part) {
-        const parsed = getMarkdownManager().parse(part,);
-        if (isValidContent(parsed,) && parsed.content) {
-          allNodes.push(...parsed.content,);
-        }
-      }
-
-      const newlineCount = (run[0].match(/\n/g,) || []).length;
-      const emptyParagraphCount = Math.max(1, newlineCount - 1,);
-      for (let i = 0; i < emptyParagraphCount; i++) {
-        allNodes.push({ type: "paragraph", },);
-      }
-
-      cursor = index + run[0].length;
-    }
-
-    const tail = source.slice(cursor,).trim();
-    if (tail) {
-      const parsed = getMarkdownManager().parse(tail,);
-      if (isValidContent(parsed,) && parsed.content) {
-        allNodes.push(...parsed.content,);
-      }
-    }
-
-    return allNodes.length > 0 ? { type: "doc", content: allNodes, } : EMPTY_DOC;
+    const source = normalizeBlankLines(markdown.replace(/\r\n?/g, "\n",),);
+    const result = getMarkdownManager().parse(source,);
+    return isValidContent(result,) ? result : EMPTY_DOC;
   } catch {
     return EMPTY_DOC;
   }
@@ -110,8 +93,7 @@ export function md2json(markdown: string,): JSONContent {
 
 export function json2md(json: JSONContent,): string {
   try {
-    const serialized = getMarkdownManager().serialize(json,);
-    return serialized.replace(/\n{4,}/g, (run,) => "\n".repeat(Math.floor(run.length / 2,),),);
+    return getMarkdownManager().serialize(json,);
   } catch {
     return "";
   }

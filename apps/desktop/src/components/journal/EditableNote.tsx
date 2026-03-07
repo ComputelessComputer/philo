@@ -200,20 +200,6 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
               return true;
             }
           }
-          if (
-            event.key === "Enter"
-            && !event.shiftKey
-            && !event.altKey
-            && !event.metaKey
-            && !event.ctrlKey
-          ) {
-            const { $from, } = _view.state.selection;
-            if ($from.depth === 1 && $from.parent.type.name === "paragraph") {
-              event.preventDefault();
-              _view.dispatch(_view.state.tr.insertText("\n",),);
-              return true;
-            }
-          }
           if ((event.metaKey || event.ctrlKey) && event.key === "a") {
             const { doc, } = _view.state;
             const from = Selection.atStart(doc,).from;
