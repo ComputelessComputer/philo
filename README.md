@@ -51,6 +51,10 @@ Inspired by [Logseq](https://logseq.com) and [@omer_vexler](https://x.com/omer_v
 
 Tauri v2 · React 19 · TypeScript · TipTap · Tailwind CSS v4 · Anthropic Claude
 
+## Release
+
+Run `pnpm run release:check` after bumping the desktop version and before creating a GitHub release. It verifies formatting, frontend typechecks and build, and the Rust fmt/check/clippy/test/build steps that the desktop release depends on.
+
 ## Relationship to Char (formerly Hyprnote)
 
 Philo is a proof-of-concept playground for a daily journaling feature being developed for [Char](https://github.com/fastrepl/hyprnote). It borrows Char's editor styling and file-saving mechanism (via a git submodule at `vendor/hyprnote`) while adding philo-specific features: task rollover, recurring tasks, and AI widget generation.
