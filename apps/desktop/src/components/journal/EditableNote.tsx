@@ -247,13 +247,15 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
 
     useEffect(() => {
       if (!editor || editor.isDestroyed) return;
+      const incoming = parseJsonContent(note.content,);
       if (selfUpdateRef.current) {
         selfUpdateRef.current = false;
-        return;
+        if (JSON.stringify(editor.getJSON(),) === JSON.stringify(incoming,)) {
+          return;
+        }
       }
-      const incoming = parseJsonContent(note.content,);
       editor.commands.setContent(incoming, { emitUpdate: false, },);
-    }, [note.content,],);
+    }, [editor, note.content,],);
 
     return (
       <>

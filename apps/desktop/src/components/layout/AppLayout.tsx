@@ -448,10 +448,12 @@ export default function AppLayout() {
 
   const handleTodaySave = useCallback(
     (note: DailyNote,) => {
-      saveDailyNote(note,).catch(console.error,);
       setTodayNote(note,);
+      saveDailyNote(note,)
+        .then(() => syncTodayNoteFromDisk())
+        .catch(console.error,);
     },
-    [],
+    [syncTodayNoteFromDisk,],
   );
 
   const todayEditorRef = useRef<EditableNoteHandle>(null,);
