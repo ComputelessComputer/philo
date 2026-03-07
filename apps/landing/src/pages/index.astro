@@ -227,6 +227,50 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
 </html>
 
 <script is:inline>
+  (async () => {
+    const REPO = "ComputelessComputer/philo";
+    const FALLBACK = `https://github.com/${REPO}/releases/latest`;
+    const primary = document.querySelector("[data-download-primary]",);
+    const macLink = document.querySelector("[data-download-macos]",);
+    const winLink = document.querySelector("[data-download-windows]",);
+    const linuxLink = document.querySelector("[data-download-linux]",);
+
+    try {
+      const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`,);
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const assets = data.assets ?? [];
+
+      const find = (/** @type {RegExp} */ re,) => assets.find((a,) => re.test(a.name,),)?.browser_download_url;
+
+      const urls = {
+        macos: find(/\.dmg$/,) ?? FALLBACK,
+        windows: find(/\.exe$/,) ?? FALLBACK,
+        linux: find(/\.AppImage$/,) ?? FALLBACK,
+      };
+
+      if (macLink) macLink.href = urls.macos;
+      if (winLink) winLink.href = urls.windows;
+      if (linuxLink) linuxLink.href = urls.linux;
+
+      const ua = navigator.userAgent.toLowerCase();
+      let os = "macos";
+      if (ua.includes("win",)) os = "windows";
+      else if (ua.includes("linux",)) os = "linux";
+
+      const labels = { macos: "Download for macOS", windows: "Download for Windows", linux: "Download for Linux" };
+      if (primary) {
+        primary.href = urls[os];
+        primary.firstChild.textContent = labels[os] + " ";
+      }
+
+      const currentLink = { macos: macLink, windows: winLink, linux: linuxLink }[os];
+      if (currentLink) currentLink.classList.add("is-current",);
+    } catch {
+      // keep fallback links
+    }
+  })();
+
   const carousel = document.querySelector("[data-carousel]",);
   if (carousel) {
     const track = carousel.querySelector("[data-carousel-track]",);
@@ -411,7 +455,7 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
   }
 
   .download-button {
-    margin-top: 14px;
+    margin-top: 0;
     color: var(--accent);
     font-size: var(--fs-sm);
     font-weight: 500;
@@ -438,6 +482,33 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
   .download-button:hover {
     border-color: color-mix(in srgb, var(--accent) 44%, var(--line));
     background: color-mix(in srgb, var(--accent) 14%, #ffffff);
+  }
+
+  .download-group {
+    margin-top: 14px;
+  }
+
+  .download-platforms {
+    display: flex;
+    gap: 14px;
+    margin-top: 8px;
+  }
+
+  .download-platforms a {
+    color: var(--muted);
+    font-size: var(--fs-xs);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-decoration: none;
+  }
+
+  .download-platforms a:hover {
+    color: var(--accent);
+  }
+
+  .download-platforms a.is-current {
+    color: var(--accent);
   }
 
   .video-mobile {
