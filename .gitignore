@@ -27,3 +27,4 @@ dist-ssr
 
 # Tauri signing key
 *.key
+.turbo/
