@@ -21,6 +21,18 @@
   min-height: var(--editor-line-height);
 }
 
+.tiptap ul[data-type="taskList"] li {
+  min-height: var(--editor-line-height);
+}
+
+.tiptap ul[data-type="taskList"] li > label {
+  height: var(--editor-line-height);
+}
+
+.tiptap ul[data-type="taskList"] input[type="checkbox"] {
+  margin-top: 0;
+}
+
 .tiptap a:hover {
   cursor: pointer;
 }
