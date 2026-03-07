@@ -68,6 +68,18 @@
   color: #374151;
 }
 
+.tiptap .mention-chip-today {
+  border-color: #fde68a;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.tiptap .mention-chip-overdue {
+  border-color: #fecaca;
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
 .mention-menu {
   min-width: 14rem;
   border: 1px solid #e5e7eb;

@@ -11,6 +11,20 @@ import {
   getMentionSuggestions,
   type MentionSuggestion,
 } from "../../../../services/mentions";
+import { getToday, } from "../../../../types/note";
+
+const DATE_MENTION_ID_RE = /^date_(\d{4}-\d{2}-\d{2})$/;
+
+function getDateMentionState(id: unknown,): "today" | "overdue" | null {
+  const match = DATE_MENTION_ID_RE.exec(String(id ?? "",),);
+  if (!match) return null;
+
+  const date = match[1];
+  const today = getToday();
+  if (date === today) return "today";
+  if (date < today) return "overdue";
+  return null;
+}
 
 function MiniCalendar({ selected, onSelect, }: { selected: string; onSelect: (date: string,) => void; },) {
   const todayStr = (() => {
@@ -357,14 +371,25 @@ export const MentionChipExtension = Mention.extend({
       HTMLAttributes: {},
       renderText: ({ node, },) => String(node.attrs.label ?? "",),
       deleteTriggerWithBackspace: true,
-      renderHTML: ({ node, },) => [
-        "span",
-        {
-          "data-mention-chip": "",
-          class: `mention-chip mention-chip-${String(node.attrs.kind ?? "tag",)}`,
-        },
-        String(node.attrs.label ?? "",),
-      ],
+      renderHTML: ({ node, },) => {
+        const dateState = getDateMentionState(node.attrs.id,);
+
+        return [
+          "span",
+          {
+            "data-mention-chip": "",
+            class: [
+              "mention-chip",
+              `mention-chip-${String(node.attrs.kind ?? "tag",)}`,
+              dateState === "today" ? "mention-chip-today" : "",
+              dateState === "overdue" ? "mention-chip-overdue" : "",
+            ]
+              .filter(Boolean,)
+              .join(" ",),
+          },
+          String(node.attrs.label ?? "",),
+        ];
+      },
       suggestions: [],
       suggestion: buildMentionChipSuggestion(),
     };
