@@ -6,10 +6,11 @@ import { openPath, } from "@tauri-apps/plugin-opener";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, } from "react";
 import { useCurrentDate, } from "../../hooks/useCurrentDate";
 import { useTimezoneCity, } from "../../hooks/useTimezoneCity";
+import { AI_NOT_CONFIGURED, type AssistantScope, runAssistant, } from "../../services/assistant";
 import type { LibraryItem, } from "../../services/library";
 import { getJournalDir, initJournalScope, } from "../../services/paths";
 import { loadSettings, } from "../../services/settings";
-import { getOrCreateDailyNote, loadDailyNote, saveDailyNote, } from "../../services/storage";
+import { getOrCreateDailyNote, loadDailyNote, loadPastNotes, saveDailyNote, } from "../../services/storage";
 import { rolloverTasks, } from "../../services/tasks";
 import {
   checkForUpdate,
@@ -18,6 +19,7 @@ import {
   type UpdateInfo,
 } from "../../services/updater";
 import { DailyNote, formatDate, getDaysAgo, isToday, } from "../../types/note";
+import { AiComposer, } from "../ai/AiComposer";
 import EditableNote, { type EditableNoteHandle, } from "../journal/EditableNote";
 import { LibraryDrawer, } from "../library/LibraryDrawer";
 import { OnboardingModal, } from "../onboarding/OnboardingModal";
@@ -142,6 +144,13 @@ export default function AppLayout() {
   const [globalSearchSelectedIndex, setGlobalSearchSelectedIndex,] = useState(-1,);
   const [globalSearchLoading, setGlobalSearchLoading,] = useState(false,);
   const [globalSearchError, setGlobalSearchError,] = useState<string | null>(null,);
+  const [aiComposerOpen, setAiComposerOpen,] = useState(false,);
+  const [aiPrompt, setAiPrompt,] = useState("",);
+  const [aiScope, setAiScope,] = useState<AssistantScope>("today",);
+  const [hasAiConfigured, setHasAiConfigured,] = useState(false,);
+  const [aiRunning, setAiRunning,] = useState(false,);
+  const [aiError, setAiError,] = useState<string | null>(null,);
+  const [aiSummary, setAiSummary,] = useState<string | null>(null,);
   const cityRef = useRef(currentCity,);
   const prevCityRef = useRef(currentCity,);
   const todayNoteRef = useRef<DailyNote | null>(null,);
@@ -164,6 +173,7 @@ export default function AppLayout() {
   }, [today,],);
 
   const openGlobalSearch = useCallback(() => {
+    setAiComposerOpen(false,);
     setGlobalSearchOpen(true,);
   }, [],);
 
@@ -176,6 +186,27 @@ export default function AppLayout() {
     setGlobalSearchError(null,);
   }, [],);
 
+  const refreshAiAvailability = useCallback(() => {
+    loadSettings()
+      .then((settings,) => {
+        setHasAiConfigured(Boolean(settings.anthropicApiKey.trim(),),);
+      },)
+      .catch(console.error,);
+  }, [],);
+
+  const openAiComposer = useCallback(() => {
+    setGlobalSearchOpen(false,);
+    setAiComposerOpen(true,);
+    setAiError(null,);
+    setAiSummary(null,);
+    refreshAiAvailability();
+  }, [refreshAiAvailability,],);
+
+  const closeAiComposer = useCallback(() => {
+    setAiComposerOpen(false,);
+    setAiError(null,);
+  }, [],);
+
   const openGlobalSearchResult = useCallback((result: GlobalSearchResult | undefined,) => {
     if (!result) return;
     openPath(result.path,).catch(console.error,);
@@ -185,6 +216,7 @@ export default function AppLayout() {
   useEffect(() => {
     loadSettings()
       .then(async (settings,) => {
+        setHasAiConfigured(Boolean(settings.anthropicApiKey.trim(),),);
         const hasJournalConfig = !!settings.journalDir || !!settings.vaultDir;
         if (settings.hasCompletedOnboarding || hasJournalConfig) {
           await initJournalScope();
@@ -236,6 +268,18 @@ export default function AppLayout() {
 
   useEffect(() => {
     const handleHotkey = (event: KeyboardEvent,) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        openAiComposer();
+        return;
+      }
+
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "j") {
+        event.preventDefault();
+        openAiComposer();
+        return;
+      }
+
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
         event.preventDefault();
         openGlobalSearch();
@@ -273,15 +317,24 @@ export default function AppLayout() {
       if (event.key === "Escape" && globalSearchOpen) {
         event.preventDefault();
         closeGlobalSearch();
+        return;
+      }
+
+      if (event.key === "Escape" && aiComposerOpen) {
+        event.preventDefault();
+        closeAiComposer();
       }
     };
     window.addEventListener("keydown", handleHotkey,);
     return () => window.removeEventListener("keydown", handleHotkey,);
   }, [
+    aiComposerOpen,
+    closeAiComposer,
     closeGlobalSearch,
     globalSearchOpen,
     globalSearchResults,
     globalSearchSelectedIndex,
+    openAiComposer,
     openGlobalSearch,
     openGlobalSearchResult,
   ],);
@@ -455,6 +508,45 @@ export default function AppLayout() {
     },
     [syncTodayNoteFromDisk,],
   );
+
+  const handleAiSubmit = useCallback(async () => {
+    const todayNoteValue = todayNoteRef.current;
+    if (!todayNoteValue || aiRunning || !aiPrompt.trim()) return;
+
+    setAiRunning(true,);
+    setAiError(null,);
+    setAiSummary(null,);
+
+    try {
+      const recentNotes = aiScope === "recent" ? await loadPastNotes(14,) : [];
+      const result = await runAssistant({
+        prompt: aiPrompt.trim(),
+        scope: aiScope,
+        context: {
+          today: todayNoteValue,
+          recentNotes,
+        },
+      },);
+
+      const reloadedToday = await loadDailyNote(todayNoteValue.date,);
+      if (reloadedToday) {
+        setTodayNote(reloadedToday,);
+      }
+
+      setAiSummary(result.summary,);
+      setAiPrompt("",);
+      setStorageRevision((value,) => value + 1);
+    } catch (error) {
+      if (error instanceof Error && error.message === AI_NOT_CONFIGURED) {
+        setHasAiConfigured(false,);
+        setAiError("AI isn't configured yet.",);
+      } else {
+        setAiError(error instanceof Error ? error.message : "AI command failed.",);
+      }
+    } finally {
+      setAiRunning(false,);
+    }
+  }, [aiPrompt, aiRunning, aiScope,],);
 
   const todayEditorRef = useRef<EditableNoteHandle>(null,);
   const todayRef = useRef<HTMLDivElement>(null,);
@@ -652,7 +744,7 @@ export default function AppLayout() {
               </div>
 
               {pastDates.map((date,) => (
-                <div key={date}>
+                <div key={`${date}-${storageRevision}`}>
                   <div className="mx-6 border-t border-gray-200 dark:border-gray-700" />
                   <LazyNote date={date} />
                 </div>
@@ -673,6 +765,24 @@ export default function AppLayout() {
             )}
           </>
         )}
+
+      <AiComposer
+        open={aiComposerOpen}
+        prompt={aiPrompt}
+        scope={aiScope}
+        hasAiConfigured={hasAiConfigured}
+        isSubmitting={aiRunning}
+        error={aiError}
+        summary={aiSummary}
+        onPromptChange={setAiPrompt}
+        onScopeChange={setAiScope}
+        onClose={closeAiComposer}
+        onSubmit={handleAiSubmit}
+        onOpenSettings={() => {
+          setSettingsOpen(true,);
+          refreshAiAvailability();
+        }}
+      />
 
       {/* Library drawer — triggered by macOS menu bar Cmd+J */}
       <LibraryDrawer
@@ -697,7 +807,13 @@ export default function AppLayout() {
       />
 
       {/* Settings modal — triggered by macOS menu bar Cmd+, */}
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false,)} />
+      <SettingsModal
+        open={settingsOpen}
+        onClose={() => {
+          setSettingsOpen(false,);
+          refreshAiAvailability();
+        }}
+      />
       <OnboardingModal
         open={onboardingOpen}
         onComplete={() => {

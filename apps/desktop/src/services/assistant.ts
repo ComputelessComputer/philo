@@ -37,7 +37,7 @@ function formatNote(note: DailyNote,) {
   return {
     date: note.date,
     city: note.city ?? null,
-    markdown: json2md(parseJsonContent(note.content,)),
+    markdown: json2md(parseJsonContent(note.content,),),
   };
 }
 
@@ -58,6 +58,7 @@ Rules:
 - If scope is "today", only update today's note.
 - If scope is "recent", you may update today's note and any provided recent notes.
 - Return full markdown for each updated note in "updates". Do not return patches.
+- Current requested scope: "${scope}".
 
 Response shape:
 {
@@ -97,14 +98,18 @@ export async function runAssistant(request: AssistantRequest,): Promise<Assistan
       system: buildSystemPrompt(request.scope, request.context.today.date,),
       messages: [{
         role: "user",
-        content: JSON.stringify({
-          prompt: request.prompt,
-          scope: request.scope,
-          today: formatNote(request.context.today,),
-          recentNotes: request.scope === "recent"
-            ? request.context.recentNotes.map(formatNote,)
-            : [],
-        }, null, 2,),
+        content: JSON.stringify(
+          {
+            prompt: request.prompt,
+            scope: request.scope,
+            today: formatNote(request.context.today,),
+            recentNotes: request.scope === "recent"
+              ? request.context.recentNotes.map(formatNote,)
+              : [],
+          },
+          null,
+          2,
+        ),
       },],
     },),
   },);
@@ -119,18 +124,20 @@ export async function runAssistant(request: AssistantRequest,): Promise<Assistan
   const cleaned = text.replace(/^```(?:json)?\n?/m, "",).replace(/\n?```$/m, "",).trim();
   const parsed = responseSchema.parse(JSON.parse(cleaned,),);
 
-  const updates = parsed.updates.filter((update,) => allowedDates.has(update.date));
+  const updates = parsed.updates.filter((update,) => allowedDates.has(update.date,));
   if (request.scope === "today" && updates.some((update,) => update.date !== request.context.today.date)) {
     throw new Error("Sophia returned changes outside today's note.",);
   }
 
-  await Promise.all(updates.map((update,) => saveDailyNote({
-    date: update.date,
-    content: JSON.stringify(md2json(update.content,),),
-    city: update.city ?? (update.date === request.context.today.date
-      ? request.context.today.city
-      : request.context.recentNotes.find((note,) => note.date === update.date)?.city),
-  },)),);
+  await Promise.all(updates.map((update,) =>
+    saveDailyNote({
+      date: update.date,
+      content: JSON.stringify(md2json(update.content,),),
+      city: update.city ?? (update.date === request.context.today.date
+        ? request.context.today.city
+        : request.context.recentNotes.find((note,) => note.date === update.date)?.city),
+    },)
+  ),);
 
   return {
     summary: parsed.summary,
