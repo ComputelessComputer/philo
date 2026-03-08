@@ -58,6 +58,7 @@ Run `pnpm run release:check` after bumping the desktop version and before creati
 ## Internal docs
 
 - [Markdown sync and editor rendering](docs/markdown-sync.md)
+- [File and folder organization](docs/repo-structure.md)
 
 ## Relationship to Char (formerly Hyprnote)
 
