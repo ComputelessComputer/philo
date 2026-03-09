@@ -66,6 +66,7 @@
   vertical-align: text-bottom;
   box-sizing: border-box;
   overflow: hidden;
+  cursor: pointer;
 }
 
 .tiptap .mention-chip-recurring {

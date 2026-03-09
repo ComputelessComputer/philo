@@ -17,6 +17,7 @@ import { useDebounceCallback, } from "usehooks-ts";
 import "../editor/Editor.css";
 import { parseJsonContent, } from "../../lib/markdown";
 import { resolveAssetUrl, saveImage, } from "../../services/images";
+import { getMentionChipDate, } from "../../services/mentions";
 import { saveDailyNote, } from "../../services/storage";
 import type { DailyNote, } from "../../types/note";
 import { EditorBubbleMenu, } from "../editor/EditorBubbleMenu";
@@ -38,6 +39,7 @@ interface EditableNoteProps {
   note: DailyNote;
   placeholder?: string;
   onSave?: (note: DailyNote,) => void;
+  onOpenDate?: (date: string,) => void;
 }
 
 function moveSelectedNode(view: import("@tiptap/pm/view").EditorView, direction: "up" | "down",): boolean {
@@ -80,7 +82,7 @@ function moveSelectedNode(view: import("@tiptap/pm/view").EditorView, direction:
 }
 
 const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
-  function EditableNote({ note, placeholder = "Start writing...", onSave, }, ref,) {
+  function EditableNote({ note, placeholder = "Start writing...", onSave, onOpenDate, }, ref,) {
     const noteRef = useRef(note,);
     noteRef.current = note;
 
@@ -121,7 +123,24 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
               new Plugin({
                 key: new PluginKey("linkCmdClick",),
                 props: {
-                  handleClick(_view, _pos, event,) {
+                  handleClick(view, _pos, event,) {
+                    const chip = (event.target as HTMLElement).closest("[data-mention-chip]",);
+                    if (chip && onOpenDate) {
+                      const date = getMentionChipDate(
+                        {
+                          id: chip.getAttribute("data-id",) ?? "",
+                          kind: (chip.getAttribute("data-kind",) ?? "tag") as "date" | "recurring" | "tag",
+                        },
+                        noteRef.current.date,
+                      );
+                      if (date) {
+                        event.preventDefault();
+                        view.focus();
+                        onOpenDate(date,);
+                        return true;
+                      }
+                    }
+
                     if (!(event.metaKey || event.ctrlKey)) return false;
                     const anchor = (event.target as HTMLElement).closest("a",);
                     if (anchor && (anchor as HTMLAnchorElement).href) {

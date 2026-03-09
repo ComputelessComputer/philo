@@ -4,9 +4,53 @@ import { DailyNote, getDaysAgo, } from "../types/note";
 import { resolveExcalidrawEmbeds, } from "./excalidraw";
 import { resolveMarkdownImages, unresolveMarkdownImages, } from "./images";
 import { convertAtMentionsToWikiLinks, replaceMentionWikiLinksWithChips, } from "./mentions";
-import { getNotePath, } from "./paths";
+import { getNoteLinkTarget, getNotePath, parseDateFromNoteLinkTarget, } from "./paths";
+import { DEFAULT_FILENAME_PATTERN, getDailyLogsFolderSetting, getFilenamePattern, } from "./settings";
 
 const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n?/;
+const CANONICAL_DUE_LINK_RE = /\[\[(\d{4}-\d{2}-\d{2})\(due date\)\]\]/g;
+const WIKI_LINK_RE = /\[\[([^[\]|]+)(?:\|([^[\]]+))?\]\]/g;
+
+function mapMarkdownOutsideCode(markdown: string, transform: (value: string,) => string,): string {
+  return markdown
+    .split(/(```[\s\S]*?```|`[^`\n]+`)/g,)
+    .map((part, index,) => (index % 2 === 1 ? part : transform(part,)))
+    .join("",);
+}
+
+async function rewriteDateMentionLinksToNoteLinks(markdown: string,): Promise<string> {
+  const replacements = new Map<string, string>();
+  for (const match of markdown.matchAll(CANONICAL_DUE_LINK_RE,)) {
+    const date = match[1];
+    if (!date || replacements.has(date,)) continue;
+    replacements.set(date, `[[${await getNoteLinkTarget(date,)}]]`,);
+  }
+
+  if (replacements.size === 0) return markdown;
+
+  return mapMarkdownOutsideCode(
+    markdown,
+    (part,) => part.replace(CANONICAL_DUE_LINK_RE, (_full, date: string,) => replacements.get(date,) ?? _full,),
+  );
+}
+
+async function rewriteNoteLinksToDateMentionLinks(markdown: string,): Promise<string> {
+  const pattern = await getFilenamePattern().catch(() => DEFAULT_FILENAME_PATTERN);
+  const dailyLogsFolder = await getDailyLogsFolderSetting().catch(() => "");
+
+  return mapMarkdownOutsideCode(
+    markdown,
+    (part,) =>
+      part.replace(WIKI_LINK_RE, (full, target: string, label: string | undefined, offset: number, source: string,) => {
+        if (offset > 0 && source[offset - 1] === "!") return full;
+
+        const date = parseDateFromNoteLinkTarget(target, pattern, dailyLogsFolder,);
+        if (!date) return full;
+
+        return label ? `[[${date}(due date)|${label}]]` : `[[${date}(due date)]]`;
+      },),
+  );
+}
 
 function parseFrontmatter(raw: string,): { city: string | null; body: string; } {
   const match = raw.match(FRONTMATTER_RE,);
@@ -28,6 +72,7 @@ export async function saveDailyNote(note: DailyNote,): Promise<void> {
   const json = parseJsonContent(note.content,);
   let body = unresolveMarkdownImages(json2md(json,),);
   body = convertAtMentionsToWikiLinks(body, note.date,);
+  body = await rewriteDateMentionLinksToNoteLinks(body,);
   if (!body.endsWith("\n",)) body += "\n";
   await invoke("write_markdown_file", {
     path: filepath,
@@ -42,7 +87,8 @@ export async function loadDailyNote(date: string,): Promise<DailyNote | null> {
     return null;
   }
   const { city, body, } = parseFrontmatter(raw,);
-  const withEmbeds = await resolveExcalidrawEmbeds(body,);
+  const withDateMentionLinks = await rewriteNoteLinksToDateMentionLinks(body,);
+  const withEmbeds = await resolveExcalidrawEmbeds(withDateMentionLinks,);
   const withMentionChips = replaceMentionWikiLinksWithChips(withEmbeds, date,);
   const resolved = await resolveMarkdownImages(withMentionChips,);
   const content = JSON.stringify(md2json(resolved,),);

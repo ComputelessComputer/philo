@@ -437,6 +437,20 @@ export function getMentionChipLabel(
   return displayDate === referenceDate ? "Today" : formatDisplayDate(displayDate,);
 }
 
+export function getMentionChipDate(
+  data: Pick<MentionChipData, "id" | "kind">,
+  referenceDate: string = getToday(),
+): string | null {
+  const parsed = parseMentionId(data.id,);
+  if (!parsed) return null;
+
+  if (parsed.kind === "date") {
+    return parsed.date;
+  }
+
+  return getRecurringDisplayDate(parsed.startDate, parsed.intervalDays, referenceDate,);
+}
+
 export function getMentionChipState(
   data: Pick<MentionChipData, "id" | "kind">,
   referenceDate: string = getToday(),

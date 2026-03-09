@@ -89,7 +89,7 @@ function DateHeader({ date, city, }: { date: string; city?: string | null; },) {
   );
 }
 
-function LazyNote({ date, }: { date: string; },) {
+function LazyNote({ date, onOpenDate, }: { date: string; onOpenDate?: (date: string,) => void; },) {
   const [note, setNote,] = useState<DailyNote | null>(null,);
   const containerRef = useRef<HTMLDivElement>(null,);
 
@@ -117,7 +117,7 @@ function LazyNote({ date, }: { date: string; },) {
           <div className="px-6 pt-12 pb-4">
             <DateHeader date={note.date} city={note.city} />
           </div>
-          <EditableNote note={note} />
+          <EditableNote note={note} onOpenDate={onOpenDate} />
         </>
       )}
     </div>
@@ -582,6 +582,16 @@ export default function AppLayout() {
     todayRef.current?.scrollIntoView({ behavior: "smooth", block: "start", },);
   }
 
+  const scrollToDate = useCallback((date: string,) => {
+    if (date === today) {
+      todayRef.current?.scrollIntoView({ behavior: "smooth", block: "start", },);
+      return;
+    }
+
+    const target = document.querySelector<HTMLElement>(`[data-note-date="${date}"]`,);
+    target?.scrollIntoView({ behavior: "smooth", block: "start", },);
+  }, [today,],);
+
   return (
     <div
       ref={scrollRef}
@@ -728,6 +738,7 @@ export default function AppLayout() {
             <div className="w-full max-w-3xl">
               <div
                 ref={todayRef}
+                data-note-date={today}
                 className="min-h-[400px]"
                 onClick={() => todayEditorRef.current?.focus()}
               >
@@ -738,15 +749,16 @@ export default function AppLayout() {
                   <EditableNote
                     ref={todayEditorRef}
                     note={todayNote}
+                    onOpenDate={scrollToDate}
                     onSave={handleTodaySave}
                   />
                 )}
               </div>
 
               {pastDates.map((date,) => (
-                <div key={`${date}-${storageRevision}`}>
+                <div key={`${date}-${storageRevision}`} data-note-date={date}>
                   <div className="mx-6 border-t border-gray-200 dark:border-gray-700" />
-                  <LazyNote date={date} />
+                  <LazyNote date={date} onOpenDate={scrollToDate} />
                 </div>
               ))}
             </div>

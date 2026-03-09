@@ -129,6 +129,108 @@ export function applyFilenamePattern(pattern: string, date: string,): string {
     .replace(/\{DD\}/g, dd,);
 }
 
+function escapeRegex(value: string,): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&",);
+}
+
+function stripMdExtension(target: string,): string {
+  return target.replace(/\.md$/i, "",);
+}
+
+function joinNoteLinkSegments(parts: string[],): string {
+  return parts
+    .map((part,) => part.trim().replace(/^\/+|\/+$/g, "",))
+    .filter(Boolean,)
+    .join("/",);
+}
+
+export function buildNoteLinkTarget(
+  date: string,
+  pattern: string,
+  dailyLogsFolder = "",
+  includeDailyLogsFolder = false,
+): string {
+  const relativePath = applyFilenamePattern(pattern, date,);
+  if (!includeDailyLogsFolder) return relativePath;
+
+  const normalizedDailyLogsFolder = normalizePathSegment(dailyLogsFolder,);
+  if (!normalizedDailyLogsFolder || normalizedDailyLogsFolder === ".") {
+    return relativePath;
+  }
+
+  return joinNoteLinkSegments([normalizedDailyLogsFolder, relativePath,],);
+}
+
+export function parseDateFromNoteLinkTarget(
+  target: string,
+  pattern: string,
+  dailyLogsFolder = "",
+): string | null {
+  const normalizedTarget = stripMdExtension(target.trim().replace(/^\/+|\/+$/g, "",),);
+  if (!normalizedTarget) return null;
+
+  const normalizedDailyLogsFolder = normalizePathSegment(dailyLogsFolder,);
+  const candidates = new Set<string>([normalizedTarget,],);
+
+  if (normalizedDailyLogsFolder && normalizedDailyLogsFolder !== ".") {
+    const prefix = `${normalizedDailyLogsFolder}/`;
+    if (normalizedTarget.startsWith(prefix,)) {
+      candidates.add(normalizedTarget.slice(prefix.length,),);
+    } else {
+      candidates.add(joinNoteLinkSegments([normalizedDailyLogsFolder, normalizedTarget,],),);
+    }
+  }
+
+  let regexSource = "";
+  const tokenOrder: Array<"YYYY" | "MM" | "DD"> = [];
+  let cursor = 0;
+
+  for (const match of pattern.matchAll(/\{YYYY\}|\{MM\}|\{DD\}/g,)) {
+    const index = match.index ?? 0;
+    regexSource += escapeRegex(pattern.slice(cursor, index,),);
+    const token = match[0].slice(1, -1,) as "YYYY" | "MM" | "DD";
+    tokenOrder.push(token,);
+    if (token === "YYYY") regexSource += "(\\d{4})";
+    if (token === "MM") regexSource += "(\\d{2})";
+    if (token === "DD") regexSource += "(\\d{2})";
+    cursor = index + match[0].length;
+  }
+
+  regexSource += escapeRegex(pattern.slice(cursor,),);
+  const regex = new RegExp(`^${regexSource}$`,);
+
+  for (const candidate of candidates) {
+    const match = regex.exec(candidate,);
+    if (!match) continue;
+
+    let yyyy = "";
+    let mm = "";
+    let dd = "";
+
+    tokenOrder.forEach((token, index,) => {
+      const value = match[index + 1] ?? "";
+      if (token === "YYYY") {
+        if (!yyyy) yyyy = value;
+      } else if (token === "MM") {
+        if (!mm) mm = value;
+      } else if (token === "DD") {
+        if (!dd) dd = value;
+      }
+    },);
+
+    if (yyyy && mm && dd) return `${yyyy}-${mm}-${dd}`;
+  }
+
+  return null;
+}
+
+export async function getNoteLinkTarget(date: string,): Promise<string> {
+  const pattern = await getFilenamePattern();
+  const dailyLogsFolder = await getDailyLogsFolderSetting();
+  const vaultDir = await getVaultDirSetting();
+  return buildNoteLinkTarget(date, pattern, dailyLogsFolder, Boolean(vaultDir,),);
+}
+
 /**
  * Get the full file path for a daily note, applying the filename pattern.
  */
