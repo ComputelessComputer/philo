@@ -4,8 +4,14 @@ import { DailyNote, getDaysAgo, } from "../types/note";
 import { resolveExcalidrawEmbeds, } from "./excalidraw";
 import { resolveMarkdownImages, unresolveMarkdownImages, } from "./images";
 import { convertAtMentionsToWikiLinks, replaceMentionWikiLinksWithChips, } from "./mentions";
+import { loadObsidianMarkdownIndentation, } from "./obsidian";
 import { getNoteLinkTarget, getNotePath, parseDateFromNoteLinkTarget, } from "./paths";
-import { DEFAULT_FILENAME_PATTERN, getDailyLogsFolderSetting, getFilenamePattern, } from "./settings";
+import {
+  DEFAULT_FILENAME_PATTERN,
+  getDailyLogsFolderSetting,
+  getFilenamePattern,
+  getVaultDirSetting,
+} from "./settings";
 
 const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n?/;
 const CANONICAL_DUE_LINK_RE = /\[\[(\d{4}-\d{2}-\d{2})\(due date\)\]\]/g;
@@ -67,10 +73,17 @@ function buildFrontmatter(city: string | null | undefined, body: string,): strin
   return `---\ncity: ${city}\n---\n${body}`;
 }
 
+async function getMarkdownIndentation() {
+  const vaultDir = (await getVaultDirSetting()).trim();
+  if (!vaultDir) return undefined;
+  return (await loadObsidianMarkdownIndentation(vaultDir,)) ?? undefined;
+}
+
 export async function saveDailyNote(note: DailyNote,): Promise<void> {
   const filepath = await getNotePath(note.date,);
   const json = parseJsonContent(note.content,);
-  let body = unresolveMarkdownImages(json2md(json,),);
+  const indentation = await getMarkdownIndentation();
+  let body = unresolveMarkdownImages(json2md(json, { indentation, },),);
   body = convertAtMentionsToWikiLinks(body, note.date,);
   body = await rewriteDateMentionLinksToNoteLinks(body,);
   if (!body.endsWith("\n",)) body += "\n";
@@ -91,7 +104,8 @@ export async function loadDailyNote(date: string,): Promise<DailyNote | null> {
   const withEmbeds = await resolveExcalidrawEmbeds(withDateMentionLinks,);
   const withMentionChips = replaceMentionWikiLinksWithChips(withEmbeds, date,);
   const resolved = await resolveMarkdownImages(withMentionChips,);
-  const content = JSON.stringify(md2json(resolved,),);
+  const indentation = await getMarkdownIndentation();
+  const content = JSON.stringify(md2json(resolved, { indentation, },),);
   return { date, content, city, };
 }
 

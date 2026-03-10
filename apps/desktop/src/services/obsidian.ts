@@ -22,12 +22,22 @@ interface VaultBootstrapOptions {
   assetsFolder?: string;
 }
 
+const DEFAULT_OBSIDIAN_MARKDOWN_INDENTATION = { style: "space", size: 4, } as const;
+
 function asRecord(value: unknown,): Record<string, unknown> | null {
   return value && typeof value === "object" ? value as Record<string, unknown> : null;
 }
 
 function asString(value: unknown,): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function asBoolean(value: unknown,): boolean | null {
+  return typeof value === "boolean" ? value : null;
+}
+
+function asPositiveInteger(value: unknown,): number | null {
+  return typeof value === "number" && Number.isInteger(value,) && value > 0 ? value : null;
 }
 
 function normalizeFolder(value: string | null,): string {
@@ -116,6 +126,20 @@ function detectAssetsFolder(appConfig: Record<string, unknown> | null,): string 
   return normalizeFolder(asString(appConfig?.attachmentFolderPath,),);
 }
 
+function detectMarkdownIndentation(
+  appConfig: Record<string, unknown> | null,
+): { style: "space" | "tab"; size: number; } {
+  if (!appConfig) return { ...DEFAULT_OBSIDIAN_MARKDOWN_INDENTATION, };
+
+  const useTab = asBoolean(appConfig.useTab,);
+  const tabSize = asPositiveInteger(appConfig.tabSize,) ?? DEFAULT_OBSIDIAN_MARKDOWN_INDENTATION.size;
+
+  return {
+    style: useTab ? "tab" : "space",
+    size: tabSize,
+  };
+}
+
 function detectExcalidrawFolder(excalidrawConfig: Record<string, unknown> | null,): string {
   if (!excalidrawConfig) return "";
 
@@ -181,6 +205,18 @@ export async function detectObsidianFolders(vaultDir: string,): Promise<FolderDe
     assetsFolder: detectAssetsFolder(appConfig,),
     filenamePattern: detectFilenamePattern(dailyNotesConfig, periodicNotesConfig,),
   };
+}
+
+export async function loadObsidianMarkdownIndentation(
+  vaultDir: string,
+): Promise<{ style: "space" | "tab"; size: number; } | null> {
+  const normalizedVaultDir = vaultDir.trim();
+  if (!normalizedVaultDir) return null;
+
+  await invoke("extend_fs_scope", { path: normalizedVaultDir, },).catch(() => undefined);
+
+  const appConfig = await readJson(await join(normalizedVaultDir, ".obsidian", "app.json",),);
+  return detectMarkdownIndentation(appConfig,);
 }
 
 export async function ensureObsidianVaultStructure(

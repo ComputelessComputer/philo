@@ -26,6 +26,11 @@ export function isValidContent(content: unknown,): content is JSONContent {
   return obj.type === "doc" && Array.isArray(obj.content,);
 }
 
+interface MarkdownIndentation {
+  style?: "space" | "tab";
+  size?: number;
+}
+
 function getExtensions() {
   return [
     StarterKit.configure({
@@ -52,22 +57,35 @@ function getExtensions() {
   ];
 }
 
-let _manager: MarkdownManager | null = null;
+const DEFAULT_INDENTATION = { style: "space", size: 2, } as const;
+const markdownManagers = new Map<string, MarkdownManager>();
 
-function getMarkdownManager(): MarkdownManager {
-  if (!_manager) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    _manager = new MarkdownManager({ extensions: getExtensions() as any, },);
-  }
-  return _manager;
+function normalizeIndentation(indentation?: MarkdownIndentation,): { style: "space" | "tab"; size: number; } {
+  const style = indentation?.style === "tab" ? "tab" : DEFAULT_INDENTATION.style;
+  const size = typeof indentation?.size === "number" && Number.isFinite(indentation.size,) && indentation.size > 0
+    ? Math.floor(indentation.size,)
+    : DEFAULT_INDENTATION.size;
+  return { style, size, };
 }
 
-export function md2json(markdown: string,): JSONContent {
+function getMarkdownManager(indentation?: MarkdownIndentation,): MarkdownManager {
+  const normalized = normalizeIndentation(indentation,);
+  const key = `${normalized.style}:${normalized.size}`;
+  const existing = markdownManagers.get(key,);
+  if (existing) return existing;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const manager = new MarkdownManager({ extensions: getExtensions() as any, indentation: normalized, },);
+  markdownManagers.set(key, manager,);
+  return manager;
+}
+
+export function md2json(markdown: string, options?: { indentation?: MarkdownIndentation; },): JSONContent {
   try {
     const source = markdown.replace(/\r\n?/g, "\n",);
     const runs = Array.from(source.matchAll(/(?:\n[ \t]*){2,}/g,),);
     if (runs.length === 0) {
-      const result = getMarkdownManager().parse(source,);
+      const result = getMarkdownManager(options?.indentation,).parse(source,);
       return isValidContent(result,) ? result : EMPTY_DOC;
     }
 
@@ -79,7 +97,7 @@ export function md2json(markdown: string,): JSONContent {
       const part = source.slice(cursor, index,);
 
       if (part.trim()) {
-        const parsed = getMarkdownManager().parse(part,);
+        const parsed = getMarkdownManager(options?.indentation,).parse(part,);
         if (isValidContent(parsed,) && parsed.content) {
           allNodes.push(...parsed.content,);
         }
@@ -96,7 +114,7 @@ export function md2json(markdown: string,): JSONContent {
 
     const tail = source.slice(cursor,);
     if (tail.trim()) {
-      const parsed = getMarkdownManager().parse(tail,);
+      const parsed = getMarkdownManager(options?.indentation,).parse(tail,);
       if (isValidContent(parsed,) && parsed.content) {
         allNodes.push(...parsed.content,);
       }
@@ -108,9 +126,9 @@ export function md2json(markdown: string,): JSONContent {
   }
 }
 
-export function json2md(json: JSONContent,): string {
+export function json2md(json: JSONContent, options?: { indentation?: MarkdownIndentation; },): string {
   try {
-    const serialized = getMarkdownManager().serialize(json,);
+    const serialized = getMarkdownManager(options?.indentation,).serialize(json,);
     return serialized.replace(/\n{4,}/g, (run,) => "\n".repeat(Math.floor(run.length / 2,),),);
   } catch {
     return "";
