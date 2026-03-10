@@ -42,6 +42,7 @@ export function AiComposer({
   onDiscardChange,
 }: AiComposerProps,) {
   const inputRef = useRef<HTMLInputElement>(null,);
+  const hasResult = Boolean(answer,) || citations.length > 0 || pendingChanges.length > 0;
 
   useEffect(() => {
     if (!open || !hasAiConfigured) return;
@@ -55,39 +56,43 @@ export function AiComposer({
       style={{ transform: open ? "translateY(0)" : "translateY(100%)", }}
     >
       <div className="relative mx-auto w-full max-w-2xl px-4 pb-3">
-        <div className="space-y-2">
-          <AiResultPanel
-            answer={answer}
-            citations={citations}
-            pendingChanges={pendingChanges}
-            applyingDates={applyingDates}
-            onOpenDate={onOpenDate}
-            onApplyChange={onApplyChange}
-            onDiscardChange={onDiscardChange}
-          />
-
-          {!hasAiConfigured
-            ? (
-              <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-white px-5 py-5 shadow-[0_-20px_60px_rgba(15,23,42,0.12)]">
-                <div className="space-y-4">
-                  <p className="text-sm leading-6 text-gray-600">
-                    AI isn&apos;t configured yet. Add an API key for your selected provider to start using note
-                    commands.
-                  </p>
-                  <button
-                    onClick={onOpenSettings}
-                    className="inline-flex items-center rounded-full bg-gray-900 px-4 py-2 text-sm text-white transition-colors hover:bg-gray-700"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace", }}
-                  >
-                    Click to configure AI
-                  </button>
-                </div>
+        {!hasAiConfigured
+          ? (
+            <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-white px-5 py-5 shadow-[0_-20px_60px_rgba(15,23,42,0.12)]">
+              <div className="space-y-4">
+                <p className="text-sm leading-6 text-gray-600">
+                  AI isn&apos;t configured yet. Add an API key for your selected provider to start using note commands.
+                </p>
+                <button
+                  onClick={onOpenSettings}
+                  className="inline-flex items-center rounded-full bg-gray-900 px-4 py-2 text-sm text-white transition-colors hover:bg-gray-700"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace", }}
+                >
+                  Click to configure AI
+                </button>
               </div>
-            )
-            : (
-              <div className="space-y-2">
+            </div>
+          )
+          : (
+            <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-[0_-18px_52px_rgba(15,23,42,0.12)]">
+              {hasResult && (
+                <>
+                  <AiResultPanel
+                    answer={answer}
+                    citations={citations}
+                    pendingChanges={pendingChanges}
+                    applyingDates={applyingDates}
+                    onOpenDate={onOpenDate}
+                    onApplyChange={onApplyChange}
+                    onDiscardChange={onDiscardChange}
+                  />
+                  <div className="mx-4 border-t border-gray-100" />
+                </>
+              )}
+
+              <div className="space-y-2 px-4 py-3">
                 <form
-                  className="flex items-center gap-3 rounded-[28px] border border-gray-200 bg-white px-4 py-3 shadow-[0_-16px_44px_rgba(15,23,42,0.1)]"
+                  className="flex items-center gap-3"
                   onSubmit={(event,) => {
                     event.preventDefault();
                     onSubmit();
@@ -124,10 +129,10 @@ export function AiComposer({
                       : <ArrowUp size={18} strokeWidth={2.25} />}
                   </button>
                 </form>
-                {error && <p className="px-3 text-sm text-red-500">{error}</p>}
+                {error && <p className="px-1 text-sm text-red-500">{error}</p>}
               </div>
-            )}
-        </div>
+            </div>
+          )}
       </div>
     </div>
   );

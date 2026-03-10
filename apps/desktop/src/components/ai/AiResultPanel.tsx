@@ -25,8 +25,8 @@ export function AiResultPanel({
   }
 
   return (
-    <div className="max-h-[56vh] overflow-y-auto rounded-[24px] border border-gray-200 bg-white/96 shadow-[0_-12px_36px_rgba(15,23,42,0.12)]">
-      <div className="space-y-4 px-4 py-4">
+    <div className="hide-scrollbar max-h-[52vh] overflow-y-auto px-4 pt-4 pb-3">
+      <div className="space-y-4">
         {answer && (
           <div className="space-y-2">
             <p
