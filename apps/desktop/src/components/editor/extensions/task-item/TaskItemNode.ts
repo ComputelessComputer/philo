@@ -1,10 +1,34 @@
-import { mergeAttributes, } from "@tiptap/core";
+import { type JSONContent, mergeAttributes, } from "@tiptap/core";
 import TaskItem from "@tiptap/extension-task-item";
 
 export interface TaskItemAttributes {
   taskId?: string;
   originDate?: string;
   checked: boolean;
+}
+
+function trimNestedParagraphIndentation(node: JSONContent,): JSONContent {
+  if (node.type !== "paragraph" || !Array.isArray(node.content,) || node.content.length === 0) {
+    return node;
+  }
+
+  const content = [...node.content,];
+
+  while (content[0]?.type === "text" && typeof content[0].text === "string") {
+    const trimmed = content[0].text.replace(/^[ \t]+/, "",);
+
+    if (trimmed.length === 0) {
+      content.shift();
+      continue;
+    }
+
+    if (trimmed !== content[0].text) {
+      content[0] = { ...content[0], text: trimmed, };
+    }
+    break;
+  }
+
+  return content.length > 0 ? { ...node, content, } : { type: "paragraph", };
 }
 
 export const CustomTaskItem = TaskItem.extend({
@@ -93,7 +117,9 @@ export const CustomTaskItem = TaskItem.extend({
       }
 
       if (nestedStart < nestedTokens.length) {
-        content.push(...helpers.parseChildren(nestedTokens.slice(nestedStart,),),);
+        content.push(
+          ...helpers.parseChildren(nestedTokens.slice(nestedStart,),).map(trimNestedParagraphIndentation,),
+        );
       }
     }
 

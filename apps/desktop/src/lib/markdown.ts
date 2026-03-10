@@ -31,6 +31,11 @@ interface MarkdownIndentation {
   size?: number;
 }
 
+interface MarkdownToken {
+  type?: string;
+  raw?: string;
+}
+
 function getExtensions() {
   return [
     StarterKit.configure({
@@ -130,63 +135,74 @@ function mergeTopLevelParagraphRuns(json: JSONContent,): JSONContent {
   return { ...json, content, };
 }
 
+function normalizeMarkdownForParsing(markdown: string,): string {
+  const lines = markdown.split("\n",);
+  let activeFence: string | null = null;
+
+  return lines.map((line,) => {
+    const fenceMatch = line.match(/^\s*(`{3,}|~{3,})/,);
+    if (fenceMatch) {
+      const marker = fenceMatch[1];
+      if (!activeFence) {
+        activeFence = marker;
+      } else if (marker[0] === activeFence[0] && marker.length >= activeFence.length) {
+        activeFence = null;
+      }
+      return line;
+    }
+
+    if (activeFence) {
+      return line;
+    }
+
+    const leadingWhitespace = line.match(/^[\t ]*/,)?.[0] ?? "";
+    const expandedIndentation = leadingWhitespace.replace(/\t/g, "    ",);
+    const rest = line.slice(leadingWhitespace.length,);
+
+    if (leadingWhitespace.includes("\t",) && /^\[([ xX])\]\s+/.test(rest,)) {
+      return `${expandedIndentation}- ${rest}`;
+    }
+
+    return `${expandedIndentation}${rest}`;
+  },).join("\n",);
+}
+
+function parseMarkdownBlocks(markdown: string, manager: MarkdownManager,): JSONContent[] {
+  const tokens = manager.instance.lexer(markdown,) as MarkdownToken[];
+  const content: JSONContent[] = [];
+  let sawContent = false;
+
+  for (const token of tokens) {
+    if (token.type === "space") {
+      const newlineCount = (token.raw?.match(/\n/g,) || []).length;
+      const emptyParagraphCount = sawContent ? Math.max(0, newlineCount - 1,) : newlineCount;
+      for (let i = 0; i < emptyParagraphCount; i += 1) {
+        content.push({ type: "paragraph", },);
+      }
+      continue;
+    }
+
+    const raw = token.raw ?? "";
+    if (!raw.trim()) {
+      continue;
+    }
+
+    const parsed = manager.parse(raw,);
+    if (isValidContent(parsed,) && parsed.content) {
+      content.push(...parsed.content,);
+      sawContent = true;
+    }
+  }
+
+  return content;
+}
+
 export function md2json(markdown: string, options?: { indentation?: MarkdownIndentation; },): JSONContent {
   try {
-    const source = markdown.replace(/\r\n?/g, "\n",);
-    const allNodes: JSONContent[] = [];
-    let cursor = 0;
-
-    const leading = source.match(/^(?:[ \t]*\n)+/,);
-    if (leading) {
-      const leadingNewlines = (leading[0].match(/\n/g,) || []).length;
-      for (let i = 0; i < leadingNewlines; i++) {
-        allNodes.push({ type: "paragraph", },);
-      }
-      cursor = leading[0].length;
-    }
-
-    const runs = Array.from(source.slice(cursor,).matchAll(/(?:\n[ \t]*){2,}/g,),);
-    if (runs.length === 0) {
-      const tail = source.slice(cursor,);
-      if (tail.trim()) {
-        const result = getMarkdownManager(options?.indentation,).parse(tail,);
-        if (isValidContent(result,) && result.content) {
-          allNodes.push(...result.content,);
-        }
-      }
-
-      return allNodes.length > 0 ? { type: "doc", content: allNodes, } : EMPTY_DOC;
-    }
-
-    for (const run of runs) {
-      const index = cursor + (run.index ?? 0);
-      const part = source.slice(cursor, index,);
-
-      if (part.trim()) {
-        const parsed = getMarkdownManager(options?.indentation,).parse(part,);
-        if (isValidContent(parsed,) && parsed.content) {
-          allNodes.push(...parsed.content,);
-        }
-      }
-
-      const newlineCount = (run[0].match(/\n/g,) || []).length;
-      const emptyParagraphCount = Math.max(1, newlineCount - 1,);
-      for (let i = 0; i < emptyParagraphCount; i++) {
-        allNodes.push({ type: "paragraph", },);
-      }
-
-      cursor = index + run[0].length;
-    }
-
-    const tail = source.slice(cursor,);
-    if (tail.trim()) {
-      const parsed = getMarkdownManager(options?.indentation,).parse(tail,);
-      if (isValidContent(parsed,) && parsed.content) {
-        allNodes.push(...parsed.content,);
-      }
-    }
-
-    return allNodes.length > 0 ? { type: "doc", content: allNodes, } : EMPTY_DOC;
+    const source = normalizeMarkdownForParsing(markdown.replace(/\r\n?/g, "\n",),);
+    const manager = getMarkdownManager(options?.indentation,);
+    const content = parseMarkdownBlocks(source, manager,);
+    return content.length > 0 ? { type: "doc", content, } : EMPTY_DOC;
   } catch {
     return EMPTY_DOC;
   }
