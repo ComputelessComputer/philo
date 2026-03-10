@@ -1,3 +1,4 @@
+import { ArrowUp, } from "lucide-react";
 import { useEffect, useRef, } from "react";
 import type { AssistantCitation, AssistantPendingChange, } from "../../services/assistant";
 import { AiResultPanel, } from "./AiResultPanel";
@@ -99,10 +100,11 @@ export function AiComposer({
                   <button
                     type="submit"
                     disabled={isSubmitting || !prompt.trim()}
-                    className="shrink-0 rounded-full bg-gray-900 px-4 py-2.5 text-sm text-white transition-colors disabled:cursor-not-allowed disabled:bg-gray-300"
+                    aria-label={isSubmitting ? "Sending message" : "Send message"}
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition-colors disabled:cursor-not-allowed disabled:bg-gray-300"
                     style={{ fontFamily: "'IBM Plex Mono', monospace", }}
                   >
-                    {isSubmitting ? "Running..." : "Run"}
+                    <ArrowUp size={18} strokeWidth={2.25} />
                   </button>
                 </form>
                 {error && <p className="px-3 text-sm text-red-500">{error}</p>}
