@@ -3,24 +3,29 @@ import { getCollection, } from "astro:content";
 
 const capabilities = [
   {
-    title: "Journal in a timeline",
-    description: "Tomorrow, today, and past notes stay in one continuous scroll.",
-    placeholder: "replace with timeline screenshot",
+    title: "Local-first, Obsidian-compatible",
+    description: "Open an existing Obsidian vault and keep your notes as markdown on disk.",
+    placeholder: "replace with obsidian vault screenshot",
   },
   {
-    title: "Tasks that carry forward",
-    description: "Unchecked tasks automatically roll into today until you finish them.",
-    placeholder: "replace with task rollover screenshot",
+    title: "CLI-first for claws",
+    description: "Drive workflows from claws like openclaw and use robust tool calling inside the app.",
+    placeholder: "replace with claw workflow screenshot",
   },
   {
-    title: "Recurring tags",
-    description: "Use #daily, #weekly, or custom intervals and tasks reappear on schedule.",
-    placeholder: "replace with recurring tags screenshot",
+    title: "Simple, powerful UI",
+    description: "Stay in a clean interface that keeps notes, tasks, and tools within reach.",
+    placeholder: "replace with app ui screenshot",
   },
   {
-    title: "Inline AI widgets",
-    description: "Press Cmd+Enter to generate mini-apps directly inside your notes.",
-    placeholder: "replace with widget generation screenshot",
+    title: "Disposable or reusable components",
+    description: "Generate custom components for one-off jobs or keep them around as part of your system.",
+    placeholder: "replace with custom component screenshot",
+  },
+  {
+    title: "AI that works with your notes",
+    description: "Chat with your notes to ask questions, or have AI edit them when you want a draft.",
+    placeholder: "replace with ai note editing screenshot",
   },
 ];
 
@@ -65,10 +70,10 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Philo | A daily journaling app that builds things for you</title>
+    <title>Philo | Local-first notes for humans and claws</title>
     <meta
       name="description"
-      content="Write daily notes, carry tasks forward automatically, and generate custom mini-apps inline."
+      content="Use Philo with existing Obsidian vaults, chat with notes, call tools, and build disposable or reusable components inline."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -88,10 +93,11 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
         </header>
 
         <section class="hero enter" style="--delay: 70ms;">
-          <h1>A daily journal that builds things for you.</h1>
+          <h1>Local-first notes for humans and claws.</h1>
           <p class="lede">
-            Capture notes. Track tasks that roll forward. Generate tiny tools in place when you
-            need them.
+            Open your existing Obsidian vault, keep everything on disk, and move between a simple
+            UI, CLI-first claws like openclaw, and in-app AI that can answer questions or edit
+            notes for you.
           </p>
           <div class="download-split" data-download>
             <a class="download-button" data-download-primary href="https://github.com/ComputelessComputer/philo/releases/latest">
@@ -121,7 +127,7 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
         </section>
 
         <section class="panel enter" style="--delay: 140ms;">
-          <h2>Core flow</h2>
+          <h2>Why Philo</h2>
           <ul class="detail-list">
             {
               capabilities.map((item,) => (
@@ -140,7 +146,10 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
         </section>
 
         <section class="panel enter" style="--delay: 210ms;">
-          <h2>Things people build in Philo</h2>
+          <h2>Disposable or reusable components</h2>
+          <p class="item-copy">
+            Spin up a custom component for today&apos;s problem, then keep the ones worth reusing.
+          </p>
           <div class="carousel" data-carousel>
             <div class="carousel-controls">
               <button type="button" class="carousel-button" data-carousel-prev aria-label="Previous example">←</button>
@@ -194,10 +203,10 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
         </section>
 
         <section class="panel enter" style="--delay: 350ms;">
-          <h2>Philo runs local-first</h2>
+          <h2>Local-first, without leaving your vault behind</h2>
           <p class="item-copy">
-            Your journal lives on disk as markdown files. Keep your data close, move fast, and
-            shape the app around your own workflow.
+            Philo keeps your notes as markdown files on disk and works with existing Obsidian
+            vaults instead of forcing a migration into a new format.
           </p>
         </section>
 
