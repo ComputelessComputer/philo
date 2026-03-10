@@ -148,7 +148,7 @@ export default function AppLayout() {
   const [globalSearchError, setGlobalSearchError,] = useState<string | null>(null,);
   const [aiComposerOpen, setAiComposerOpen,] = useState(false,);
   const [aiPrompt, setAiPrompt,] = useState("",);
-  const [aiScope, setAiScope,] = useState<AssistantScope>("today",);
+  const [aiScope, setAiScope,] = useState<AssistantScope>("recent",);
   const [hasAiConfigured, setHasAiConfigured,] = useState(false,);
   const [aiRunning, setAiRunning,] = useState(false,);
   const [aiError, setAiError,] = useState<string | null>(null,);
@@ -199,6 +199,7 @@ export default function AppLayout() {
 
   const openAiComposer = useCallback(() => {
     setGlobalSearchOpen(false,);
+    setAiScope("recent",);
     setAiComposerOpen(true,);
     setAiError(null,);
     setAiSummary(null,);
@@ -784,13 +785,11 @@ export default function AppLayout() {
       <AiComposer
         open={aiComposerOpen}
         prompt={aiPrompt}
-        scope={aiScope}
         hasAiConfigured={hasAiConfigured}
         isSubmitting={aiRunning}
         error={aiError}
         summary={aiSummary}
         onPromptChange={setAiPrompt}
-        onScopeChange={setAiScope}
         onClose={closeAiComposer}
         onSubmit={handleAiSubmit}
         onOpenSettings={() => {
