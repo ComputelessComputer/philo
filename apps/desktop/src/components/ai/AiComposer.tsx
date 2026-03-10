@@ -16,6 +16,7 @@ interface AiComposerProps {
   onPromptChange: (value: string,) => void;
   onClose: () => void;
   onSubmit: () => void;
+  onRefresh: () => void;
   onStop: () => void;
   onOpenSettings: () => void;
   onOpenDate: (date: string,) => void;
@@ -35,6 +36,7 @@ export function AiComposer({
   error,
   onPromptChange,
   onSubmit,
+  onRefresh,
   onStop,
   onOpenSettings,
   onOpenDate,
@@ -104,6 +106,11 @@ export function AiComposer({
                       value={prompt}
                       readOnly={isSubmitting}
                       onChange={(event,) => onPromptChange(event.target.value,)}
+                      onKeyDown={(event,) => {
+                        if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "n") return;
+                        event.preventDefault();
+                        onRefresh();
+                      }}
                       placeholder="chat with notes."
                       className={`w-full min-w-0 bg-transparent px-1 text-[15px] text-gray-900 outline-hidden placeholder:text-gray-400 ${
                         isSubmitting ? "text-transparent caret-transparent" : ""

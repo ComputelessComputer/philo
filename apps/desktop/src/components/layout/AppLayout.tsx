@@ -162,6 +162,7 @@ export default function AppLayout() {
   const [aiResult, setAiResult,] = useState<AssistantResult | null>(null,);
   const [aiApplyingDates, setAiApplyingDates,] = useState<string[]>([],);
   const aiAbortControllerRef = useRef<AbortController | null>(null,);
+  const aiLastSubmittedPromptRef = useRef("",);
   const cityRef = useRef(currentCity,);
   const prevCityRef = useRef(currentCity,);
   const todayNoteRef = useRef<DailyNote | null>(null,);
@@ -531,10 +532,12 @@ export default function AppLayout() {
     [],
   );
 
-  const handleAiSubmit = useCallback(async () => {
+  const runAiPrompt = useCallback(async (promptText: string,) => {
     const todayNoteValue = todayNoteRef.current;
-    if (!todayNoteValue || aiRunning || !aiPrompt.trim()) return;
+    const normalizedPrompt = promptText.trim();
+    if (!todayNoteValue || aiRunning || !normalizedPrompt) return;
 
+    aiLastSubmittedPromptRef.current = normalizedPrompt;
     const controller = new AbortController();
     aiAbortControllerRef.current = controller;
     setAiRunning(true,);
@@ -544,7 +547,7 @@ export default function AppLayout() {
     try {
       const recentNotes = aiScope === "recent" ? await loadPastNotes(14,) : [];
       const result = await runAssistant({
-        prompt: aiPrompt.trim(),
+        prompt: normalizedPrompt,
         scope: aiScope,
         context: {
           today: todayNoteValue,
@@ -569,7 +572,15 @@ export default function AppLayout() {
       }
       setAiRunning(false,);
     }
-  }, [aiPrompt, aiRunning, aiScope,],);
+  }, [aiRunning, aiScope,],);
+
+  const handleAiSubmit = useCallback(async () => {
+    await runAiPrompt(aiPrompt,);
+  }, [aiPrompt, runAiPrompt,],);
+
+  const handleRefreshAi = useCallback(async () => {
+    await runAiPrompt(aiLastSubmittedPromptRef.current,);
+  }, [runAiPrompt,],);
 
   const handleStopAi = useCallback(() => {
     aiAbortControllerRef.current?.abort();
@@ -860,6 +871,7 @@ export default function AppLayout() {
         onPromptChange={setAiPrompt}
         onClose={closeAiComposer}
         onSubmit={handleAiSubmit}
+        onRefresh={handleRefreshAi}
         onStop={handleStopAi}
         onOpenDate={scrollToDate}
         onApplyChange={handleApplyAiChange}
