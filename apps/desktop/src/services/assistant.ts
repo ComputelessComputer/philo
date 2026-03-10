@@ -296,6 +296,7 @@ async function callAnthropic(
   apiKey: string,
   system: string,
   messages: AnthropicMessage[],
+  signal?: AbortSignal,
 ) {
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -313,6 +314,7 @@ async function callAnthropic(
       tools,
       messages,
     },),
+    signal,
   },);
 
   if (!response.ok) {
@@ -320,6 +322,11 @@ async function callAnthropic(
   }
 
   return await response.json();
+}
+
+function throwIfAborted(signal?: AbortSignal,) {
+  if (!signal?.aborted) return;
+  throw new DOMException("AI request cancelled.", "AbortError",);
 }
 
 export async function applyAssistantPendingChanges(
@@ -345,7 +352,8 @@ export async function applyAssistantPendingChanges(
   return appliedDates;
 }
 
-export async function runAssistant(request: AssistantRequest,): Promise<AssistantResult> {
+export async function runAssistant(request: AssistantRequest, signal?: AbortSignal,): Promise<AssistantResult> {
+  throwIfAborted(signal,);
   const apiKey = await getApiKey();
   if (!apiKey) {
     throw new Error(AI_NOT_CONFIGURED,);
@@ -358,7 +366,8 @@ export async function runAssistant(request: AssistantRequest,): Promise<Assistan
   const pendingChanges = new Map<string, AssistantPendingChange>();
 
   for (let step = 0; step < 8; step += 1) {
-    const data = await callAnthropic(apiKey, system, messages,);
+    throwIfAborted(signal,);
+    const data = await callAnthropic(apiKey, system, messages, signal,);
     const content = Array.isArray(data.content,) ? data.content as AnthropicContentBlock[] : [];
     const textBlocks = content.filter((block,): block is Extract<AnthropicContentBlock, { type: "text"; }> =>
       block.type === "text" && Boolean(block.text.trim(),)
@@ -385,6 +394,7 @@ export async function runAssistant(request: AssistantRequest,): Promise<Assistan
     const toolResults: AnthropicMessage["content"] = [];
     for (const toolUse of toolUses) {
       try {
+        throwIfAborted(signal,);
         let output: ToolCommandOutput;
         if (toolUse.name === "run_philo") {
           output = await executePhiloTool(toolUseInputSchema.parse(toolUse.input,), citations, pendingChanges,);
@@ -393,6 +403,7 @@ export async function runAssistant(request: AssistantRequest,): Promise<Assistan
         } else {
           throw new Error(`Unsupported tool: ${toolUse.name}`,);
         }
+        throwIfAborted(signal,);
 
         toolResults.push({
           type: "tool_result",

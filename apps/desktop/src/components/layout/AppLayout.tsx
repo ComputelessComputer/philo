@@ -160,6 +160,7 @@ export default function AppLayout() {
   const [aiError, setAiError,] = useState<string | null>(null,);
   const [aiResult, setAiResult,] = useState<AssistantResult | null>(null,);
   const [aiApplyingDates, setAiApplyingDates,] = useState<string[]>([],);
+  const aiAbortControllerRef = useRef<AbortController | null>(null,);
   const cityRef = useRef(currentCity,);
   const prevCityRef = useRef(currentCity,);
   const todayNoteRef = useRef<DailyNote | null>(null,);
@@ -432,6 +433,12 @@ export default function AppLayout() {
   }, [globalSearchOpen, globalSearchSelectedIndex,],);
 
   useEffect(() => {
+    return () => {
+      aiAbortControllerRef.current?.abort();
+    };
+  }, [],);
+
+  useEffect(() => {
     const handleFocus = () => setIsWindowFocused(true,);
     const handleBlur = () => setIsWindowFocused(false,);
     window.addEventListener("focus", handleFocus,);
@@ -531,6 +538,8 @@ export default function AppLayout() {
     const todayNoteValue = todayNoteRef.current;
     if (!todayNoteValue || aiRunning || !aiPrompt.trim()) return;
 
+    const controller = new AbortController();
+    aiAbortControllerRef.current = controller;
     setAiRunning(true,);
     setAiError(null,);
     setAiResult(null,);
@@ -544,21 +553,30 @@ export default function AppLayout() {
           today: todayNoteValue,
           recentNotes,
         },
-      },);
+      }, controller.signal,);
 
       setAiResult(result,);
       setAiPrompt("",);
     } catch (error) {
-      if (error instanceof Error && error.message === AI_NOT_CONFIGURED) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setAiError(null,);
+      } else if (error instanceof Error && error.message === AI_NOT_CONFIGURED) {
         setHasAiConfigured(false,);
         setAiError("AI isn't configured yet.",);
       } else {
         setAiError(error instanceof Error ? error.message : "AI command failed.",);
       }
     } finally {
+      if (aiAbortControllerRef.current === controller) {
+        aiAbortControllerRef.current = null;
+      }
       setAiRunning(false,);
     }
   }, [aiPrompt, aiRunning, aiScope,],);
+
+  const handleStopAi = useCallback(() => {
+    aiAbortControllerRef.current?.abort();
+  }, [],);
 
   const handleApplyAiChange = useCallback(async (date: string,) => {
     const change = aiResult?.pendingChanges.find((item,) => item.date === date);
@@ -845,6 +863,7 @@ export default function AppLayout() {
         onPromptChange={setAiPrompt}
         onClose={closeAiComposer}
         onSubmit={handleAiSubmit}
+        onStop={handleStopAi}
         onOpenDate={scrollToDate}
         onApplyChange={handleApplyAiChange}
         onDiscardChange={handleDiscardAiChange}

@@ -1,4 +1,4 @@
-import { ArrowUp, } from "lucide-react";
+import { ArrowUp, Square, } from "lucide-react";
 import { useEffect, useRef, } from "react";
 import type { AssistantCitation, AssistantPendingChange, } from "../../services/assistant";
 import { AiResultPanel, } from "./AiResultPanel";
@@ -16,6 +16,7 @@ interface AiComposerProps {
   onPromptChange: (value: string,) => void;
   onClose: () => void;
   onSubmit: () => void;
+  onStop: () => void;
   onOpenSettings: () => void;
   onOpenDate: (date: string,) => void;
   onApplyChange: (date: string,) => void;
@@ -34,6 +35,7 @@ export function AiComposer({
   error,
   onPromptChange,
   onSubmit,
+  onStop,
   onOpenSettings,
   onOpenDate,
   onApplyChange,
@@ -98,13 +100,16 @@ export function AiComposer({
                     className="min-w-0 flex-1 bg-transparent px-1 text-[15px] text-gray-900 outline-hidden placeholder:text-gray-400"
                   />
                   <button
-                    type="submit"
-                    disabled={isSubmitting || !prompt.trim()}
-                    aria-label={isSubmitting ? "Sending message" : "Send message"}
+                    type={isSubmitting ? "button" : "submit"}
+                    disabled={!isSubmitting && !prompt.trim()}
+                    onClick={isSubmitting ? onStop : undefined}
+                    aria-label={isSubmitting ? "Stop generating" : "Send message"}
                     className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gray-900 text-white transition-colors disabled:cursor-not-allowed disabled:bg-gray-300"
                     style={{ fontFamily: "'IBM Plex Mono', monospace", }}
                   >
-                    <ArrowUp size={18} strokeWidth={2.25} />
+                    {isSubmitting
+                      ? <Square size={14} fill="currentColor" strokeWidth={0} />
+                      : <ArrowUp size={18} strokeWidth={2.25} />}
                   </button>
                 </form>
                 {error && <p className="px-3 text-sm text-red-500">{error}</p>}
