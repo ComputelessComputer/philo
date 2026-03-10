@@ -18,6 +18,11 @@
     "release:check": "node scripts/release-check.mjs",
     "tauri": "pnpm --filter @philo/desktop tauri"
   },
+  "pnpm": {
+    "overrides": {
+      "@tiptap/extension-paragraph": "3.17.1"
+    }
+  },
   "devDependencies": {
     "turbo": "^2.8.14"
   }
