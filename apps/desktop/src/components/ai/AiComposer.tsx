@@ -1,4 +1,4 @@
-import { ArrowUp, Square, } from "lucide-react";
+import { ArrowUp, LoaderCircle, Square, } from "lucide-react";
 import { useEffect, useRef, } from "react";
 import type { AssistantCitation, AssistantPendingChange, } from "../../services/assistant";
 import { AiResultPanel, } from "./AiResultPanel";
@@ -57,7 +57,6 @@ export function AiComposer({
       <div className="relative mx-auto w-full max-w-2xl px-4 pb-3">
         <div className="space-y-2">
           <AiResultPanel
-            isThinking={isSubmitting}
             answer={answer}
             citations={citations}
             pendingChanges={pendingChanges}
@@ -93,13 +92,24 @@ export function AiComposer({
                     onSubmit();
                   }}
                 >
-                  <input
-                    ref={inputRef}
-                    value={prompt}
-                    onChange={(event,) => onPromptChange(event.target.value,)}
-                    placeholder="chat with notes."
-                    className="min-w-0 flex-1 bg-transparent px-1 text-[15px] text-gray-900 outline-hidden placeholder:text-gray-400"
-                  />
+                  <div className="relative min-w-0 flex-1">
+                    <input
+                      ref={inputRef}
+                      value={prompt}
+                      readOnly={isSubmitting}
+                      onChange={(event,) => onPromptChange(event.target.value,)}
+                      placeholder="chat with notes."
+                      className={`w-full min-w-0 bg-transparent px-1 text-[15px] text-gray-900 outline-hidden placeholder:text-gray-400 ${
+                        isSubmitting ? "text-transparent caret-transparent" : ""
+                      }`}
+                    />
+                    {isSubmitting && (
+                      <div className="pointer-events-none absolute inset-0 flex items-center gap-2 px-1 text-[15px] text-slate-500">
+                        <LoaderCircle size={14} className="shrink-0 animate-spin" />
+                        <span className="truncate">Sophia is thinking...</span>
+                      </div>
+                    )}
+                  </div>
                   <button
                     type={isSubmitting ? "button" : "submit"}
                     disabled={!isSubmitting && !prompt.trim()}
