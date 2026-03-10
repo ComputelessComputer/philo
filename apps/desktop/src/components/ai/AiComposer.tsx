@@ -71,7 +71,8 @@ export function AiComposer({
               <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-white px-5 py-5 shadow-[0_-20px_60px_rgba(15,23,42,0.12)]">
                 <div className="space-y-4">
                   <p className="text-sm leading-6 text-gray-600">
-                    AI isn&apos;t configured yet. Add your Anthropic API key to start using note commands.
+                    AI isn&apos;t configured yet. Add an API key for your selected provider to start using note
+                    commands.
                   </p>
                   <button
                     onClick={onOpenSettings}

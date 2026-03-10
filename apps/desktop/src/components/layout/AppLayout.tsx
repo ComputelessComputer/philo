@@ -6,6 +6,7 @@ import { openPath, } from "@tauri-apps/plugin-opener";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, } from "react";
 import { useCurrentDate, } from "../../hooks/useCurrentDate";
 import { useTimezoneCity, } from "../../hooks/useTimezoneCity";
+import { getAiConfigurationMessage, } from "../../services/ai";
 import {
   AI_NOT_CONFIGURED,
   applyAssistantPendingChanges,
@@ -15,7 +16,7 @@ import {
 } from "../../services/assistant";
 import type { LibraryItem, } from "../../services/library";
 import { getJournalDir, initJournalScope, } from "../../services/paths";
-import { loadSettings, } from "../../services/settings";
+import { hasActiveAiProvider, loadSettings, } from "../../services/settings";
 import { getOrCreateDailyNote, loadDailyNote, loadPastNotes, saveDailyNote, } from "../../services/storage";
 import { rolloverTasks, } from "../../services/tasks";
 import {
@@ -200,7 +201,7 @@ export default function AppLayout() {
   const refreshAiAvailability = useCallback(() => {
     loadSettings()
       .then((settings,) => {
-        setHasAiConfigured(Boolean(settings.anthropicApiKey.trim(),),);
+        setHasAiConfigured(hasActiveAiProvider(settings,),);
       },)
       .catch(console.error,);
   }, [],);
@@ -227,7 +228,7 @@ export default function AppLayout() {
   useEffect(() => {
     loadSettings()
       .then(async (settings,) => {
-        setHasAiConfigured(Boolean(settings.anthropicApiKey.trim(),),);
+        setHasAiConfigured(hasActiveAiProvider(settings,),);
         const hasJournalConfig = !!settings.journalDir || !!settings.vaultDir;
         if (settings.hasCompletedOnboarding || hasJournalConfig) {
           await initJournalScope();
@@ -291,11 +292,7 @@ export default function AppLayout() {
 
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "j") {
         event.preventDefault();
-        if (aiComposerOpen) {
-          closeAiComposer();
-        } else {
-          openAiComposer();
-        }
+        openAiComposer();
         return;
       }
 
@@ -560,9 +557,9 @@ export default function AppLayout() {
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         setAiError(null,);
-      } else if (error instanceof Error && error.message === AI_NOT_CONFIGURED) {
+      } else if (error instanceof Error && error.message.startsWith(AI_NOT_CONFIGURED,)) {
         setHasAiConfigured(false,);
-        setAiError("AI isn't configured yet.",);
+        setAiError(getAiConfigurationMessage(error.message, AI_NOT_CONFIGURED,),);
       } else {
         setAiError(error instanceof Error ? error.message : "AI command failed.",);
       }

@@ -1,6 +1,7 @@
 import { mergeAttributes, Node, } from "@tiptap/core";
 import type { JSONContent, } from "@tiptap/core";
 import { ReactNodeViewRenderer, } from "@tiptap/react";
+import { getAiConfigurationMessage, isAiKeyMissingError, } from "../../../../services/ai";
 import { generateWidget, } from "../../../../services/generate";
 import { WidgetView, } from "./WidgetView";
 
@@ -136,8 +137,8 @@ export const WidgetExtension = Node.create({
             updateWidgetById(this.editor, widgetId, { spec: JSON.stringify(spec,), loading: false, },);
           },)
           .catch((err,) => {
-            const msg = err instanceof Error && err.message === "API_KEY_MISSING"
-              ? "No API key configured. Add your Anthropic key in Settings (⌘,)."
+            const msg = err instanceof Error && isAiKeyMissingError(err.message,)
+              ? getAiConfigurationMessage(err.message,)
               : err instanceof Error
               ? err.message
               : "Something went wrong.";

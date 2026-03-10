@@ -3,7 +3,15 @@ import { open as openDialog, } from "@tauri-apps/plugin-dialog";
 import { useEffect, useRef, useState, } from "react";
 import { detectObsidianFolders, } from "../../services/obsidian";
 import { applyFilenamePattern, getJournalDir, initJournalScope, resetJournalDir, } from "../../services/paths";
-import { DEFAULT_FILENAME_PATTERN, loadSettings, saveSettings, type Settings, } from "../../services/settings";
+import {
+  AI_PROVIDERS,
+  type AiProvider,
+  DEFAULT_FILENAME_PATTERN,
+  getAiProviderLabel,
+  loadSettings,
+  saveSettings,
+  type Settings,
+} from "../../services/settings";
 import { getToday, } from "../../types/note";
 import { VaultPathMarquee, } from "../shared/VaultPathMarquee";
 
@@ -17,6 +25,13 @@ const FILENAME_PRESETS = [
   { label: "By year", value: "{YYYY}/{YYYY}-{MM}-{DD}", },
   { label: "By year + month", value: "{YYYY}/{MM}/{YYYY}-{MM}-{DD}", },
 ];
+
+const AI_PROVIDER_PLACEHOLDERS: Record<AiProvider, string> = {
+  anthropic: "sk-ant-...",
+  openai: "sk-...",
+  google: "AIza...",
+  openrouter: "sk-or-v1-...",
+};
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace", };
 
@@ -48,12 +63,46 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
     setSaved(false,);
   };
 
+  const updateAiKey = (provider: AiProvider, value: string,) => {
+    switch (provider) {
+      case "anthropic":
+        update({ anthropicApiKey: value, },);
+        break;
+      case "openai":
+        update({ openaiApiKey: value, },);
+        break;
+      case "google":
+        update({ googleApiKey: value, },);
+        break;
+      case "openrouter":
+        update({ openrouterApiKey: value, },);
+        break;
+    }
+  };
+
+  const getAiKey = (provider: AiProvider,) => {
+    switch (provider) {
+      case "anthropic":
+        return settings.anthropicApiKey;
+      case "openai":
+        return settings.openaiApiKey;
+      case "google":
+        return settings.googleApiKey;
+      case "openrouter":
+        return settings.openrouterApiKey;
+    }
+  };
+
   const handleSave = async () => {
     try {
       const normalizedVault = settings.vaultDir.trim();
       const normalizedDaily = settings.dailyLogsFolder.trim();
       const nextSettings = {
         ...settings,
+        anthropicApiKey: settings.anthropicApiKey.trim(),
+        openaiApiKey: settings.openaiApiKey.trim(),
+        googleApiKey: settings.googleApiKey.trim(),
+        openrouterApiKey: settings.openrouterApiKey.trim(),
         vaultDir: normalizedVault,
         dailyLogsFolder: normalizedDaily,
         excalidrawFolder: settings.excalidrawFolder.trim(),
@@ -129,7 +178,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
 
       {/* Modal */}
       <div
-        className="modal-scroll relative bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 p-6 max-h-[80vh] overflow-y-auto overflow-x-hidden"
+        className="modal-scroll relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6 max-h-[80vh] overflow-y-auto overflow-x-hidden"
         onClick={(e,) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
@@ -144,22 +193,61 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
           </button>
         </div>
 
-        {/* API Key */}
-        <div className="space-y-3">
+        <div className="space-y-4">
           <label className="block text-sm text-gray-600" style={mono}>
-            Anthropic API Key
+            AI Provider
           </label>
-          <input
-            ref={inputRef}
-            type="password"
-            value={settings.anthropicApiKey}
-            onChange={(e,) => update({ anthropicApiKey: e.target.value, },)}
-            placeholder="sk-ant-..."
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
-            style={mono}
-          />
+          <div className="flex flex-wrap gap-1.5">
+            {AI_PROVIDERS.map((provider,) => {
+              const selected = settings.aiProvider === provider;
+              return (
+                <button
+                  key={provider}
+                  onClick={() => update({ aiProvider: provider, },)}
+                  className={`px-2.5 py-1.5 text-xs rounded-md border transition-colors cursor-pointer ${
+                    selected
+                      ? "border-violet-400 bg-violet-50 text-violet-700"
+                      : "border-gray-200 text-gray-500 hover:border-gray-300"
+                  }`}
+                  style={mono}
+                >
+                  {getAiProviderLabel(provider,)}
+                </button>
+              );
+            },)}
+          </div>
           <p className="text-xs text-gray-400" style={mono}>
-            Required for the Build feature. Stored locally on your device.
+            Philo uses the selected provider for Sophia and Build. Keys stay on this device.
+          </p>
+          <div className="space-y-3">
+            {AI_PROVIDERS.map((provider,) => {
+              const selected = settings.aiProvider === provider;
+              return (
+                <div
+                  key={provider}
+                  className={`rounded-lg border p-3 transition-colors ${
+                    selected ? "border-violet-200 bg-violet-50/50" : "border-gray-200"
+                  }`}
+                >
+                  <label className="mb-2 block text-sm text-gray-600" style={mono}>
+                    {getAiProviderLabel(provider,)} API Key
+                    {selected ? " (selected)" : ""}
+                  </label>
+                  <input
+                    ref={selected ? inputRef : undefined}
+                    type="password"
+                    value={getAiKey(provider,)}
+                    onChange={(e,) => updateAiKey(provider, e.target.value,)}
+                    placeholder={AI_PROVIDER_PLACEHOLDERS[provider]}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all bg-white"
+                    style={mono}
+                  />
+                </div>
+              );
+            },)}
+          </div>
+          <p className="text-xs text-gray-400" style={mono}>
+            Save multiple keys if you want to switch providers without re-entering them.
           </p>
         </div>
 

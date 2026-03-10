@@ -4,6 +4,7 @@ import { NodeViewWrapper, } from "@tiptap/react";
 import type { NodeViewProps, } from "@tiptap/react";
 import { Component, useMemo, } from "react";
 import type { ErrorInfo, ReactNode, } from "react";
+import { getAiConfigurationMessage, isAiKeyMissingError, } from "../../../../services/ai";
 import { generateWidget, } from "../../../../services/generate";
 import { addToLibrary, } from "../../../../services/library";
 import { registry, } from "./registry";
@@ -74,8 +75,8 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
       updateAttributes({ spec: JSON.stringify(newSpec,), loading: false, },);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : typeof err === "string" ? err : "Something went wrong.";
-      const msg = errMsg === "API_KEY_MISSING"
-        ? "No API key. Add your Anthropic key in Settings (⌘,)."
+      const msg = isAiKeyMissingError(errMsg,)
+        ? getAiConfigurationMessage(errMsg,)
         : errMsg;
       updateAttributes({ loading: false, error: msg, },);
     }

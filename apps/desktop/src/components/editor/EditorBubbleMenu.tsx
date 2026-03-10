@@ -1,6 +1,7 @@
 import type { Editor, } from "@tiptap/core";
 import { BubbleMenu, } from "@tiptap/react/menus";
 import { useState, } from "react";
+import { getAiConfigurationMessage, isAiKeyMissingError, } from "../../services/ai";
 import { generateWidget, } from "../../services/generate";
 
 interface EditorBubbleMenuProps {
@@ -56,8 +57,8 @@ export function EditorBubbleMenu({ editor, }: EditorBubbleMenuProps,) {
       updateWidgetById(editor, widgetId, { spec: JSON.stringify(spec,), loading: false, },);
     } catch (err) {
       console.error("Build failed:", err,);
-      const msg = err instanceof Error && err.message === "API_KEY_MISSING"
-        ? "No API key. Add your Anthropic key in Settings (⌘,)."
+      const msg = err instanceof Error && isAiKeyMissingError(err.message,)
+        ? getAiConfigurationMessage(err.message,)
         : err instanceof Error
         ? err.message
         : "Something went wrong.";
