@@ -1,5 +1,6 @@
 import { invoke, } from "@tauri-apps/api/core";
 import { z, } from "zod";
+import { json2md, parseJsonContent, } from "../lib/markdown";
 import type { DailyNote, } from "../types/note";
 import { getApiKey, } from "./settings";
 
@@ -157,6 +158,7 @@ Current local date context:
 
 Rules:
 - Use tools instead of guessing.
+- The currently open note is already included in the request as \`openNoteSnapshot\`. Treat it as accessible source material.
 - For information requests, search first and only read the most relevant notes.
 - Read at most 5 notes unless the user explicitly names dates.
 - Cite note dates in your final answer when making claims.
@@ -165,8 +167,13 @@ Rules:
 - Do not call \`note delete\`.
 - Daily notes are addressed by ISO date strings.
 - If the scope is "today", only work with ${temporal.today} unless the user explicitly asks for another date.
+- Do not say you cannot access today's note if \`openNoteSnapshot\` is present.
 
 Your final response should be plain text for the user, concise, and mention any cited note dates.`;
+}
+
+function getOpenNoteMarkdown(note: DailyNote,) {
+  return trimToolText(json2md(parseJsonContent(note.content,),), 20000,);
 }
 
 function buildInitialUserMessage(
@@ -182,9 +189,10 @@ function buildInitialUserMessage(
           prompt: request.prompt,
           scope: request.scope,
           temporalContext: temporal,
-          todayNote: {
+          openNoteSnapshot: {
             date: request.context.today.date,
             city: request.context.today.city ?? null,
+            markdown: getOpenNoteMarkdown(request.context.today,),
           },
           recentNoteDates: request.context.recentNotes.map((note,) => note.date),
         },
