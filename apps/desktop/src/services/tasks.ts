@@ -15,6 +15,12 @@ interface TaskLine {
   text: string;
 }
 
+interface TaskBlock {
+  rootText: string;
+  lines: TaskLine[];
+  hasDueDate: boolean;
+}
+
 /**
  * Recurrence tag pattern.
  * Matches: #daily, @daily, [[recurring_daily]], [[2026-03-08(start date),7(days)]], etc.
@@ -22,6 +28,7 @@ interface TaskLine {
 const RECURRENCE_TAG = /(?:#|@)(daily|weekly|monthly|(\d+)(days?|weeks?|months?))\b/i;
 const RECURRENCE_WIKILINK = /\[\[(?:recurring_)?(daily|weekly|monthly|(\d+)(days?|weeks?|months?))(?:\|[^\]]+)?\]\]/i;
 const CANONICAL_RECURRING_WIKILINK = /\[\[(\d{4}-\d{2}-\d{2})\(start date\),\s*(\d+)\((day|days)\)\]\]/i;
+const DUE_DATE_WIKILINK = /\[\[\d{4}-\d{2}-\d{2}\(due date\)(?:\|[^\]]+)?\]\]/i;
 
 interface Recurrence {
   intervalDays: number;
@@ -82,30 +89,62 @@ function nextOccurrenceAfter(startDate: string, intervalDays: number, afterDate:
   return addDaysToDate(startDate, cycles * intervalDays,);
 }
 
-/**
- * Extract unchecked tasks from markdown content.
- * Preserves indentation so nested task structure survives rollover.
- * Returns the tasks and the content with those tasks removed.
- */
-function extractUncheckedTasks(content: string,): { tasks: TaskLine[]; cleaned: string; } {
-  const lines = content.split("\n",);
-  const tasks: TaskLine[] = [];
-  const kept: string[] = [];
+function sortTaskBlocks(taskBlocks: TaskBlock[],): TaskBlock[] {
+  const withDueDates = taskBlocks.filter((block,) => block.hasDueDate);
+  const withoutDueDates = taskBlocks.filter((block,) => !block.hasDueDate);
+  return [...withDueDates, ...withoutDueDates,];
+}
 
-  for (const line of lines) {
-    const match = line.match(UNCHECKED_TASK,);
-    if (match) {
-      tasks.push({ indent: match[1], text: match[2], },);
-    } else {
-      kept.push(line,);
+/**
+ * Extract unchecked task blocks from markdown content.
+ * Parent tasks keep their nested unchecked descendants so rollover preserves task structure.
+ */
+function extractUncheckedTaskBlocks(content: string,): { taskBlocks: TaskBlock[]; cleaned: string; } {
+  const lines = content.split("\n",);
+  const taskBlocks: TaskBlock[] = [];
+  const movedLineIndexes = new Set<number>();
+  const stack: Array<{ indentWidth: number; rootBlockIndex: number | null; isUnchecked: boolean; }> = [];
+
+  for (const [index, line,] of lines.entries()) {
+    const uncheckedMatch = line.match(UNCHECKED_TASK,);
+    const checkedMatch = uncheckedMatch ? null : line.match(CHECKED_TASK,);
+    const match = uncheckedMatch ?? checkedMatch;
+    if (!match) continue;
+
+    const indentWidth = match[1].replace(/\t/g, "  ",).length;
+    while (stack.length > 0 && stack[stack.length - 1].indentWidth >= indentWidth) {
+      stack.pop();
     }
+
+    const parent = stack[stack.length - 1];
+    if (uncheckedMatch) {
+      let rootBlockIndex = parent?.isUnchecked ? parent.rootBlockIndex : null;
+      if (rootBlockIndex === null) {
+        taskBlocks.push({
+          rootText: uncheckedMatch[2],
+          lines: [],
+          hasDueDate: false,
+        },);
+        rootBlockIndex = taskBlocks.length - 1;
+      }
+
+      const block = taskBlocks[rootBlockIndex];
+      block.lines.push({ indent: uncheckedMatch[1], text: uncheckedMatch[2], },);
+      block.hasDueDate ||= DUE_DATE_WIKILINK.test(uncheckedMatch[2],);
+      movedLineIndexes.add(index,);
+
+      stack.push({ indentWidth, rootBlockIndex, isUnchecked: true, },);
+      continue;
+    }
+
+    stack.push({ indentWidth, rootBlockIndex: null, isUnchecked: false, },);
   }
 
   // Remove trailing empty lines left by task removal
-  let cleaned = kept.join("\n",);
+  let cleaned = lines.filter((_, index,) => !movedLineIndexes.has(index,)).join("\n",);
   cleaned = cleaned.replace(/\n{3,}/g, "\n\n",).trim();
 
-  return { tasks, cleaned, };
+  return { taskBlocks: sortTaskBlocks(taskBlocks,), cleaned, };
 }
 
 /**
@@ -145,10 +184,12 @@ function extractAllTaskTexts(content: string,): Set<string> {
   return texts;
 }
 
-function prependTasks(content: string, tasks: TaskLine[],): string {
-  if (tasks.length === 0) return content;
+function prependTaskBlocks(content: string, taskBlocks: TaskBlock[],): string {
+  if (taskBlocks.length === 0) return content;
 
-  const taskLines = tasks.map((t,) => `${t.indent}- [ ] ${t.text}`).join("\n",);
+  const taskLines = taskBlocks.flatMap((block,) => block.lines.map((line,) => `${line.indent}- [ ] ${line.text}`)).join(
+    "\n",
+  );
   const trimmed = content.trim();
   if (!trimmed) return `\n\n\n${taskLines}`;
   return `${taskLines}\n\n${trimmed}`;
@@ -163,7 +204,7 @@ function prependTasks(content: string, tasks: TaskLine[],): string {
  */
 export async function rolloverTasks(days: number = 30,): Promise<boolean> {
   const today = getToday();
-  const taskMap = new Map<string, TaskLine>();
+  const taskBlockMap = new Map<string, TaskBlock>();
   const modifiedNotes: DailyNote[] = [];
 
   for (let i = 1; i <= days; i++) {
@@ -173,11 +214,11 @@ export async function rolloverTasks(days: number = 30,): Promise<boolean> {
     const markdown = json2md(parseJsonContent(note.content,),);
     if (!markdown.trim()) continue;
 
-    const { tasks, cleaned, } = extractUncheckedTasks(markdown,);
-    if (tasks.length > 0) {
-      tasks.forEach((t,) => {
-        if (!taskMap.has(t.text,)) {
-          taskMap.set(t.text, t,);
+    const { taskBlocks, cleaned, } = extractUncheckedTaskBlocks(markdown,);
+    if (taskBlocks.length > 0) {
+      taskBlocks.forEach((block,) => {
+        if (!taskBlockMap.has(block.rootText,)) {
+          taskBlockMap.set(block.rootText, block,);
         }
       },);
       modifiedNotes.push({ ...note, content: JSON.stringify(md2json(cleaned,),), },);
@@ -189,22 +230,28 @@ export async function rolloverTasks(days: number = 30,): Promise<boolean> {
       const nextDue = recurrence.startDate
         ? nextOccurrenceAfter(recurrence.startDate, recurrence.intervalDays, date,)
         : addDaysToDate(date, recurrence.intervalDays,);
-      if (nextDue <= today && !taskMap.has(taskText,)) {
-        taskMap.set(taskText, { indent: "", text: taskText, },);
+      if (nextDue <= today && !taskBlockMap.has(taskText,)) {
+        taskBlockMap.set(taskText, {
+          rootText: taskText,
+          lines: [{ indent: "", text: taskText, },],
+          hasDueDate: DUE_DATE_WIKILINK.test(taskText,),
+        },);
       }
     }
   }
 
-  if (taskMap.size === 0) return false;
+  if (taskBlockMap.size === 0) return false;
 
   await Promise.all(modifiedNotes.map((note,) => saveDailyNote(note,)),);
   const todayNote = await loadDailyNote(today,);
   const todayMarkdown = todayNote ? json2md(parseJsonContent(todayNote.content,),) : "";
   const existingTasks = extractAllTaskTexts(todayMarkdown,);
-  const newTasks = [...taskMap.values(),].filter((t,) => !existingTasks.has(t.text,));
-  if (newTasks.length === 0) return false;
+  const newTaskBlocks = sortTaskBlocks(
+    [...taskBlockMap.values(),].filter((block,) => !existingTasks.has(block.rootText,)),
+  );
+  if (newTaskBlocks.length === 0) return false;
 
-  const updated = prependTasks(todayMarkdown, newTasks,);
+  const updated = prependTaskBlocks(todayMarkdown, newTaskBlocks,);
   const updatedJson = JSON.stringify(md2json(updated,),);
   await saveDailyNote({ date: today, content: updatedJson, city: todayNote?.city, },);
   return true;
