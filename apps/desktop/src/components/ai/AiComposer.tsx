@@ -32,7 +32,6 @@ export function AiComposer({
   isSubmitting,
   error,
   onPromptChange,
-  onClose,
   onSubmit,
   onOpenSettings,
   onOpenDate,
@@ -52,13 +51,6 @@ export function AiComposer({
       className="fixed inset-x-0 bottom-0 z-[95] transition-transform duration-300 ease-out"
       style={{ transform: open ? "translateY(0)" : "translateY(100%)", }}
     >
-      {open && (
-        <div
-          className="fixed inset-0 bg-black/20 backdrop-blur-[1px]"
-          onClick={onClose}
-        />
-      )}
-
       <div className="relative mx-auto w-full max-w-2xl px-4 pb-5">
         <div className="space-y-3">
           <AiResultPanel
@@ -71,10 +63,10 @@ export function AiComposer({
             onDiscardChange={onDiscardChange}
           />
 
-          <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-white/95 shadow-[0_-20px_60px_rgba(15,23,42,0.18)] backdrop-blur-xl">
-            {!hasAiConfigured
-              ? (
-                <div className="space-y-4 px-5 py-5">
+          {!hasAiConfigured
+            ? (
+              <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-white px-5 py-5 shadow-[0_-20px_60px_rgba(15,23,42,0.12)]">
+                <div className="space-y-4">
                   <p className="text-sm leading-6 text-gray-600">
                     AI isn&apos;t configured yet. Add your Anthropic API key to start using note commands.
                   </p>
@@ -86,47 +78,36 @@ export function AiComposer({
                     Click to configure AI
                   </button>
                 </div>
-              )
-              : (
-                <div className="space-y-3 px-4 py-4">
-                  <form
-                    className="flex items-center gap-3 rounded-[22px] border border-gray-200 bg-white px-3 py-3"
-                    onSubmit={(event,) => {
-                      event.preventDefault();
-                      onSubmit();
-                    }}
+              </div>
+            )
+            : (
+              <div className="space-y-2">
+                <form
+                  className="flex items-center gap-4 rounded-[32px] border border-gray-200 bg-white px-5 py-5 shadow-[0_-20px_60px_rgba(15,23,42,0.12)]"
+                  onSubmit={(event,) => {
+                    event.preventDefault();
+                    onSubmit();
+                  }}
+                >
+                  <input
+                    ref={inputRef}
+                    value={prompt}
+                    onChange={(event,) => onPromptChange(event.target.value,)}
+                    placeholder="chat with notes."
+                    className="min-w-0 flex-1 bg-transparent text-base text-gray-900 outline-hidden placeholder:text-gray-400"
+                  />
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !prompt.trim()}
+                    className="shrink-0 rounded-full bg-gray-900 px-5 py-3 text-sm text-white transition-colors disabled:cursor-not-allowed disabled:bg-gray-300"
+                    style={{ fontFamily: "'IBM Plex Mono', monospace", }}
                   >
-                    <input
-                      ref={inputRef}
-                      value={prompt}
-                      onChange={(event,) => onPromptChange(event.target.value,)}
-                      placeholder="chat with notes."
-                      className="min-w-0 flex-1 bg-transparent px-2 text-sm text-gray-900 outline-hidden placeholder:text-gray-400"
-                    />
-                    <button
-                      type="submit"
-                      disabled={isSubmitting || !prompt.trim()}
-                      className="shrink-0 rounded-full bg-gray-900 px-4 py-2 text-sm text-white transition-colors disabled:cursor-not-allowed disabled:bg-gray-300"
-                      style={{ fontFamily: "'IBM Plex Mono', monospace", }}
-                    >
-                      {isSubmitting ? "Running..." : "Run"}
-                    </button>
-                  </form>
-                  <div className="flex items-center justify-between gap-3 px-2">
-                    <div className="min-w-0">
-                      {error && <p className="truncate text-sm text-red-500">{error}</p>}
-                    </div>
-                    <button
-                      onClick={onClose}
-                      className="shrink-0 text-xs text-gray-400 transition-colors hover:text-gray-600"
-                      style={{ fontFamily: "'IBM Plex Mono', monospace", }}
-                    >
-                      esc
-                    </button>
-                  </div>
-                </div>
-              )}
-          </div>
+                    {isSubmitting ? "Running..." : "Run"}
+                  </button>
+                </form>
+                {error && <p className="px-3 text-sm text-red-500">{error}</p>}
+              </div>
+            )}
         </div>
       </div>
     </div>
