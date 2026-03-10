@@ -1,5 +1,6 @@
 import type { Spec, } from "@json-render/core";
-import { getApiKey, } from "./settings";
+import { API_KEY_MISSING, generateAiText, } from "./ai";
+import { loadSettings, resolveActiveAiConfig, } from "./settings";
 
 const SYSTEM_PROMPT = `You are Sophia, an AI that generates UI widgets as JSON specs.
 
@@ -53,36 +54,14 @@ RULES:
 - Be creative and make it visually clean.`;
 
 export async function generateWidget(prompt: string,): Promise<Spec> {
-  const apiKey = await getApiKey();
-  if (!apiKey) {
-    throw new Error("API_KEY_MISSING",);
+  const settings = await loadSettings();
+  const config = resolveActiveAiConfig(settings,);
+  if (!config) {
+    throw new Error(`${API_KEY_MISSING}:${settings.aiProvider}`,);
   }
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true",
-    },
-    body: JSON.stringify({
-      model: "claude-opus-4-6",
-      max_tokens: 8192,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: prompt, },],
-    },),
-  },);
+  const text = await generateAiText(config, SYSTEM_PROMPT, prompt,);
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Sophia failed (${response.status}): ${error}`,);
-  }
-
-  const data = await response.json();
-  const text: string = data.content[0].text;
-
-  // Parse the JSON spec — strip code fences if the model accidentally adds them
   const cleaned = text.replace(/^```(?:json)?\n?/m, "",).replace(/\n?```$/m, "",).trim();
   try {
     return JSON.parse(cleaned,) as Spec;

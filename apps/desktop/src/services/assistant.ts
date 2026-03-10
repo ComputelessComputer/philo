@@ -2,7 +2,8 @@ import { invoke, } from "@tauri-apps/api/core";
 import { z, } from "zod";
 import { json2md, parseJsonContent, } from "../lib/markdown";
 import type { DailyNote, } from "../types/note";
-import { getApiKey, } from "./settings";
+import { type AiContentBlock, type AiMessage, runAiToolStep, } from "./ai";
+import { loadSettings, resolveActiveAiConfig, } from "./settings";
 
 export const AI_NOT_CONFIGURED = "AI_NOT_CONFIGURED";
 
@@ -45,23 +46,6 @@ interface ToolCommandOutput {
   stdout: string;
   stderr: string;
 }
-
-type AnthropicContentBlock =
-  | { type: "text"; text: string; }
-  | { type: "tool_use"; id: string; name: string; input: unknown; };
-
-type AnthropicMessage = {
-  role: "user" | "assistant";
-  content: Array<
-    | AnthropicContentBlock
-    | {
-      type: "tool_result";
-      tool_use_id: string;
-      content: string;
-      is_error?: boolean;
-    }
-  >;
-};
 
 const searchEnvelopeSchema = z.object({
   hits: z.array(z.object({
@@ -179,7 +163,7 @@ function getOpenNoteMarkdown(note: DailyNote,) {
 function buildInitialUserMessage(
   request: AssistantRequest,
   temporal: ReturnType<typeof getTemporalContext>,
-): AnthropicMessage {
+): AiMessage {
   return {
     role: "user",
     content: [{
@@ -300,38 +284,6 @@ async function executeSafeShellTool(input: z.infer<typeof safeShellInputSchema>,
   },);
 }
 
-async function callAnthropic(
-  apiKey: string,
-  system: string,
-  messages: AnthropicMessage[],
-  signal?: AbortSignal,
-) {
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-dangerous-direct-browser-access": "true",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-5",
-      max_tokens: 8192,
-      system,
-      tool_choice: { type: "auto", },
-      tools,
-      messages,
-    },),
-    signal,
-  },);
-
-  if (!response.ok) {
-    throw new Error(`Sophia failed (${response.status}): ${await response.text()}`,);
-  }
-
-  return await response.json();
-}
-
 function throwIfAborted(signal?: AbortSignal,) {
   if (!signal?.aborted) return;
   throw new DOMException("AI request cancelled.", "AbortError",);
@@ -362,22 +314,22 @@ export async function applyAssistantPendingChanges(
 
 export async function runAssistant(request: AssistantRequest, signal?: AbortSignal,): Promise<AssistantResult> {
   throwIfAborted(signal,);
-  const apiKey = await getApiKey();
-  if (!apiKey) {
-    throw new Error(AI_NOT_CONFIGURED,);
+  const settings = await loadSettings();
+  const config = resolveActiveAiConfig(settings,);
+  if (!config) {
+    throw new Error(`${AI_NOT_CONFIGURED}:${settings.aiProvider}`,);
   }
 
   const temporal = getTemporalContext();
   const system = buildSystemPrompt(request.scope, temporal,);
-  const messages: AnthropicMessage[] = [buildInitialUserMessage(request, temporal,),];
+  const messages: AiMessage[] = [buildInitialUserMessage(request, temporal,),];
   const citations = new Map<string, AssistantCitation>();
   const pendingChanges = new Map<string, AssistantPendingChange>();
 
   for (let step = 0; step < 8; step += 1) {
     throwIfAborted(signal,);
-    const data = await callAnthropic(apiKey, system, messages, signal,);
-    const content = Array.isArray(data.content,) ? data.content as AnthropicContentBlock[] : [];
-    const textBlocks = content.filter((block,): block is Extract<AnthropicContentBlock, { type: "text"; }> =>
+    const content = await runAiToolStep(config, system, messages, tools, signal,);
+    const textBlocks = content.filter((block,): block is Extract<AiContentBlock, { type: "text"; }> =>
       block.type === "text" && Boolean(block.text.trim(),)
     );
     const toolUses = content.filter((block,) => block.type === "tool_use");
@@ -399,7 +351,7 @@ export async function runAssistant(request: AssistantRequest, signal?: AbortSign
       };
     }
 
-    const toolResults: AnthropicMessage["content"] = [];
+    const toolResults: AiMessage["content"] = [];
     for (const toolUse of toolUses) {
       try {
         throwIfAborted(signal,);
