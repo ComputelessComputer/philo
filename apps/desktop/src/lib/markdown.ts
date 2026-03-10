@@ -106,6 +106,11 @@ function mergeTopLevelParagraphRuns(json: JSONContent,): JSONContent {
       }
     },);
 
+    const lastParagraph = paragraphRun[paragraphRun.length - 1];
+    if (!Array.isArray(lastParagraph.content,) || lastParagraph.content.length === 0) {
+      mergedContent.push({ type: "text", text: "\n", },);
+    }
+
     content.push(mergedContent.length > 0 ? { type: "paragraph", content: mergedContent, } : { type: "paragraph", },);
     paragraphRun = [];
   };
@@ -134,8 +139,7 @@ export function md2json(markdown: string, options?: { indentation?: MarkdownInde
     const leading = source.match(/^(?:[ \t]*\n)+/,);
     if (leading) {
       const leadingNewlines = (leading[0].match(/\n/g,) || []).length;
-      const leadingParagraphCount = leading[0].length === source.length ? leadingNewlines + 1 : leadingNewlines;
-      for (let i = 0; i < leadingParagraphCount; i++) {
+      for (let i = 0; i < leadingNewlines; i++) {
         allNodes.push({ type: "paragraph", },);
       }
       cursor = leading[0].length;
@@ -149,10 +153,6 @@ export function md2json(markdown: string, options?: { indentation?: MarkdownInde
         if (isValidContent(result,) && result.content) {
           allNodes.push(...result.content,);
         }
-      }
-
-      if (source.endsWith("\n",) && !source.endsWith("\n\n",) && source.trim()) {
-        allNodes.push({ type: "paragraph", },);
       }
 
       return allNodes.length > 0 ? { type: "doc", content: allNodes, } : EMPTY_DOC;
@@ -184,10 +184,6 @@ export function md2json(markdown: string, options?: { indentation?: MarkdownInde
       if (isValidContent(parsed,) && parsed.content) {
         allNodes.push(...parsed.content,);
       }
-    }
-
-    if (source.endsWith("\n",) && !source.endsWith("\n\n",) && source.trim()) {
-      allNodes.push({ type: "paragraph", },);
     }
 
     return allNodes.length > 0 ? { type: "doc", content: allNodes, } : EMPTY_DOC;
