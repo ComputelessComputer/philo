@@ -126,7 +126,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
               new Plugin({
                 key: new PluginKey("linkCmdClick",),
                 props: {
-                  handleClick(view, _pos, event,) {
+                  handleClick(_view, _pos, event,) {
                     const chip = (event.target as HTMLElement).closest("[data-mention-chip]",);
                     if (chip && onOpenDate) {
                       const date = getMentionChipDate(
@@ -138,7 +138,6 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
                       );
                       if (date) {
                         event.preventDefault();
-                        view.focus();
                         onOpenDate(date,);
                         return true;
                       }

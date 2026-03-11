@@ -34,6 +34,7 @@ import { SettingsModal, } from "../settings/SettingsModal";
 import { UpdateBanner, } from "../UpdateBanner";
 
 const LOCAL_SAVE_WATCH_SUPPRESSION_MS = 1000;
+const NOTE_SCROLL_OFFSET_PX = 56;
 
 function applyCity(savedCity: string | null | undefined, newCity: string,): string {
   if (!savedCity || savedCity === newCity) return newCity;
@@ -659,17 +660,33 @@ export default function AppLayout() {
   }, [],);
 
   function scrollToToday() {
-    todayRef.current?.scrollIntoView({ behavior: "smooth", block: "start", },);
-  }
-
-  const scrollToDate = useCallback((date: string,) => {
-    if (date === today) {
-      todayRef.current?.scrollIntoView({ behavior: "smooth", block: "start", },);
+    const todayEl = todayRef.current;
+    const scrollEl = scrollRef.current;
+    if (!todayEl || !scrollEl) {
+      todayEl?.scrollIntoView({ behavior: "smooth", block: "start", },);
       return;
     }
 
-    const target = document.querySelector<HTMLElement>(`[data-note-date="${date}"]`,);
-    target?.scrollIntoView({ behavior: "smooth", block: "start", },);
+    const scrollBounds = scrollEl.getBoundingClientRect();
+    const targetBounds = todayEl.getBoundingClientRect();
+    const top = scrollEl.scrollTop + targetBounds.top - scrollBounds.top - NOTE_SCROLL_OFFSET_PX;
+    scrollEl.scrollTo({ top: Math.max(0, top,), behavior: "smooth", },);
+  }
+
+  const scrollToDate = useCallback((date: string,) => {
+    const scrollEl = scrollRef.current;
+    const target = date === today
+      ? todayRef.current
+      : document.querySelector<HTMLElement>(`[data-note-date="${date}"]`,);
+    if (!target || !scrollEl) {
+      target?.scrollIntoView({ behavior: "smooth", block: "start", },);
+      return;
+    }
+
+    const scrollBounds = scrollEl.getBoundingClientRect();
+    const targetBounds = target.getBoundingClientRect();
+    const top = scrollEl.scrollTop + targetBounds.top - scrollBounds.top - NOTE_SCROLL_OFFSET_PX;
+    scrollEl.scrollTo({ top: Math.max(0, top,), behavior: "smooth", },);
   }, [today,],);
 
   return (
