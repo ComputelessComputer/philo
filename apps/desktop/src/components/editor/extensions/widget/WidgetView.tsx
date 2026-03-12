@@ -106,6 +106,12 @@ function deriveTitle(prompt: string,): string {
   return firstSentence.slice(0, 37,) + "...";
 }
 
+function formatToolbarTitle(prompt: string,): string {
+  const title = deriveTitle(prompt,);
+  if (!title) return "Widget";
+  return title.charAt(0,).toUpperCase() + title.slice(1,);
+}
+
 export function WidgetView({ node, updateAttributes, deleteNode, }: NodeViewProps,) {
   const { spec: specStr, saved, prompt, loading, error, componentId, } = node.attrs as {
     spec: string;
@@ -273,13 +279,14 @@ export function WidgetView({ node, updateAttributes, deleteNode, }: NodeViewProp
     : saved
     ? "Saved"
     : "Unsaved";
+  const toolbarTitle = formatToolbarTitle(prompt,);
 
   return (
     <NodeViewWrapper className="widget-node">
       <div className="widget-container">
         <div className="widget-toolbar" data-drag-handle>
           <span className="widget-prompt" title={prompt}>
-            {prompt.length > 50 ? prompt.slice(0, 50,) + "..." : prompt}
+            {toolbarTitle}
           </span>
           <div className="widget-actions">
             <button

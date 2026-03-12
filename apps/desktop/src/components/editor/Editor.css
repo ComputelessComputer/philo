@@ -429,6 +429,7 @@
 }
 
 .widget-container {
+  position: relative;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
   overflow: hidden;
@@ -441,23 +442,44 @@
 }
 
 .widget-toolbar {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  right: 12px;
+  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 8px 12px;
-  border-bottom: 1px solid #f3f4f6;
-  background: #fafafa;
+  padding: 8px 10px;
+  border: 1px solid rgba(229, 231, 235, 0.96);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  backdrop-filter: blur(10px);
   cursor: grab;
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
 .widget-toolbar:active {
   cursor: grabbing;
 }
 
+.widget-node:hover .widget-toolbar,
+.widget-node:focus-within .widget-toolbar,
+.widget-selected .widget-toolbar {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
 .widget-prompt {
   font-size: 12px;
-  color: #9ca3af;
+  color: #374151;
+  font-weight: 600;
   font-family: 'IBM Plex Sans', sans-serif;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -476,8 +498,8 @@
 .widget-btn {
   padding: 4px 10px;
   border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: #ffffff;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.98);
   color: #6b7280;
   font-size: 12px;
   font-family: 'IBM Plex Sans', sans-serif;
@@ -517,7 +539,7 @@
   border-color: transparent;
   background: transparent;
   color: #d1d5db;
-  padding: 4px 6px;
+  padding: 4px 8px;
 }
 
 .widget-btn-delete:hover {
