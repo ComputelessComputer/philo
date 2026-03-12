@@ -27,12 +27,6 @@ interface SettingsModalProps {
 
 type ValidationField = "filenamePattern";
 
-const FILENAME_PRESETS = [
-  { label: "Flat", value: "{YYYY}-{MM}-{DD}", },
-  { label: "By year", value: "{YYYY}/{YYYY}-{MM}-{DD}", },
-  { label: "By year + month", value: "{YYYY}/{MM}/{YYYY}-{MM}-{DD}", },
-];
-
 const AI_PROVIDER_PLACEHOLDERS: Record<AiProvider, string> = {
   anthropic: "sk-ant-...",
   openai: "sk-...",
@@ -592,22 +586,6 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
               {validationErrors.filenamePattern}
             </p>
           )}
-          <div className="flex flex-wrap gap-1.5">
-            {FILENAME_PRESETS.map((preset,) => (
-              <button
-                key={preset.value}
-                onClick={() => update({ filenamePattern: preset.value, },)}
-                className={`px-2 py-1 text-xs rounded-md border transition-colors cursor-pointer ${
-                  effectivePattern === preset.value
-                    ? "border-violet-400 bg-violet-50 text-violet-700"
-                    : "border-gray-200 text-gray-500 hover:border-gray-300"
-                }`}
-                style={mono}
-              >
-                {preset.label}
-              </button>
-            ))}
-          </div>
           <p className="text-xs text-gray-400" style={mono}>
             Preview: <span className="text-gray-600">{filenamePreview}</span>
           </p>
