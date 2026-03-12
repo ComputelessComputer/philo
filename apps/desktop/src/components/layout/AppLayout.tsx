@@ -146,7 +146,10 @@ function DateHeader({
                 <button
                   type="button"
                   onMouseDown={(event,) => event.stopPropagation()}
-                  onClick={() => setIsEditingCity(true,)}
+                  onClick={(event,) => {
+                    event.stopPropagation();
+                    setIsEditingCity(true,);
+                  }}
                   className="cursor-pointer rounded-md px-2 py-1 text-sm text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 font-sans transition-colors"
                   title="Click to change city"
                 >
