@@ -27,6 +27,8 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
+type ValidationField = "filenamePattern";
+
 const FILENAME_PRESETS = [
   { label: "Flat", value: "{YYYY}-{MM}-{DD}", },
   { label: "By year", value: "{YYYY}/{YYYY}-{MM}-{DD}", },
@@ -45,10 +47,14 @@ const mono = { fontFamily: "'IBM Plex Mono', monospace", };
 export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
   const [settings, setSettings,] = useState<Settings | null>(null,);
   const [saveState, setSaveState,] = useState<"idle" | "saving" | "error">("idle",);
+  const [validationErrors, setValidationErrors,] = useState<Partial<Record<ValidationField, string>>>({},);
   const [defaultJournalDir, setDefaultJournalDir,] = useState("",);
   const [googleBusy, setGoogleBusy,] = useState(false,);
   const [googleError, setGoogleError,] = useState("",);
   const inputRef = useRef<HTMLInputElement>(null,);
+  const modalRef = useRef<HTMLDivElement>(null,);
+  const filenamePatternSectionRef = useRef<HTMLDivElement>(null,);
+  const filenamePatternInputRef = useRef<HTMLInputElement>(null,);
   const settingsRef = useRef<Settings | null>(null,);
   const lastSavedSettingsRef = useRef<Settings | null>(null,);
   const activeSaveRef = useRef<Promise<void> | null>(null,);
@@ -60,6 +66,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
         lastSavedSettingsRef.current = s;
         setSettings(s,);
         setSaveState("idle",);
+        setValidationErrors({},);
         setGoogleBusy(false,);
         setGoogleError("",);
       },);
@@ -152,6 +159,16 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
     setSettings(nextSettings,);
     if (saveState === "error") {
       setSaveState("idle",);
+    }
+    if (
+      validationErrors.filenamePattern
+      && Object.prototype.hasOwnProperty.call(partial, "filenamePattern",)
+    ) {
+      setValidationErrors((currentErrors,) => {
+        const nextErrors = { ...currentErrors, };
+        delete nextErrors.filenamePattern;
+        return nextErrors;
+      },);
     }
   };
 
@@ -258,10 +275,66 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
     }
   };
 
+  const validateSettings = (current: Settings,) => {
+    const nextErrors: Partial<Record<ValidationField, string>> = {};
+    const pattern = current.filenamePattern.trim();
+
+    if (pattern) {
+      const hasRequiredTokens = ["YYYY", "MM", "DD",].every((token,) => pattern.includes(`{${token}}`,));
+      if (!hasRequiredTokens) {
+        nextErrors.filenamePattern = "Include {YYYY}, {MM}, and {DD} in the filename pattern.";
+      } else {
+        const unsupportedTokens = Array.from(pattern.matchAll(/\{([^}]+)\}/g,),)
+          .map((match,) => match[1])
+          .filter((token,) => !["YYYY", "MM", "DD",].includes(token,));
+
+        if (unsupportedTokens.length > 0) {
+          nextErrors.filenamePattern = "Only {YYYY}, {MM}, and {DD} tokens are supported.";
+        } else {
+          const preview = applyFilenamePattern(pattern, getToday(),);
+          const segments = preview.split("/",);
+          if (segments.some((segment,) => segment.trim().length === 0)) {
+            nextErrors.filenamePattern = "Filename pattern cannot start or end with / or contain empty folders.";
+          }
+        }
+      }
+    }
+
+    return nextErrors;
+  };
+
+  const shakeModal = () => {
+    const modal = modalRef.current;
+    if (!modal) return;
+    modal.style.animation = "none";
+    void modal.offsetWidth;
+    modal.style.animation = "settings-modal-shake 280ms ease-in-out";
+  };
+
+  const revealValidationError = (field: ValidationField,) => {
+    if (field === "filenamePattern") {
+      filenamePatternSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "center", },);
+      filenamePatternInputRef.current?.focus();
+      filenamePatternInputRef.current?.select();
+    }
+  };
+
   const handleRequestClose = async () => {
     const nextSettings = settingsRef.current;
     if (!nextSettings) {
       onClose();
+      return;
+    }
+
+    const nextErrors = validateSettings(nextSettings,);
+    if (Object.keys(nextErrors,).length > 0) {
+      setValidationErrors(nextErrors,);
+      setSaveState("idle",);
+      shakeModal();
+      const firstField = (["filenamePattern",] as const).find((field,) => nextErrors[field]);
+      if (firstField) {
+        requestAnimationFrame(() => revealValidationError(firstField,));
+      }
       return;
     }
 
@@ -290,6 +363,15 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
       onClick={() => void handleRequestClose()}
       onKeyDown={handleKeyDown}
     >
+      <style>
+        {`
+          @keyframes settings-modal-shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+          }
+        `}
+      </style>
       <div
         className="absolute top-0 left-0 right-0 h-[38px] z-[1]"
         data-tauri-drag-region
@@ -300,6 +382,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
 
       {/* Modal */}
       <div
+        ref={modalRef}
         className="modal-scroll relative bg-white rounded-xl shadow-2xl w-full max-w-lg mx-4 p-6 max-h-[80vh] overflow-y-auto overflow-x-hidden"
         onClick={(e,) => e.stopPropagation()}
       >
@@ -537,18 +620,28 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
         <div className="my-5 border-t border-gray-100" />
 
         {/* Filename Pattern */}
-        <div className="space-y-3">
+        <div ref={filenamePatternSectionRef} className="space-y-3">
           <label className="block text-sm text-gray-600" style={mono}>
             Filename Pattern
           </label>
           <input
+            ref={filenamePatternInputRef}
             type="text"
             value={settings.filenamePattern}
             onChange={(e,) => update({ filenamePattern: e.target.value, },)}
             placeholder={DEFAULT_FILENAME_PATTERN}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+            className={`w-full px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 transition-all ${
+              validationErrors.filenamePattern
+                ? "border-red-300 bg-red-50/40 focus:ring-red-500/20 focus:border-red-400"
+                : "border-gray-200 focus:ring-violet-500/30 focus:border-violet-400"
+            }`}
             style={mono}
           />
+          {validationErrors.filenamePattern && (
+            <p className="text-xs text-red-600" style={mono}>
+              {validationErrors.filenamePattern}
+            </p>
+          )}
           <div className="flex flex-wrap gap-1.5">
             {FILENAME_PRESETS.map((preset,) => (
               <button
@@ -584,13 +677,15 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
 
         <p
           className={`mt-6 text-xs ${
-            saveState === "error"
+            validationErrors.filenamePattern || saveState === "error"
               ? "text-red-600"
               : "text-gray-400"
           }`}
           style={mono}
         >
-          {saveState === "saving"
+          {validationErrors.filenamePattern
+            ? "Fix the highlighted setting before closing."
+            : saveState === "saving"
             ? "Saving changes..."
             : saveState === "error"
             ? "Could not save changes."
