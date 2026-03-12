@@ -655,9 +655,6 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
             Preview: <span className="text-gray-600">{filenamePreview}</span>
           </p>
           <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
-            <FilenameTokenChip token="YYYY" />
-            <FilenameTokenChip token="MM" />
-            <FilenameTokenChip token="DD" />
             <span style={mono}>
               Use <span className="text-gray-600">/</span> for subdirectories.
             </span>
