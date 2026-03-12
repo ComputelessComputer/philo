@@ -1,5 +1,6 @@
 import { join, } from "@tauri-apps/api/path";
 import { open as openDialog, } from "@tauri-apps/plugin-dialog";
+import { exists, } from "@tauri-apps/plugin-fs";
 import { useEffect, useRef, useState, } from "react";
 import claudeAiSymbol from "../../assets/claude-ai-symbol.svg";
 import googleGeminiIcon from "../../assets/google-gemini-icon.svg";
@@ -138,6 +139,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
   const [defaultJournalDir, setDefaultJournalDir,] = useState("",);
   const [googleBusy, setGoogleBusy,] = useState(false,);
   const [googleError, setGoogleError,] = useState("",);
+  const [isObsidianVault, setIsObsidianVault,] = useState(false,);
   const inputRef = useRef<HTMLInputElement>(null,);
   const modalRef = useRef<HTMLDivElement>(null,);
   const filenamePatternSectionRef = useRef<HTMLDivElement>(null,);
@@ -162,6 +164,33 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
       setTimeout(() => inputRef.current?.focus(), 100,);
     }
   }, [open,],);
+
+  useEffect(() => {
+    const vaultPath = settings?.vaultDir.trim();
+    if (!open || !vaultPath) {
+      setIsObsidianVault(false,);
+      return;
+    }
+
+    let cancelled = false;
+
+    join(vaultPath, ".obsidian",)
+      .then((obsidianPath,) => exists(obsidianPath,))
+      .then((found,) => {
+        if (!cancelled) {
+          setIsObsidianVault(found,);
+        }
+      },)
+      .catch(() => {
+        if (!cancelled) {
+          setIsObsidianVault(false,);
+        }
+      },);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, settings?.vaultDir,],);
 
   if (!open || !settings) return null;
 
@@ -560,6 +589,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
             >
               <VaultPathMarquee
                 path={settings.vaultDir || settings.journalDir || defaultJournalDir || "..."}
+                icon={isObsidianVault ? "obsidian" : "folder"}
               />
             </div>
             <button
