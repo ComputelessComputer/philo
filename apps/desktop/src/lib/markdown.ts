@@ -95,75 +95,124 @@ function getMarkdownManager(indentation?: MarkdownIndentation,): MarkdownManager
   return manager;
 }
 
-function mergeTopLevelParagraphRuns(json: JSONContent,): JSONContent {
-  if (json.type !== "doc" || !Array.isArray(json.content,)) return json;
+function isEmptyParagraph(node: JSONContent,): boolean {
+  return node.type === "paragraph" && (!Array.isArray(node.content,) || node.content.length === 0);
+}
 
-  const content: JSONContent[] = [];
-  let paragraphRun: JSONContent[] = [];
+function isListNode(node: JSONContent,): boolean {
+  return [
+    "bulletList",
+    "orderedList",
+    "taskList",
+  ].includes(node.type as string,);
+}
 
-  const isEmptyParagraph = (node: JSONContent,): boolean =>
-    node.type === "paragraph" && (!Array.isArray(node.content,) || node.content.length === 0);
+function mergeParagraphNodes(paragraphs: JSONContent[],): JSONContent {
+  if (paragraphs.length === 1) {
+    return paragraphs[0];
+  }
 
-  const isListNode = (node: JSONContent,): boolean =>
-    [
-      "bulletList",
-      "orderedList",
-      "taskList",
-    ].includes(node.type as string,);
+  const mergedContent: JSONContent[] = [];
 
-  const flushParagraphRun = (nextNode?: JSONContent,): void => {
-    if (paragraphRun.length === 0) return;
-    if (
-      content.length === 0
-      && paragraphRun.length === 1
-      && isEmptyParagraph(paragraphRun[0],)
-      && nextNode
-      && isListNode(nextNode,)
-    ) {
-      paragraphRun = [];
-      return;
-    }
-
-    if (paragraphRun.length === 1) {
-      content.push(paragraphRun[0],);
-      paragraphRun = [];
-      return;
-    }
-
-    const mergedContent: JSONContent[] = [];
-
-    paragraphRun.forEach((node, index,) => {
-      if (index > 0) {
-        mergedContent.push({ type: "text", text: "\n", },);
-      }
-
-      if (Array.isArray(node.content,) && node.content.length > 0) {
-        mergedContent.push(...node.content,);
-      }
-    },);
-
-    const lastParagraph = paragraphRun[paragraphRun.length - 1];
-    if (!Array.isArray(lastParagraph.content,) || lastParagraph.content.length === 0) {
+  paragraphs.forEach((node, index,) => {
+    if (index > 0) {
       mergedContent.push({ type: "text", text: "\n", },);
     }
 
-    content.push(mergedContent.length > 0 ? { type: "paragraph", content: mergedContent, } : { type: "paragraph", },);
-    paragraphRun = [];
+    if (Array.isArray(node.content,) && node.content.length > 0) {
+      mergedContent.push(...node.content,);
+    }
+  },);
+
+  const lastParagraph = paragraphs[paragraphs.length - 1];
+  if (isEmptyParagraph(lastParagraph,)) {
+    mergedContent.push({ type: "text", text: "\n", },);
+  }
+
+  return mergedContent.length > 0 ? { type: "paragraph", content: mergedContent, } : { type: "paragraph", };
+}
+
+function serializeBlock(node: JSONContent, manager: MarkdownManager,): string {
+  return manager.serialize({ type: "doc", content: [node,], },).replace(/\n+$/, "",);
+}
+
+function json2mdContent(json: JSONContent, manager: MarkdownManager,): string {
+  if (json.type !== "doc" || !Array.isArray(json.content,)) {
+    return serializeBlock(json, manager,);
+  }
+
+  const sourceContent = json.content.length >= 2
+      && isEmptyParagraph(json.content[0],)
+      && isListNode(json.content[1],)
+    ? json.content.slice(1,)
+    : json.content;
+
+  const parts: string[] = [];
+  let pendingEmptyParagraphs = 0;
+  let sawContent = false;
+  let index = 0;
+
+  const pushBlock = (node: JSONContent,) => {
+    const markdown = serializeBlock(node, manager,);
+    if (!markdown) return;
+
+    if (!sawContent) {
+      if (pendingEmptyParagraphs > 0) {
+        parts.push("\n".repeat(pendingEmptyParagraphs,),);
+      }
+    } else {
+      parts.push("\n".repeat(pendingEmptyParagraphs + 1,),);
+    }
+
+    parts.push(markdown,);
+    sawContent = true;
+    pendingEmptyParagraphs = 0;
   };
 
-  for (const node of json.content) {
-    if (node.type === "paragraph") {
-      paragraphRun.push(node,);
+  while (index < sourceContent.length) {
+    const node = sourceContent[index];
+
+    if (node.type !== "paragraph") {
+      pushBlock(node,);
+      index += 1;
       continue;
     }
 
-    flushParagraphRun(node,);
-    content.push(node,);
+    let runEnd = index;
+    while (runEnd < sourceContent.length && sourceContent[runEnd].type === "paragraph") {
+      runEnd += 1;
+    }
+
+    const paragraphRun = sourceContent.slice(index, runEnd,);
+    const firstNonEmptyIndex = paragraphRun.findIndex(paragraph => !isEmptyParagraph(paragraph,));
+
+    if (firstNonEmptyIndex === -1) {
+      pendingEmptyParagraphs += paragraphRun.length;
+      index = runEnd;
+      continue;
+    }
+
+    let lastNonEmptyIndex = paragraphRun.length - 1;
+    while (lastNonEmptyIndex >= 0 && isEmptyParagraph(paragraphRun[lastNonEmptyIndex],)) {
+      lastNonEmptyIndex -= 1;
+    }
+
+    pendingEmptyParagraphs += firstNonEmptyIndex;
+
+    const contentParagraphs = paragraphRun.slice(firstNonEmptyIndex, lastNonEmptyIndex + 1,);
+    pushBlock(mergeParagraphNodes(contentParagraphs,),);
+
+    pendingEmptyParagraphs += paragraphRun.length - lastNonEmptyIndex - 1;
+    index = runEnd;
   }
 
-  flushParagraphRun();
+  if (!sawContent) {
+    return pendingEmptyParagraphs > 0 ? "\n".repeat(pendingEmptyParagraphs,) : "";
+  }
 
-  return { ...json, content, };
+  return pendingEmptyParagraphs > 0
+    ? `${parts.join("",)}${"\n".repeat(pendingEmptyParagraphs + 1,)}`
+    : parts.join("",);
 }
 
 function normalizeMarkdownForParsing(markdown: string,): string {
@@ -358,7 +407,7 @@ export function md2json(markdown: string, options?: { indentation?: MarkdownInde
 
 export function json2md(json: JSONContent, options?: { indentation?: MarkdownIndentation; },): string {
   try {
-    const serialized = getMarkdownManager(options?.indentation,).serialize(mergeTopLevelParagraphRuns(json,),);
+    const serialized = json2mdContent(json, getMarkdownManager(options?.indentation,),);
     return serialized.replace(/^([ \t]*)- $/gm, "$1-",);
   } catch {
     return "";
