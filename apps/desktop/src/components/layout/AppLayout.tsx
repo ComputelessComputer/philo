@@ -36,12 +36,6 @@ import { UpdateBanner, } from "../UpdateBanner";
 const LOCAL_SAVE_WATCH_SUPPRESSION_MS = 1000;
 const NOTE_SCROLL_OFFSET_PX = 56;
 
-function applyCity(savedCity: string | null | undefined, newCity: string,): string {
-  if (!savedCity || savedCity === newCity) return newCity;
-  const from = savedCity.includes(" → ",) ? savedCity.split(" → ",)[0] : savedCity;
-  return `${from} → ${newCity}`;
-}
-
 function noteChanged(current: DailyNote | null, incoming: DailyNote,): boolean {
   if (!current) return true;
   return current.content !== incoming.content || current.city !== incoming.city;
@@ -71,8 +65,40 @@ function renderSearchSnippet(snippet: string,) {
   },);
 }
 
-function DateHeader({ date, city, }: { date: string; city?: string | null; },) {
+function DateHeader({
+  date,
+  city,
+  fallbackCity,
+  onCityChange,
+}: {
+  date: string;
+  city?: string | null;
+  fallbackCity?: string | null;
+  onCityChange?: (city: string | null,) => void;
+},) {
   const showToday = isToday(date,);
+  const [isEditingCity, setIsEditingCity,] = useState(false,);
+  const displayCity = city?.trim() || fallbackCity?.trim() || "";
+  const [draftCity, setDraftCity,] = useState(displayCity,);
+
+  useEffect(() => {
+    if (!isEditingCity) {
+      setDraftCity(displayCity,);
+    }
+  }, [displayCity, isEditingCity,],);
+
+  const cancelCityEdit = () => {
+    setDraftCity(displayCity,);
+    setIsEditingCity(false,);
+  };
+
+  const saveCity = () => {
+    const nextCity = draftCity.trim();
+    if (nextCity !== displayCity) {
+      onCityChange?.(nextCity || null,);
+    }
+    setIsEditingCity(false,);
+  };
 
   return (
     <div className="flex items-center gap-4">
@@ -90,10 +116,49 @@ function DateHeader({ date, city, }: { date: string; city?: string | null; },) {
           today
         </span>
       )}
-      {city && (
-        <span className="text-sm text-gray-400 dark:text-gray-500 font-sans">
-          {city}
-        </span>
+      {(displayCity || onCityChange) && (
+        isEditingCity && onCityChange
+          ? (
+            <input
+              autoFocus
+              value={draftCity}
+              onChange={(event,) => setDraftCity(event.target.value,)}
+              onClick={(event,) => event.stopPropagation()}
+              onMouseDown={(event,) => event.stopPropagation()}
+              onBlur={saveCity}
+              onKeyDown={(event,) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  saveCity();
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  cancelCityEdit();
+                }
+              }}
+              placeholder="Add city"
+              className="min-w-0 rounded-md border border-gray-200 dark:border-gray-700 bg-transparent px-2 py-1 text-sm text-gray-500 dark:text-gray-400 font-sans focus:outline-hidden focus:border-gray-400 dark:focus:border-gray-500"
+            />
+          )
+          : (
+            onCityChange
+              ? (
+                <button
+                  type="button"
+                  onMouseDown={(event,) => event.stopPropagation()}
+                  onClick={() => setIsEditingCity(true,)}
+                  className="cursor-pointer rounded-md px-2 py-1 text-sm text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 font-sans transition-colors"
+                  title="Click to change city"
+                >
+                  {displayCity || "Add city"}
+                </button>
+              )
+              : (
+                <span className="px-2 py-1 text-sm text-gray-400 dark:text-gray-500 font-sans">
+                  {displayCity}
+                </span>
+              )
+          )
       )}
     </div>
   );
@@ -120,12 +185,19 @@ function LazyNote({ date, onOpenDate, }: { date: string; onOpenDate?: (date: str
     return () => observer.disconnect();
   }, [date,],);
 
+  const handleCityChange = useCallback((city: string | null,) => {
+    if (!note || note.city === city) return;
+    const updated = { ...note, city, };
+    setNote(updated,);
+    saveDailyNote(updated,).catch(console.error,);
+  }, [note,],);
+
   return (
     <div ref={containerRef} className="min-h-[400px]">
       {note && (
         <>
           <div className="px-6 pt-12 pb-4">
-            <DateHeader date={note.date} city={note.city} />
+            <DateHeader date={note.date} city={note.city} onCityChange={handleCityChange} />
           </div>
           <EditableNote note={note} onOpenDate={onOpenDate} />
         </>
@@ -164,8 +236,6 @@ export default function AppLayout() {
   const [aiApplyingDates, setAiApplyingDates,] = useState<string[]>([],);
   const aiAbortControllerRef = useRef<AbortController | null>(null,);
   const aiLastSubmittedPromptRef = useRef("",);
-  const cityRef = useRef(currentCity,);
-  const prevCityRef = useRef(currentCity,);
   const todayNoteRef = useRef<DailyNote | null>(null,);
   const suppressWatcherUntilRef = useRef(0,);
   const searchInputRef = useRef<HTMLInputElement>(null,);
@@ -468,39 +538,11 @@ export default function AppLayout() {
     if (!isConfigured) return;
     async function load() {
       await rolloverTasks(30,);
-
       const note = await getOrCreateDailyNote(today,);
-
-      // Apply current city: if the note's saved city differs, record the transition
-      const effectiveCity = currentCity ? applyCity(note.city, currentCity,) : note.city;
-      const todayWithCity = { ...note, city: effectiveCity, };
-      cityRef.current = effectiveCity ?? currentCity ?? "";
-      setTodayNote(todayWithCity,);
-      if (effectiveCity !== note.city) {
-        saveDailyNote(todayWithCity,).catch(console.error,);
-      }
+      setTodayNote(note,);
     }
     load();
   }, [isConfigured, storageRevision, today,],);
-
-  // Detect same-day timezone change (travel): update today's note with transition city.
-  // Guard (note.date === today) prevents this from running when both today and currentCity
-  // change simultaneously (cross-date-line travel) — the [today] load effect handles that.
-  useEffect(() => {
-    if (!isConfigured) return;
-    const prevCity = prevCityRef.current;
-    prevCityRef.current = currentCity;
-    if (prevCity === currentCity) return;
-
-    const note = todayNoteRef.current;
-    if (!note || note.date !== today) return;
-
-    const transition = applyCity(note.city ?? prevCity, currentCity,);
-    cityRef.current = transition;
-    const updated = { ...note, city: transition, };
-    setTodayNote(updated,);
-    saveDailyNote(updated,).catch(console.error,);
-  }, [currentCity, isConfigured, today,],);
 
   // Watch the journal directory for external changes
   useEffect(() => {
@@ -532,6 +574,15 @@ export default function AppLayout() {
     },
     [],
   );
+
+  const handleTodayCityChange = useCallback((city: string | null,) => {
+    const note = todayNoteRef.current;
+    if (!note || note.city === city) return;
+    const updated = { ...note, city, };
+    suppressWatcherUntilRef.current = Date.now() + LOCAL_SAVE_WATCH_SUPPRESSION_MS;
+    setTodayNote(updated,);
+    saveDailyNote(updated,).catch(console.error,);
+  }, [],);
 
   const runAiPrompt = useCallback(async (promptText: string,) => {
     const todayNoteValue = todayNoteRef.current;
@@ -840,7 +891,12 @@ export default function AppLayout() {
                 onClick={() => todayEditorRef.current?.focus()}
               >
                 <div className="px-6 pt-6 pb-4">
-                  <DateHeader date={today} city={currentCity} />
+                  <DateHeader
+                    date={today}
+                    city={todayNote?.city}
+                    fallbackCity={currentCity}
+                    onCityChange={todayNote ? handleTodayCityChange : undefined}
+                  />
                 </div>
                 {todayNote && (
                   <EditableNote
