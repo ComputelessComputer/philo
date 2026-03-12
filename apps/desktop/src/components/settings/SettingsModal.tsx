@@ -612,9 +612,6 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
             style={mono}
           />
-          <p className="text-xs text-gray-400" style={mono}>
-            Philo uses these to resolve notes, `![[*.excalidraw]]` embeds, and pasted image paths inside your vault.
-          </p>
         </div>
 
         {/* Divider */}
