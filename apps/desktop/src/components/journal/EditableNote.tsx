@@ -42,6 +42,8 @@ interface EditableNoteProps {
   onOpenDate?: (date: string,) => void;
 }
 
+const IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp",];
+
 function moveSelectedNode(view: import("@tiptap/pm/view").EditorView, direction: "up" | "down",): boolean {
   const { state, } = view;
   const { selection, } = state;
@@ -169,7 +171,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
         CustomListKeymap,
         ClipboardTextSerializer,
         FileHandler.configure({
-          allowedMimeTypes: ["image/png", "image/jpeg", "image/gif", "image/webp",],
+          allowedMimeTypes: IMAGE_MIME_TYPES,
           onDrop: (_editor: TiptapEditor, files: File[], pos: number,) => {
             (async () => {
               for (const file of files) {
@@ -183,19 +185,6 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
             })().catch(console.error,);
             return true;
           },
-          onPaste: (_editor: TiptapEditor, files: File[],) => {
-            (async () => {
-              for (const file of files) {
-                const relativePath = await saveImage(file,);
-                const assetUrl = await resolveAssetUrl(relativePath,);
-                _editor.chain().focus().insertContent({
-                  type: "image",
-                  attrs: { src: assetUrl, alt: file.name, },
-                },).run();
-              }
-            })().catch(console.error,);
-            return true;
-          },
         },),
       ],
       content: parseJsonContent(note.content,),
@@ -204,6 +193,30 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
       editorProps: {
         attributes: {
           class: "max-w-none focus:outline-hidden px-6 text-gray-900 dark:text-gray-100",
+        },
+        handlePaste: (_view, event,) => {
+          const files = Array.from(event.clipboardData?.files ?? [],).filter(file =>
+            IMAGE_MIME_TYPES.includes(file.type,)
+          );
+          if (files.length === 0) {
+            return false;
+          }
+
+          event.preventDefault();
+          event.stopPropagation();
+
+          (async () => {
+            for (const file of files) {
+              const relativePath = await saveImage(file,);
+              const assetUrl = await resolveAssetUrl(relativePath,);
+              editor?.chain().focus().insertContent({
+                type: "image",
+                attrs: { src: assetUrl, alt: file.name, },
+              },).run();
+            }
+          })().catch(console.error,);
+
+          return true;
         },
         handleKeyDown: (_view, event,) => {
           if (
