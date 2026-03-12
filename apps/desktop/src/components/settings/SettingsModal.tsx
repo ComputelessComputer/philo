@@ -1,13 +1,7 @@
 import { join, } from "@tauri-apps/api/path";
 import { open as openDialog, } from "@tauri-apps/plugin-dialog";
 import { useEffect, useRef, useState, } from "react";
-import {
-  connectGoogleAccount,
-  GOOGLE_CALENDAR_SCOPE,
-  GOOGLE_GMAIL_SCOPE,
-  hasGoogleAccess,
-  isGoogleAccountConnected,
-} from "../../services/google";
+import { connectGoogleAccount, } from "../../services/google";
 import { detectObsidianFolders, } from "../../services/obsidian";
 import { applyFilenamePattern, getJournalDir, initJournalScope, resetJournalDir, } from "../../services/paths";
 import {
@@ -227,25 +221,6 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
     }
   };
 
-  const handleDisconnectGoogle = async () => {
-    setGoogleBusy(true,);
-    setGoogleError("",);
-    try {
-      await persistGooglePatch({
-        googleAccountEmail: "",
-        googleAccessToken: "",
-        googleRefreshToken: "",
-        googleAccessTokenExpiresAt: "",
-        googleGrantedScopes: [],
-      },);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to disconnect Google account.";
-      setGoogleError(message,);
-    } finally {
-      setGoogleBusy(false,);
-    }
-  };
-
   const detectFromVault = async (vaultDir: string,) => {
     const normalizedVaultDir = vaultDir.trim();
     if (!normalizedVaultDir) return null;
@@ -353,10 +328,6 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
     }
   };
 
-  const googleConnected = isGoogleAccountConnected(settings,);
-  const hasCalendarAccess = hasGoogleAccess(settings, GOOGLE_CALENDAR_SCOPE,);
-  const hasGmailAccess = hasGoogleAccess(settings, GOOGLE_GMAIL_SCOPE,);
-
   return (
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center"
@@ -450,93 +421,22 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
           <label className="block text-sm text-gray-600" style={mono}>
             Google Account
           </label>
-          <p className="text-xs text-gray-400" style={mono}>
-            Connect a Google account to fetch read-only data from Google Calendar and Gmail.
-          </p>
-          <input
-            type="text"
-            value={settings.googleOAuthClientId}
-            onChange={(e,) => update({ googleOAuthClientId: e.target.value, },)}
-            placeholder="1234567890-abcdefg.apps.googleusercontent.com"
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
-            style={mono}
-          />
-          <p className="text-xs text-gray-400" style={mono}>
-            Use a Google OAuth Desktop client ID. Philo stores the resulting Calendar and Gmail tokens on this device.
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            <span
-              className={`px-2 py-1 text-xs rounded-md border ${
-                hasCalendarAccess
-                  ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                  : "border-gray-200 text-gray-500"
-              }`}
-              style={mono}
-            >
-              Calendar {hasCalendarAccess ? "connected" : "read only"}
-            </span>
-            <span
-              className={`px-2 py-1 text-xs rounded-md border ${
-                hasGmailAccess
-                  ? "border-emerald-300 bg-emerald-50 text-emerald-700"
-                  : "border-gray-200 text-gray-500"
-              }`}
-              style={mono}
-            >
-              Gmail {hasGmailAccess ? "connected" : "read only"}
-            </span>
-          </div>
-          <div
-            className={`rounded-lg border px-3 py-3 ${
-              googleConnected
-                ? "border-emerald-200 bg-emerald-50/70"
-                : "border-gray-200 bg-gray-50"
-            }`}
-          >
-            <p
-              className={`text-sm ${googleConnected ? "text-emerald-800" : "text-gray-600"}`}
-              style={mono}
-            >
-              {googleConnected
-                ? `Connected as ${settings.googleAccountEmail}`
-                : "No Google account connected."}
-            </p>
-            {settings.googleAccessTokenExpiresAt && googleConnected && (
-              <p className="mt-1 text-xs text-emerald-700/80" style={mono}>
-                Access token expires at {new Date(settings.googleAccessTokenExpiresAt,).toLocaleString()}
-              </p>
-            )}
-          </div>
           {googleError && (
             <p className="text-xs text-red-600" style={mono}>
               {googleError}
             </p>
           )}
-          <div className="flex justify-end gap-3">
-            {googleConnected && (
-              <button
-                onClick={handleDisconnectGoogle}
-                disabled={googleBusy}
-                className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 rounded-lg transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-default"
-                style={mono}
-              >
-                Disconnect
-              </button>
-            )}
+          <div className="flex justify-end">
             <button
               onClick={handleConnectGoogle}
-              disabled={googleBusy || !settings.googleOAuthClientId.trim()}
+              disabled={googleBusy}
               className="px-4 py-2 text-sm text-white rounded-lg transition-all cursor-pointer disabled:opacity-60 disabled:cursor-default"
               style={{
                 ...mono,
                 background: "linear-gradient(to bottom, #1d4ed8, #1e3a8a)",
               }}
             >
-              {googleBusy
-                ? "Waiting for Google…"
-                : googleConnected
-                ? "Reconnect Google"
-                : "Connect Google"}
+              {googleBusy ? "Waiting for Google…" : "Connect with Google"}
             </button>
           </div>
         </div>

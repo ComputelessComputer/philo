@@ -204,7 +204,7 @@ async function saveGoogleFields(currentSettings: Settings, partial: Partial<Sett
 export async function connectGoogleAccount(settings: Settings,) {
   const clientId = settings.googleOAuthClientId.trim();
   if (!clientId) {
-    throw new Error("Add a Google OAuth client ID before connecting.",);
+    throw new Error("Google sign-in is not configured yet.",);
   }
 
   const verifier = createRandomVerifier(64,);
