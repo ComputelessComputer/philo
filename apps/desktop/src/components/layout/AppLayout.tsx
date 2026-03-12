@@ -138,7 +138,7 @@ function DateHeader({
                 }
               }}
               placeholder="Add city"
-              className="min-w-0 rounded-md border border-gray-200 dark:border-gray-700 bg-transparent px-2 py-1 text-sm text-gray-500 dark:text-gray-400 font-sans focus:outline-hidden focus:border-gray-400 dark:focus:border-gray-500"
+              className="min-w-0 bg-transparent text-sm text-gray-500 dark:text-gray-400 font-sans focus:outline-hidden"
               style={{ width: `${cityInputWidthCh}ch`, maxWidth: "100%", }}
             />
           )
@@ -152,14 +152,14 @@ function DateHeader({
                     event.stopPropagation();
                     setIsEditingCity(true,);
                   }}
-                  className="cursor-pointer rounded-md px-2 py-1 text-sm text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 font-sans transition-colors"
+                  className="cursor-pointer text-sm text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 font-sans transition-colors"
                   title="Click to change city"
                 >
                   {displayCity || "Add city"}
                 </button>
               )
               : (
-                <span className="px-2 py-1 text-sm text-gray-400 dark:text-gray-500 font-sans">
+                <span className="text-sm text-gray-400 dark:text-gray-500 font-sans">
                   {displayCity}
                 </span>
               )
