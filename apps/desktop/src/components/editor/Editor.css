@@ -124,12 +124,17 @@
 }
 
 .mention-menu {
-  min-width: 14rem;
+  width: fit-content;
+  min-width: min(14rem, calc(100vw - 16px));
+  max-width: min(22rem, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
   border: 1px solid #e5e7eb;
   border-radius: 0.9rem;
   background: rgba(255, 255, 255, 0.98);
   box-shadow: 0 18px 48px rgba(15, 23, 42, 0.16);
   backdrop-filter: blur(12px);
+  box-sizing: border-box;
+  overflow: auto;
 }
 
 .mention-menu-items {

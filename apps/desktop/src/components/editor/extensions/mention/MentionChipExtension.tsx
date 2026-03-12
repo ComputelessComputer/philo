@@ -1,4 +1,13 @@
-import { autoUpdate, computePosition, flip, limitShift, offset, shift, type VirtualElement, } from "@floating-ui/dom";
+import {
+  autoUpdate,
+  computePosition,
+  flip,
+  limitShift,
+  offset,
+  shift,
+  size,
+  type VirtualElement,
+} from "@floating-ui/dom";
 import Mention from "@tiptap/extension-mention";
 import { PluginKey, } from "@tiptap/pm/state";
 import { ReactRenderer, } from "@tiptap/react";
@@ -274,8 +283,20 @@ export function buildMentionChipSuggestion(referenceDate?: string,): Omit<Sugges
       const update = () => {
         if (!referenceEl) return;
         void computePosition(referenceEl, floatingEl, {
+          strategy: "fixed",
           placement: "bottom-start",
-          middleware: [offset(6,), flip(), shift({ limiter: limitShift(), },),],
+          middleware: [
+            offset(6,),
+            flip({ padding: 8, },),
+            shift({ padding: 8, limiter: limitShift(), },),
+            size({
+              padding: 8,
+              apply: ({ availableHeight, availableWidth, elements, },) => {
+                elements.floating.style.maxHeight = `${Math.max(availableHeight, 0,)}px`;
+                elements.floating.style.maxWidth = `${Math.max(availableWidth, 0,)}px`;
+              },
+            },),
+          ],
         },).then(({ x, y, },) => {
           Object.assign(floatingEl.style, {
             left: `${x}px`,
@@ -299,7 +320,7 @@ export function buildMentionChipSuggestion(referenceDate?: string,): Omit<Sugges
 
           floatingEl = renderer.element as HTMLElement;
           Object.assign(floatingEl.style, {
-            position: "absolute",
+            position: "fixed",
             top: "0",
             left: "0",
             zIndex: "40",
