@@ -16,7 +16,7 @@ import {
   type SharedStorageSchema,
   updateSharedComponent,
 } from "../../../../services/library";
-import { type SharedWidgetRuntimeApi, WidgetRuntimeProvider, } from "./registry";
+import { type SharedWidgetRuntimeApi, WidgetRuntimeProvider, WidgetTemporalProvider, } from "./registry";
 import { registry, } from "./registry";
 
 function cloneSchema(value: SharedStorageSchema,): SharedStorageSchema {
@@ -336,7 +336,9 @@ export function WidgetView({ node, updateAttributes, deleteNode, }: NodeViewProp
               <RendererBoundary>
                 <JSONUIProvider registry={registry}>
                   <WidgetRuntimeProvider runtime={runtimeApi}>
-                    <Renderer spec={currentSpec} registry={registry} />
+                    <WidgetTemporalProvider>
+                      <Renderer spec={currentSpec} registry={registry} />
+                    </WidgetTemporalProvider>
                   </WidgetRuntimeProvider>
                 </JSONUIProvider>
               </RendererBoundary>

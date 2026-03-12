@@ -1,5 +1,6 @@
 import { defineRegistry, } from "@json-render/react";
 import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useState, } from "react";
+import { useCurrentTime, } from "../../../../hooks/useCurrentTime";
 import { widgetCatalog, } from "./catalog";
 
 export interface SharedWidgetRuntimeApi {
@@ -11,6 +12,12 @@ export interface SharedWidgetRuntimeApi {
 }
 
 const WidgetRuntimeContext = createContext<SharedWidgetRuntimeApi | null>(null,);
+const WidgetTemporalContext = createContext<
+  {
+    now: Date;
+    localTimeZone: string;
+  } | null
+>(null,);
 
 export function WidgetRuntimeProvider({
   children,
@@ -22,8 +29,23 @@ export function WidgetRuntimeProvider({
   return <WidgetRuntimeContext.Provider value={runtime}>{children}</WidgetRuntimeContext.Provider>;
 }
 
+export function WidgetTemporalProvider({ children, }: { children: ReactNode; },) {
+  const now = useCurrentTime();
+  const localTimeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+
+  return (
+    <WidgetTemporalContext.Provider value={{ now, localTimeZone, }}>
+      {children}
+    </WidgetTemporalContext.Provider>
+  );
+}
+
 function useWidgetRuntime(): SharedWidgetRuntimeApi | null {
   return useContext(WidgetRuntimeContext,);
+}
+
+function useWidgetTemporal() {
+  return useContext(WidgetTemporalContext,);
 }
 
 type RowMap = Record<string, unknown>;
@@ -101,32 +123,141 @@ function createMutationParams(row: RowMap | null, bindColumn: string | undefined
   return result;
 }
 
+function getCityName(timeZone: string,): string {
+  return timeZone.split("/",).pop()?.replace(/_/g, " ",) ?? timeZone;
+}
+
+function getTimeParts(now: Date, timeZone: string,) {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  },).formatToParts(now,);
+}
+
+function getTimePartValue(parts: Intl.DateTimeFormatPart[], type: Intl.DateTimeFormatPartTypes,): string {
+  return parts.find((part,) => part.type === type)?.value ?? "";
+}
+
+function getTimeZoneName(now: Date, timeZone: string, timeZoneName: "short" | "shortOffset",): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    timeZoneName,
+    hour: "numeric",
+  },)
+    .formatToParts(now,)
+    .find((part,) => part.type === "timeZoneName")
+    ?.value ?? "";
+}
+
+function formatTemporalField(now: Date, timeZone: string, field: string,): string {
+  const parts = getTimeParts(now, timeZone,);
+  const hour = getTimePartValue(parts, "hour",);
+  const minute = getTimePartValue(parts, "minute",);
+  const second = getTimePartValue(parts, "second",);
+  const dayPeriod = getTimePartValue(parts, "dayPeriod",).toUpperCase();
+
+  switch (field) {
+    case "time":
+      return `${hour}:${minute}:${second}`;
+    case "shortTime":
+      return `${hour}:${minute} ${dayPeriod}`;
+    case "date":
+      return new Intl.DateTimeFormat("en-US", {
+        timeZone,
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      },).format(now,);
+    case "hour":
+      return hour;
+    case "minute":
+      return minute;
+    case "second":
+      return second;
+    case "period":
+      return dayPeriod;
+    case "city":
+      return getCityName(timeZone,);
+    case "timezone":
+      return timeZone;
+    case "abbr":
+      return getTimeZoneName(now, timeZone, "short",);
+    case "offset":
+      return getTimeZoneName(now, timeZone, "shortOffset",).replace("GMT", "UTC",);
+    default:
+      return "";
+  }
+}
+
+function resolveTemplateString(
+  value: string | undefined,
+  temporal: {
+    now: Date;
+    localTimeZone: string;
+  } | null,
+): string | undefined {
+  if (!value || !temporal || !value.includes("{{",)) {
+    return value;
+  }
+
+  return value.replace(/{{\s*([^}]+?)\s*}}/g, (_, rawToken: string,) => {
+    const token = rawToken.trim();
+    if (token.startsWith("local.",)) {
+      const resolved = formatTemporalField(temporal.now, temporal.localTimeZone, token.slice("local.".length,),);
+      return resolved || `{{${token}}}`;
+    }
+
+    if (token.startsWith("zone:",)) {
+      const separatorIndex = token.lastIndexOf(".",);
+      if (separatorIndex <= "zone:".length) {
+        return `{{${token}}}`;
+      }
+
+      const timeZone = token.slice("zone:".length, separatorIndex,);
+      const field = token.slice(separatorIndex + 1,);
+      const resolved = formatTemporalField(temporal.now, timeZone, field,);
+      return resolved || `{{${token}}}`;
+    }
+
+    return `{{${token}}}`;
+  },);
+}
+
 export const { registry, } = defineRegistry(widgetCatalog, {
   components: {
-    Card: ({ props, children, },) => (
-      <div
-        style={{
-          borderRadius: "12px",
-          border: "1px solid #e5e7eb",
-          background: "#fff",
-          padding: props.padding === "none"
-            ? 0
-            : props.padding === "sm"
-            ? "8px"
-            : props.padding === "lg"
-            ? "24px"
-            : "16px",
-          fontFamily: "'IBM Plex Sans', sans-serif",
-        }}
-      >
-        {props.title && (
-          <div style={{ fontWeight: 600, fontSize: "14px", color: "#1f2937", marginBottom: "12px", }}>
-            {props.title}
-          </div>
-        )}
-        {children}
-      </div>
-    ),
+    Card: ({ props, children, },) => {
+      const temporal = useWidgetTemporal();
+      const title = resolveTemplateString(props.title, temporal,);
+
+      return (
+        <div
+          style={{
+            borderRadius: "12px",
+            border: "1px solid #e5e7eb",
+            background: "#fff",
+            padding: props.padding === "none"
+              ? 0
+              : props.padding === "sm"
+              ? "8px"
+              : props.padding === "lg"
+              ? "24px"
+              : "16px",
+            fontFamily: "'IBM Plex Sans', sans-serif",
+          }}
+        >
+          {title && (
+            <div style={{ fontWeight: 600, fontSize: "14px", color: "#1f2937", marginBottom: "12px", }}>
+              {title}
+            </div>
+          )}
+          {children}
+        </div>
+      );
+    },
 
     Stack: ({ props, children, },) => (
       <div
@@ -185,45 +316,54 @@ export const { registry, } = defineRegistry(widgetCatalog, {
       </div>
     ),
 
-    Text: ({ props, },) => (
-      <span
-        style={{
-          fontFamily: "'IBM Plex Sans', sans-serif",
-          fontSize: props.size === "xs"
-            ? "11px"
-            : props.size === "sm"
-            ? "12px"
-            : props.size === "lg"
-            ? "16px"
-            : props.size === "xl"
-            ? "20px"
-            : "14px",
-          fontWeight: props.weight === "normal"
-            ? "400"
-            : props.weight === "medium"
-            ? "500"
-            : props.weight === "semibold"
-            ? "600"
-            : "700",
-          color: props.color === "default"
-            ? "#1f2937"
-            : props.color === "accent"
-            ? "#6366f1"
-            : props.color === "success"
-            ? "#16a34a"
-            : props.color === "warning"
-            ? "#d97706"
-            : "#ef4444",
-          textAlign: props.align ?? "left",
-          display: "block",
-          lineHeight: 1.5,
-        }}
-      >
-        {props.content}
-      </span>
-    ),
+    Text: ({ props, },) => {
+      const temporal = useWidgetTemporal();
+      const content = resolveTemplateString(props.content, temporal,);
+
+      return (
+        <span
+          style={{
+            fontFamily: "'IBM Plex Sans', sans-serif",
+            fontSize: props.size === "xs"
+              ? "11px"
+              : props.size === "sm"
+              ? "12px"
+              : props.size === "lg"
+              ? "16px"
+              : props.size === "xl"
+              ? "20px"
+              : "14px",
+            fontWeight: props.weight === "normal"
+              ? "400"
+              : props.weight === "medium"
+              ? "500"
+              : props.weight === "semibold"
+              ? "600"
+              : "700",
+            color: props.color === "default"
+              ? "#1f2937"
+              : props.color === "muted"
+              ? "#9ca3af"
+              : props.color === "accent"
+              ? "#6366f1"
+              : props.color === "success"
+              ? "#16a34a"
+              : props.color === "warning"
+              ? "#d97706"
+              : "#ef4444",
+            textAlign: props.align ?? "left",
+            display: "block",
+            lineHeight: 1.5,
+          }}
+        >
+          {content}
+        </span>
+      );
+    },
 
     Heading: ({ props, },) => {
+      const temporal = useWidgetTemporal();
+      const content = resolveTemplateString(props.content, temporal,);
       const sizes = { h1: "20px", h2: "16px", h3: "14px", };
       return (
         <div
@@ -235,34 +375,43 @@ export const { registry, } = defineRegistry(widgetCatalog, {
             lineHeight: 1.3,
           }}
         >
-          {props.content}
+          {content}
         </div>
       );
     },
 
-    Metric: ({ props, },) => (
-      <div style={{ fontFamily: "'IBM Plex Sans', sans-serif", }}>
-        <div style={{ fontSize: "11px", color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em", }}>
-          {props.label}
+    Metric: ({ props, },) => {
+      const temporal = useWidgetTemporal();
+      const label = resolveTemplateString(props.label, temporal,);
+      const value = resolveTemplateString(props.value, temporal,);
+      const unit = resolveTemplateString(props.unit, temporal,);
+
+      return (
+        <div style={{ fontFamily: "'IBM Plex Sans', sans-serif", }}>
+          <div style={{ fontSize: "11px", color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em", }}>
+            {label}
+          </div>
+          <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "2px", }}>
+            <span style={{ fontSize: "24px", fontWeight: 600, color: "#1f2937", }}>{value}</span>
+            {unit && <span style={{ fontSize: "12px", color: "#9ca3af", }}>{unit}</span>}
+            {props.trend && (
+              <span
+                style={{
+                  fontSize: "12px",
+                  color: props.trend === "up" ? "#16a34a" : props.trend === "down" ? "#ef4444" : "#9ca3af",
+                }}
+              >
+                {props.trend === "up" ? "↑" : props.trend === "down" ? "↓" : "→"}
+              </span>
+            )}
+          </div>
         </div>
-        <div style={{ display: "flex", alignItems: "baseline", gap: "4px", marginTop: "2px", }}>
-          <span style={{ fontSize: "24px", fontWeight: 600, color: "#1f2937", }}>{props.value}</span>
-          {props.unit && <span style={{ fontSize: "12px", color: "#9ca3af", }}>{props.unit}</span>}
-          {props.trend && (
-            <span
-              style={{
-                fontSize: "12px",
-                color: props.trend === "up" ? "#16a34a" : props.trend === "down" ? "#ef4444" : "#9ca3af",
-              }}
-            >
-              {props.trend === "up" ? "↑" : props.trend === "down" ? "↓" : "→"}
-            </span>
-          )}
-        </div>
-      </div>
-    ),
+      );
+    },
 
     Badge: ({ props, },) => {
+      const temporal = useWidgetTemporal();
+      const text = resolveTemplateString(props.text, temporal,);
       const palette = {
         default: { bg: "#f3f4f6", fg: "#6b7280", },
         success: { bg: "#f0fdf4", fg: "#16a34a", },
@@ -284,13 +433,15 @@ export const { registry, } = defineRegistry(widgetCatalog, {
             color: color.fg,
           }}
         >
-          {props.text}
+          {text}
         </span>
       );
     },
 
     Button: ({ props, },) => {
       const runtime = useWidgetRuntime();
+      const temporal = useWidgetTemporal();
+      const label = resolveTemplateString(props.label, temporal,);
       const [running, setRunning,] = useState(false,);
       const canMutate = Boolean(runtime && runtime.mode === "shared" && props.mutation,);
 
@@ -326,12 +477,13 @@ export const { registry, } = defineRegistry(widgetCatalog, {
             fontWeight: 500,
           }}
         >
-          {running ? "Saving..." : props.label}
+          {running ? "Saving..." : label}
         </button>
       );
     },
 
     TextInput: ({ props, },) => {
+      const temporal = useWidgetTemporal();
       const { rows, loading, error, refresh, } = useSharedRows(props.query,);
       const runtime = useWidgetRuntime();
       const boundRow = rows[0] ?? null;
@@ -367,14 +519,14 @@ export const { registry, } = defineRegistry(widgetCatalog, {
         <div style={{ fontFamily: "'IBM Plex Sans', sans-serif", }}>
           {props.label && (
             <label style={{ fontSize: "12px", color: "#6b7280", display: "block", marginBottom: "4px", }}>
-              {props.label}
+              {resolveTemplateString(props.label, temporal,)}
             </label>
           )}
           {error && <div style={{ color: "#b91c1c", fontSize: "11px", marginBottom: "4px", }}>{error}</div>}
           <input
             type="text"
             value={value}
-            placeholder={props.placeholder}
+            placeholder={resolveTemplateString(props.placeholder, temporal,)}
             disabled={loading}
             onChange={(event,) => {
               const next = event.target.value;
@@ -407,6 +559,7 @@ export const { registry, } = defineRegistry(widgetCatalog, {
     },
 
     Checkbox: ({ props, },) => {
+      const temporal = useWidgetTemporal();
       const { rows, refresh, error, } = useSharedRows(props.query,);
       const runtime = useWidgetRuntime();
       const boundRow = rows[0] ?? null;
@@ -463,7 +616,7 @@ export const { registry, } = defineRegistry(widgetCatalog, {
             }}
             style={{ width: "16px", height: "16px", }}
           />
-          {props.label}
+          {resolveTemplateString(props.label, temporal,)}
           {error && <span style={{ fontSize: "11px", color: "#b91c1c", }}>{error}</span>}
         </label>
       );
@@ -534,10 +687,15 @@ export const { registry, } = defineRegistry(widgetCatalog, {
     List: ({ props, },) => {
       const { rows, loading, error, } = useSharedRows(props.query,);
       const runtime = useWidgetRuntime();
+      const temporal = useWidgetTemporal();
       const staticItems = props.items ?? [];
       const items = useMemo(() => {
         if (!props.query || runtime?.mode !== "shared") {
-          return staticItems;
+          return staticItems.map((item,) => ({
+            label: resolveTemplateString(item.label, temporal,) ?? "",
+            description: resolveTemplateString(item.description, temporal,),
+            trailing: resolveTemplateString(item.trailing, temporal,),
+          }));
         }
 
         return rows
@@ -556,6 +714,7 @@ export const { registry, } = defineRegistry(widgetCatalog, {
         props.query,
         runtime?.mode,
         rows,
+        temporal,
         props.descriptionColumn,
         props.labelColumn,
         props.trailingColumn,
@@ -595,14 +754,15 @@ export const { registry, } = defineRegistry(widgetCatalog, {
 
     Table: ({ props, },) => {
       const runtime = useWidgetRuntime();
+      const temporal = useWidgetTemporal();
       const { rows, loading, error, } = useSharedRows(props.query,);
       const queryColumns = props.columns ?? [];
       const headers = queryColumns.length > 0
-        ? queryColumns.map((column,) => column.header)
-        : props.headers ?? [];
+        ? queryColumns.map((column,) => resolveTemplateString(column.header, temporal,) ?? "")
+        : (props.headers ?? []).map((header,) => resolveTemplateString(header, temporal,) ?? "");
       const body = useMemo(() => {
         if (!props.query || runtime?.mode !== "shared") {
-          return props.rows ?? [];
+          return (props.rows ?? []).map((row,) => row.map((cell,) => resolveTemplateString(cell, temporal,) ?? ""));
         }
 
         return rows.map((row,) =>
@@ -610,7 +770,7 @@ export const { registry, } = defineRegistry(widgetCatalog, {
             ? queryColumns.map((column,) => toStringValue(row[column.field],))
             : Object.values(row,).map((value,) => toStringValue(value,))
         );
-      }, [props.query, runtime?.mode, rows, queryColumns, props.rows,],);
+      }, [props.query, runtime?.mode, rows, queryColumns, props.rows, temporal,],);
 
       return (
         <table style={{ width: "100%", borderCollapse: "collapse", fontFamily: "'IBM Plex Sans', sans-serif", }}>

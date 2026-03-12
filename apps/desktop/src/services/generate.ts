@@ -48,10 +48,20 @@ Interactive:
 - TextInput { placeholder?: string, label?: string }
 - Checkbox { label: string }
 
+LIVE BINDINGS:
+- Any string prop can include a live binding with {{...}}.
+- Local bindings: {{local.time}}, {{local.shortTime}}, {{local.date}}, {{local.hour}}, {{local.minute}}, {{local.second}}, {{local.period}}, {{local.city}}, {{local.timezone}}, {{local.abbr}}, {{local.offset}}
+- Timezone bindings: {{zone:America/New_York.time}}, {{zone:America/New_York.shortTime}}, {{zone:America/New_York.date}}, {{zone:America/New_York.hour}}, {{zone:America/New_York.minute}}, {{zone:America/New_York.second}}, {{zone:America/New_York.period}}, {{zone:America/New_York.city}}, {{zone:America/New_York.timezone}}, {{zone:America/New_York.abbr}}, {{zone:America/New_York.offset}}
+- Use these bindings for clocks, dates, countdown-style readouts, and world-clock tables/lists.
+
 RULES:
 - Always use Card as the root element.
 - Use Stack for vertical/horizontal layout, Grid for columns.
 - Use Metric for key numbers, Badge for status labels, List for enumerations, Table for tabular data.
+- Design widgets like compact utility views from Raycast or Obsidian: functional first, minimal chrome, clear hierarchy, and useful actions.
+- Prefer live bindings and explicit UI structure over screenshot-like decoration or placeholder copy.
+- If the prompt implies a tool, make it behave like a tool with live values, sections, inputs, and actions.
+- Never hardcode the current time, date, timezone abbreviation, or UTC offset when a live binding fits.
 - Be creative and make it visually clean.`;
 
 const SHARED_SYSTEM_PROMPT = `You are Sophia, an AI that generates shared Philo widgets.
@@ -113,11 +123,18 @@ Supported UI components:
 - List { query, labelColumn, descriptionColumn?, trailingColumn? }
 - Table { query, columns: [{ header, field }] }
 
+Live bindings available in any string prop:
+- {{local.time}}, {{local.shortTime}}, {{local.date}}, {{local.hour}}, {{local.minute}}, {{local.second}}, {{local.period}}, {{local.city}}, {{local.timezone}}, {{local.abbr}}, {{local.offset}}
+- {{zone:America/New_York.time}}, {{zone:America/New_York.shortTime}}, {{zone:America/New_York.date}}, {{zone:America/New_York.hour}}, {{zone:America/New_York.minute}}, {{zone:America/New_York.second}}, {{zone:America/New_York.period}}, {{zone:America/New_York.city}}, {{zone:America/New_York.timezone}}, {{zone:America/New_York.abbr}}, {{zone:America/New_York.offset}}
+
 Storage schema rules:
 - Use SQLite-friendly identifiers only: letters, numbers, underscores, hyphens.
 - Support only single-table CRUD patterns.
 - Do not emit SQL.
-- For rebuilds, if an existing storage schema is provided, return it exactly unchanged.`;
+- For rebuilds, if an existing storage schema is provided, return it exactly unchanged.
+- Design shared widgets like compact utility panels, not static mockups.
+- Prefer query-backed lists/tables, editable fields, and buttons that perform clear mutations.
+- Use live bindings when the UI needs current time, date, timezone, or other temporal context.`;
 
 export interface SharedGenerationResult {
   uiSpec: Spec;
