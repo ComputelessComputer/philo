@@ -59,23 +59,23 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
   const filenamePreview = applyFilenamePattern(effectivePattern, getToday(),) + ".md";
 
   const update = (partial: Partial<Settings>,) => {
-    setSettings({ ...settings, ...partial, },);
+    setSettings((current,) => current ? { ...current, ...partial, } : current);
     setSaved(false,);
   };
 
   const updateAiKey = (provider: AiProvider, value: string,) => {
     switch (provider) {
       case "anthropic":
-        update({ anthropicApiKey: value, },);
+        update({ aiProvider: provider, anthropicApiKey: value, },);
         break;
       case "openai":
-        update({ openaiApiKey: value, },);
+        update({ aiProvider: provider, openaiApiKey: value, },);
         break;
       case "google":
-        update({ googleApiKey: value, },);
+        update({ aiProvider: provider, googleApiKey: value, },);
         break;
       case "openrouter":
-        update({ openrouterApiKey: value, },);
+        update({ aiProvider: provider, openrouterApiKey: value, },);
         break;
     }
   };
