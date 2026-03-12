@@ -291,6 +291,10 @@ export default function AppLayout() {
     setAiError(null,);
   }, [],);
 
+  const toggleLibrary = useCallback(() => {
+    setLibraryOpen((prev,) => !prev);
+  }, [],);
+
   const openGlobalSearchResult = useCallback((result: GlobalSearchResult | undefined,) => {
     if (!result) return;
     openPath(result.path,).catch(console.error,);
@@ -335,7 +339,7 @@ export default function AppLayout() {
   // Listen for macOS menu bar events
   useEffect(() => {
     const unlistenSettings = listen("open-settings", () => setSettingsOpen(true,),);
-    const unlistenLibrary = listen("toggle-library", () => setLibraryOpen((prev,) => !prev),);
+    const unlistenLibrary = listen("toggle-library", toggleLibrary,);
     const unlistenGlobalSearch = listen("open-global-search", () => openGlobalSearch(),);
     const unlistenUpdate = listen("update-available", () => {
       checkForUpdate().then((info,) => {
@@ -348,7 +352,7 @@ export default function AppLayout() {
       unlistenGlobalSearch.then((fn,) => fn());
       unlistenUpdate.then((fn,) => fn());
     };
-  }, [openGlobalSearch,],);
+  }, [openGlobalSearch, toggleLibrary,],);
 
   useEffect(() => {
     const handleHotkey = (event: KeyboardEvent,) => {
@@ -364,7 +368,7 @@ export default function AppLayout() {
 
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "j") {
         event.preventDefault();
-        openAiComposer();
+        toggleLibrary();
         return;
       }
 
@@ -425,6 +429,7 @@ export default function AppLayout() {
     openAiComposer,
     openGlobalSearch,
     openGlobalSearchResult,
+    toggleLibrary,
   ],);
 
   useEffect(() => {
