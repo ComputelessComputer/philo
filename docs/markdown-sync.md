@@ -111,7 +111,7 @@ That means the md -> TipTap path is intentionally more opinionated than a raw ma
 
 That pairing is what makes the round-trip work:
 
-- Standard markdown nodes come from `StarterKit`, `TaskList`, `Image`, `Link`, `Table`, `Underline`, and `Highlight`.
+- Standard markdown nodes come from `StarterKit`, `TaskList`, `Image`, `Link`, `Table`, `UnderlineExtension`, and `Highlight`.
 - `CustomParagraph` preserves intentionally blank paragraphs.
 - `MentionChipExtension` renders chips in the editor, but serializes them as wiki links like `[[2026-03-08]]` or `[[tag_work|work]]`.
 - `ExcalidrawExtension` renders an embedded preview in the editor, but serializes back to `![[file.excalidraw]]`.
