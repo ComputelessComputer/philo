@@ -101,8 +101,29 @@ function mergeTopLevelParagraphRuns(json: JSONContent,): JSONContent {
   const content: JSONContent[] = [];
   let paragraphRun: JSONContent[] = [];
 
-  const flushParagraphRun = () => {
+  const isEmptyParagraph = (node: JSONContent,): boolean =>
+    node.type === "paragraph" && (!Array.isArray(node.content,) || node.content.length === 0);
+
+  const isListNode = (node: JSONContent,): boolean =>
+    [
+      "bulletList",
+      "orderedList",
+      "taskList",
+    ].includes(node.type as string,);
+
+  const flushParagraphRun = (nextNode?: JSONContent,): void => {
     if (paragraphRun.length === 0) return;
+    if (
+      content.length === 0
+      && paragraphRun.length === 1
+      && isEmptyParagraph(paragraphRun[0],)
+      && nextNode
+      && isListNode(nextNode,)
+    ) {
+      paragraphRun = [];
+      return;
+    }
+
     if (paragraphRun.length === 1) {
       content.push(paragraphRun[0],);
       paragraphRun = [];
@@ -136,7 +157,7 @@ function mergeTopLevelParagraphRuns(json: JSONContent,): JSONContent {
       continue;
     }
 
-    flushParagraphRun();
+    flushParagraphRun(node,);
     content.push(node,);
   }
 
