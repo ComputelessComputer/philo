@@ -426,7 +426,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
               {googleError}
             </p>
           )}
-          <div className="flex justify-end">
+          <div className="flex justify-start">
             <button
               onClick={handleConnectGoogle}
               disabled={googleBusy}
