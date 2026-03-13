@@ -2684,7 +2684,7 @@ dependencies = [
 
 [[package]]
 name = "philo"
-version = "0.0.42"
+version = "0.0.43"
 dependencies = [
  "objc",
  "regex",
