@@ -6,6 +6,7 @@ import { generateWidget, } from "../../services/generate";
 
 interface EditorBubbleMenuProps {
   editor: Editor;
+  onChatSelection: (selectedText: string,) => void;
 }
 
 /**
@@ -30,13 +31,17 @@ function updateWidgetById(editor: Editor, id: string, attrs: Record<string, unkn
   }
 }
 
-export function EditorBubbleMenu({ editor, }: EditorBubbleMenuProps,) {
+export function EditorBubbleMenu({ editor, onChatSelection, }: EditorBubbleMenuProps,) {
   const [building, setBuilding,] = useState(false,);
 
-  const handleBuild = async () => {
+  const getSelectedText = () => {
     const { from, to, } = editor.state.selection;
-    const selectedText = editor.state.doc.textBetween(from, to,);
-    if (!selectedText.trim() || building) return;
+    return editor.state.doc.textBetween(from, to,).trim();
+  };
+
+  const handleBuild = async () => {
+    const selectedText = getSelectedText();
+    if (!selectedText || building) return;
 
     setBuilding(true,);
 
@@ -100,6 +105,16 @@ export function EditorBubbleMenu({ editor, }: EditorBubbleMenuProps,) {
           {"</>"}
         </button>
         <div className="bubble-divider" />
+        <button
+          onClick={() => {
+            const selectedText = getSelectedText();
+            if (!selectedText) return;
+            onChatSelection(selectedText,);
+          }}
+          className="bubble-btn bubble-btn-chat"
+        >
+          Chat
+        </button>
         <button
           onClick={handleBuild}
           className={`bubble-btn bubble-btn-build ${building ? "bubble-btn-building" : ""}`}

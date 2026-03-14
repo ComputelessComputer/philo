@@ -411,6 +411,20 @@
   letter-spacing: 0.02em;
 }
 
+.bubble-btn-chat {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.bubble-btn-chat:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
 .bubble-btn-build:hover {
   background: linear-gradient(to bottom, #8b5cf6, #6d28d9);
   color: #ffffff;

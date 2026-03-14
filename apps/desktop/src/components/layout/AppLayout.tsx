@@ -169,7 +169,15 @@ function DateHeader({
   );
 }
 
-function LazyNote({ date, onOpenDate, }: { date: string; onOpenDate?: (date: string,) => void; },) {
+function LazyNote({
+  date,
+  onOpenDate,
+  onChatSelection,
+}: {
+  date: string;
+  onOpenDate?: (date: string,) => void;
+  onChatSelection?: (selectedText: string,) => void;
+},) {
   const [note, setNote,] = useState<DailyNote | null>(null,);
   const containerRef = useRef<HTMLDivElement>(null,);
 
@@ -204,7 +212,7 @@ function LazyNote({ date, onOpenDate, }: { date: string; onOpenDate?: (date: str
           <div className="px-6 pt-12 pb-4">
             <DateHeader date={note.date} city={note.city} onCityChange={handleCityChange} />
           </div>
-          <EditableNote note={note} onOpenDate={onOpenDate} />
+          <EditableNote note={note} onOpenDate={onOpenDate} onChatSelection={onChatSelection} />
         </>
       )}
     </div>
@@ -233,6 +241,7 @@ export default function AppLayout() {
   const [globalSearchError, setGlobalSearchError,] = useState<string | null>(null,);
   const [aiComposerOpen, setAiComposerOpen,] = useState(false,);
   const [aiPrompt, setAiPrompt,] = useState("",);
+  const [aiSelectedText, setAiSelectedText,] = useState<string | null>(null,);
   const [aiScope, setAiScope,] = useState<AssistantScope>("recent",);
   const [hasAiConfigured, setHasAiConfigured,] = useState(false,);
   const [aiRunning, setAiRunning,] = useState(false,);
@@ -283,9 +292,10 @@ export default function AppLayout() {
       .catch(console.error,);
   }, [],);
 
-  const openAiComposer = useCallback(() => {
+  const openAiComposer = useCallback((selectedText?: string,) => {
     setGlobalSearchOpen(false,);
     setAiScope("recent",);
+    setAiSelectedText(selectedText?.trim() || null,);
     setAiComposerOpen(true,);
     setAiError(null,);
     refreshAiAvailability();
@@ -294,6 +304,7 @@ export default function AppLayout() {
   const closeAiComposer = useCallback(() => {
     setAiComposerOpen(false,);
     setAiError(null,);
+    setAiSelectedText(null,);
   }, [],);
 
   const toggleLibrary = useCallback(() => {
@@ -610,6 +621,7 @@ export default function AppLayout() {
       const recentNotes = aiScope === "recent" ? await loadPastNotes(14,) : [];
       const result = await runAssistant({
         prompt: normalizedPrompt,
+        selectedText: aiSelectedText,
         scope: aiScope,
         context: {
           today: todayNoteValue,
@@ -634,7 +646,7 @@ export default function AppLayout() {
       }
       setAiRunning(false,);
     }
-  }, [aiRunning, aiScope,],);
+  }, [aiRunning, aiScope, aiSelectedText,],);
 
   const handleAiSubmit = useCallback(async () => {
     await runAiPrompt(aiPrompt,);
@@ -914,6 +926,7 @@ export default function AppLayout() {
                     note={todayNote}
                     onOpenDate={scrollToDate}
                     onSave={handleTodaySave}
+                    onChatSelection={openAiComposer}
                   />
                 )}
               </div>
@@ -921,7 +934,7 @@ export default function AppLayout() {
               {pastDates.map((date,) => (
                 <div key={`${date}-${storageRevision}`} data-note-date={date}>
                   <div className="mx-6 border-t border-gray-200 dark:border-gray-700" />
-                  <LazyNote date={date} onOpenDate={scrollToDate} />
+                  <LazyNote date={date} onOpenDate={scrollToDate} onChatSelection={openAiComposer} />
                 </div>
               ))}
             </div>
@@ -944,6 +957,7 @@ export default function AppLayout() {
       <AiComposer
         open={aiComposerOpen}
         prompt={aiPrompt}
+        selectedText={aiSelectedText}
         answer={aiResult?.answer ?? null}
         citations={aiResult?.citations ?? []}
         pendingChanges={aiResult?.pendingChanges ?? []}

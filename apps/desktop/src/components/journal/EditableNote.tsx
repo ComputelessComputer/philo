@@ -40,6 +40,7 @@ interface EditableNoteProps {
   placeholder?: string;
   onSave?: (note: DailyNote,) => void;
   onOpenDate?: (date: string,) => void;
+  onChatSelection?: (selectedText: string,) => void;
 }
 
 const IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp",];
@@ -84,7 +85,7 @@ function moveSelectedNode(view: import("@tiptap/pm/view").EditorView, direction:
 }
 
 const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
-  function EditableNote({ note, placeholder = "Start writing...", onSave, onOpenDate, }, ref,) {
+  function EditableNote({ note, placeholder = "Start writing...", onSave, onOpenDate, onChatSelection, }, ref,) {
     const noteRef = useRef(note,);
     noteRef.current = note;
 
@@ -289,7 +290,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
 
     return (
       <>
-        {editor && <EditorBubbleMenu editor={editor} />}
+        {editor && onChatSelection && <EditorBubbleMenu editor={editor} onChatSelection={onChatSelection} />}
         <EditorContent editor={editor} />
       </>
     );

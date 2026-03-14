@@ -6,6 +6,7 @@ import { AiResultPanel, } from "./AiResultPanel";
 interface AiComposerProps {
   open: boolean;
   prompt: string;
+  selectedText: string | null;
   answer: string | null;
   citations: AssistantCitation[];
   pendingChanges: AssistantPendingChange[];
@@ -27,6 +28,7 @@ interface AiComposerProps {
 export function AiComposer({
   open,
   prompt,
+  selectedText,
   answer,
   citations,
   pendingChanges,
@@ -45,6 +47,7 @@ export function AiComposer({
 }: AiComposerProps,) {
   const inputRef = useRef<HTMLInputElement>(null,);
   const hasResult = Boolean(answer,) || citations.length > 0 || pendingChanges.length > 0;
+  const selectedLabel = selectedText ? formatSelectedLabel(selectedText,) : null;
 
   useEffect(() => {
     if (!open || !hasAiConfigured) return;
@@ -93,6 +96,7 @@ export function AiComposer({
               )}
 
               <div className="space-y-2 px-4 py-3">
+                {selectedLabel && <div className="px-1 text-sm text-slate-500">{selectedLabel}</div>}
                 <form
                   className="flex items-center gap-3"
                   onSubmit={(event,) => {
@@ -143,4 +147,11 @@ export function AiComposer({
       </div>
     </div>
   );
+}
+
+function formatSelectedLabel(selectedText: string,) {
+  const normalized = selectedText.replace(/\s+/g, " ",).trim();
+  if (!normalized) return null;
+  const preview = normalized.length > 72 ? `${normalized.slice(0, 69,)}...` : normalized;
+  return `"${preview}" selected`;
 }

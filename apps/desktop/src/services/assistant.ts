@@ -16,6 +16,7 @@ interface AssistantContext {
 
 interface AssistantRequest {
   prompt: string;
+  selectedText?: string | null;
   scope: AssistantScope;
   context: AssistantContext;
 }
@@ -143,6 +144,7 @@ Current local date context:
 Rules:
 - Use tools instead of guessing.
 - The currently open note is already included in the request as \`openNoteSnapshot\`. Treat it as accessible source material.
+- If \`selectedText\` is present in the request, treat it as the user's current focus.
 - For information requests, search first and only read the most relevant notes.
 - Read at most 5 notes unless the user explicitly names dates.
 - Cite note dates in your final answer when making claims.
@@ -171,6 +173,7 @@ function buildInitialUserMessage(
       text: JSON.stringify(
         {
           prompt: request.prompt,
+          selectedText: request.selectedText?.trim() || null,
           scope: request.scope,
           temporalContext: temporal,
           openNoteSnapshot: {
