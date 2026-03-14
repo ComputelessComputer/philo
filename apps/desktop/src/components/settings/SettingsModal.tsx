@@ -6,7 +6,13 @@ import claudeAiSymbol from "../../assets/claude-ai-symbol.svg";
 import googleGeminiIcon from "../../assets/google-gemini-icon.svg";
 import openaiSymbol from "../../assets/openai-symbol.svg";
 import openrouterIcon from "../../assets/openrouter.svg";
-import { connectGoogleAccount, } from "../../services/google";
+import {
+  connectGoogleAccount,
+  GOOGLE_ACCOUNT_SCOPES,
+  GOOGLE_CALENDAR_SCOPE,
+  GOOGLE_GMAIL_SCOPE,
+  isGoogleAccountConnected,
+} from "../../services/google";
 import { detectObsidianFolders, } from "../../services/obsidian";
 import { applyFilenamePattern, getJournalDir, initJournalScope, resetJournalDir, } from "../../services/paths";
 import {
@@ -44,6 +50,14 @@ const AI_PROVIDER_ICONS: Record<AiProvider, string> = {
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace", };
 const googleButtonText = { fontFamily: "'Roboto', 'IBM Plex Sans', sans-serif", };
+const GOOGLE_OAUTH_CLIENT_ID_PLACEHOLDER = "1234567890-abc123.apps.googleusercontent.com";
+const GOOGLE_SCOPE_LABELS: Record<string, string> = {
+  openid: "OpenID",
+  email: "Email address",
+  profile: "Basic profile",
+  [GOOGLE_CALENDAR_SCOPE]: "Google Calendar (read-only)",
+  [GOOGLE_GMAIL_SCOPE]: "Gmail (read-only)",
+};
 const filenameTokenChip =
   "inline-flex items-center rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] text-gray-600";
 const FILENAME_TOKEN_REGEX = /(\{YYYY\}|\{MM\}|\{DD\})/g;
@@ -132,6 +146,10 @@ function FilenamePatternFieldValue({ value, muted = false, }: { value: string; m
   );
 }
 
+function getGoogleScopeLabel(scope: string,) {
+  return GOOGLE_SCOPE_LABELS[scope] ?? scope;
+}
+
 export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
   const [settings, setSettings,] = useState<Settings | null>(null,);
   const [saveState, setSaveState,] = useState<"idle" | "saving" | "error">("idle",);
@@ -198,6 +216,9 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
 
   const effectivePattern = settings.filenamePattern || DEFAULT_FILENAME_PATTERN;
   const filenamePreview = applyFilenamePattern(effectivePattern, getToday(),) + ".md";
+  const googleConnected = isGoogleAccountConnected(settings,);
+  const hasGoogleClientId = !!settings.googleOAuthClientId.trim();
+  const googleScopes = googleConnected ? settings.googleGrantedScopes : [...GOOGLE_ACCOUNT_SCOPES,];
 
   const buildPersistedSettings = async (current: Settings,) => {
     const normalizedVault = current.vaultDir.trim();
@@ -224,13 +245,13 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
     };
   };
 
-  const buildGooglePatch = (partial: Partial<Settings>,) => ({
-    googleOAuthClientId: (partial.googleOAuthClientId ?? settings.googleOAuthClientId).trim(),
-    googleAccountEmail: partial.googleAccountEmail ?? settings.googleAccountEmail,
-    googleAccessToken: partial.googleAccessToken ?? settings.googleAccessToken,
-    googleRefreshToken: partial.googleRefreshToken ?? settings.googleRefreshToken,
-    googleAccessTokenExpiresAt: partial.googleAccessTokenExpiresAt ?? settings.googleAccessTokenExpiresAt,
-    googleGrantedScopes: partial.googleGrantedScopes ?? settings.googleGrantedScopes,
+  const buildGooglePatch = (current: Settings, partial: Partial<Settings>,) => ({
+    googleOAuthClientId: (partial.googleOAuthClientId ?? current.googleOAuthClientId).trim(),
+    googleAccountEmail: partial.googleAccountEmail ?? current.googleAccountEmail,
+    googleAccessToken: partial.googleAccessToken ?? current.googleAccessToken,
+    googleRefreshToken: partial.googleRefreshToken ?? current.googleRefreshToken,
+    googleAccessTokenExpiresAt: partial.googleAccessTokenExpiresAt ?? current.googleAccessTokenExpiresAt,
+    googleGrantedScopes: partial.googleGrantedScopes ?? current.googleGrantedScopes,
   });
 
   const persistSettingsNow = async (nextSettings: Settings,) => {
@@ -291,13 +312,15 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
   };
 
   const persistGooglePatch = async (partial: Partial<Settings>,) => {
-    const googlePatch = buildGooglePatch(partial,);
+    const currentDraft = settingsRef.current ?? settings;
+    const googlePatch = buildGooglePatch(currentDraft, partial,);
     const persisted = await loadSettings();
-    const nextSettings = { ...persisted, ...googlePatch, };
-    await saveSettings(nextSettings,);
-    settingsRef.current = nextSettings;
-    lastSavedSettingsRef.current = nextSettings;
-    setSettings(nextSettings,);
+    const savedSettings = { ...persisted, ...googlePatch, };
+    await saveSettings(savedSettings,);
+    const nextDraft = { ...currentDraft, ...googlePatch, };
+    settingsRef.current = nextDraft;
+    lastSavedSettingsRef.current = savedSettings;
+    setSettings(nextDraft,);
     setSaveState("idle",);
   };
 
@@ -335,7 +358,9 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
     setGoogleBusy(true,);
     setGoogleError("",);
     try {
-      const googlePatch = await connectGoogleAccount(settings,);
+      const currentSettings = settingsRef.current;
+      if (!currentSettings) return;
+      const googlePatch = await connectGoogleAccount(currentSettings,);
       await persistGooglePatch(googlePatch,);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to connect Google account.";
@@ -343,6 +368,47 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
     } finally {
       setGoogleBusy(false,);
     }
+  };
+
+  const handleDisconnectGoogle = async () => {
+    setGoogleBusy(true,);
+    setGoogleError("",);
+    try {
+      await persistGooglePatch({
+        googleAccountEmail: "",
+        googleAccessToken: "",
+        googleRefreshToken: "",
+        googleAccessTokenExpiresAt: "",
+        googleGrantedScopes: [],
+      },);
+    } finally {
+      setGoogleBusy(false,);
+    }
+  };
+
+  const handleGoogleClientIdChange = (value: string,) => {
+    const nextClientId = value.trim();
+    const currentClientId = settings.googleOAuthClientId.trim();
+    const shouldResetConnection = nextClientId !== currentClientId
+      && (
+        !!settings.googleAccountEmail.trim()
+        || !!settings.googleAccessToken.trim()
+        || !!settings.googleRefreshToken.trim()
+      );
+
+    setGoogleError("",);
+    update(
+      shouldResetConnection
+        ? {
+          googleOAuthClientId: value,
+          googleAccountEmail: "",
+          googleAccessToken: "",
+          googleRefreshToken: "",
+          googleAccessTokenExpiresAt: "",
+          googleGrantedScopes: [],
+        }
+        : { googleOAuthClientId: value, },
+    );
   };
 
   const detectFromVault = async (vaultDir: string,) => {
@@ -554,15 +620,52 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
           <label className="block text-sm text-gray-600" style={mono}>
             Google Account
           </label>
+          <p className="text-xs text-gray-400" style={mono}>
+            Create a Google Cloud OAuth client as a desktop app, paste the client ID here, then connect.
+          </p>
+          <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs text-gray-500" style={mono}>
+                Status
+              </span>
+              <span
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] ${
+                  googleConnected
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-gray-200 text-gray-600"
+                }`}
+                style={mono}
+              >
+                {googleConnected ? "Connected" : "Not connected"}
+              </span>
+            </div>
+            <p className="mt-2 text-sm text-gray-700 break-all" style={mono}>
+              {googleConnected ? settings.googleAccountEmail : "No Google account connected yet."}
+            </p>
+          </div>
+          <label className="block text-sm text-gray-600" style={mono}>
+            OAuth Client ID
+          </label>
+          <input
+            type="text"
+            value={settings.googleOAuthClientId}
+            onChange={(e,) => handleGoogleClientIdChange(e.target.value,)}
+            placeholder={GOOGLE_OAUTH_CLIENT_ID_PLACEHOLDER}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+            style={mono}
+          />
+          <p className="text-xs text-gray-400" style={mono}>
+            Changing the client ID clears the saved Google session so you can reconnect cleanly.
+          </p>
           {googleError && (
             <p className="text-xs text-red-600" style={mono}>
               {googleError}
             </p>
           )}
-          <div className="flex justify-start">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleConnectGoogle}
-              disabled={googleBusy}
+              disabled={googleBusy || !hasGoogleClientId}
               className="inline-flex min-h-10 items-center gap-3 rounded-full border px-3 pr-4 text-[14px] leading-5 font-medium text-[#1f1f1f] transition-colors cursor-pointer hover:bg-[#e8eaed] focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/20 disabled:cursor-default disabled:opacity-60"
               style={{
                 ...googleButtonText,
@@ -571,8 +674,39 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
               }}
             >
               <GoogleMark />
-              <span>{googleBusy ? "Waiting for Google..." : "Continue with Google"}</span>
+              <span>
+                {googleBusy
+                  ? "Waiting for Google..."
+                  : googleConnected
+                  ? "Reconnect Google"
+                  : "Continue with Google"}
+              </span>
             </button>
+            {googleConnected && (
+              <button
+                onClick={handleDisconnectGoogle}
+                disabled={googleBusy}
+                className="inline-flex min-h-10 items-center rounded-full border border-gray-200 bg-white px-4 text-sm text-gray-600 transition-colors cursor-pointer hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-300/40 disabled:cursor-default disabled:opacity-60"
+                style={mono}
+              >
+                Disconnect
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {googleScopes.map((scope,) => (
+              <span
+                key={scope}
+                className={`inline-flex rounded-full border px-2 py-1 text-[11px] ${
+                  googleConnected
+                    ? "border-violet-200 bg-violet-50 text-violet-700"
+                    : "border-gray-200 bg-gray-50 text-gray-500"
+                }`}
+                style={mono}
+              >
+                {getGoogleScopeLabel(scope,)}
+              </span>
+            ))}
           </div>
         </div>
 
