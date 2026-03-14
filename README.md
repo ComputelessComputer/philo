@@ -50,6 +50,24 @@ Generated widgets start disposable. When one proves useful, save it to the libra
 
 Tauri v2, React 19, TypeScript, TipTap, Tailwind CSS v4, and Rust.
 
+## Google Account Setup
+
+Philo's `Settings -> Google Account` flow expects a Google OAuth client for an installed desktop app.
+
+1. In Google Cloud, enable the Gmail API and Google Calendar API for your project.
+2. Configure the OAuth consent screen in `Google Auth platform`.
+3. Create an OAuth client with `Application type -> Desktop app`.
+4. Copy the generated client ID into Philo's `OAuth Client ID` field.
+5. Click `Continue with Google` in settings and complete consent in your browser.
+
+Philo currently requests:
+
+- `openid`, `email`, and `profile`
+- `https://www.googleapis.com/auth/calendar.readonly`
+- `https://www.googleapis.com/auth/gmail.readonly`
+
+If your OAuth consent screen is still in testing and your audience is external, add your Google account as a test user before signing in. Gmail read-only is a restricted scope, so a public rollout may require Google verification.
+
 ## Internal docs
 
 - [Data storage and configuration](docs/data-storage-and-configuration.md)

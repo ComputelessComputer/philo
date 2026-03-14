@@ -35,7 +35,17 @@ The shape comes from `apps/desktop/src/services/settings.ts`:
 
 ```json
 {
+  "aiProvider": "anthropic",
   "anthropicApiKey": "",
+  "openaiApiKey": "",
+  "googleApiKey": "",
+  "openrouterApiKey": "",
+  "googleOAuthClientId": "",
+  "googleAccountEmail": "",
+  "googleAccessToken": "",
+  "googleRefreshToken": "",
+  "googleAccessTokenExpiresAt": "",
+  "googleGrantedScopes": [],
   "journalDir": "",
   "filenamePattern": "",
   "vaultDir": "",
@@ -48,9 +58,29 @@ The shape comes from `apps/desktop/src/services/settings.ts`:
 
 What each field means:
 
+- `aiProvider`
+  - The currently selected AI provider in settings.
 - `anthropicApiKey`
   - API key used by the AI/widget generation features.
   - Stored locally as plain JSON in `settings.json`.
+- `openaiApiKey`
+  - OpenAI API key used when OpenAI is the active provider.
+- `googleApiKey`
+  - Google AI Studio / Gemini API key used when Google is the active provider.
+- `openrouterApiKey`
+  - OpenRouter API key used when OpenRouter is the active provider.
+- `googleOAuthClientId`
+  - Google OAuth desktop client ID used by the `Continue with Google` flow in settings.
+- `googleAccountEmail`
+  - Email address of the currently connected Google account.
+- `googleAccessToken`
+  - Cached Google OAuth access token for Gmail and Calendar reads.
+- `googleRefreshToken`
+  - Refresh token used to rotate the Google access token without reconnecting.
+- `googleAccessTokenExpiresAt`
+  - Expiration timestamp for the cached Google access token.
+- `googleGrantedScopes`
+  - OAuth scopes currently granted to Philo for the connected Google account.
 - `journalDir`
   - The currently resolved root directory for daily notes.
   - When a vault is configured, this is usually `<vaultDir>/<dailyLogsFolder>`.
