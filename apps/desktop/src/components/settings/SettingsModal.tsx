@@ -50,7 +50,6 @@ const AI_PROVIDER_ICONS: Record<AiProvider, string> = {
 
 const mono = { fontFamily: "'IBM Plex Mono', monospace", };
 const googleButtonText = { fontFamily: "'Roboto', 'IBM Plex Sans', sans-serif", };
-const GOOGLE_OAUTH_CLIENT_ID_PLACEHOLDER = "1234567890-abc123.apps.googleusercontent.com";
 const GOOGLE_SCOPE_LABELS: Record<string, string> = {
   openid: "OpenID",
   email: "Email address",
@@ -217,7 +216,6 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
   const effectivePattern = settings.filenamePattern || DEFAULT_FILENAME_PATTERN;
   const filenamePreview = applyFilenamePattern(effectivePattern, getToday(),) + ".md";
   const googleConnected = isGoogleAccountConnected(settings,);
-  const hasGoogleClientId = !!settings.googleOAuthClientId.trim();
   const googleScopes = googleConnected ? settings.googleGrantedScopes : [...GOOGLE_ACCOUNT_SCOPES,];
 
   const buildPersistedSettings = async (current: Settings,) => {
@@ -384,31 +382,6 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
     } finally {
       setGoogleBusy(false,);
     }
-  };
-
-  const handleGoogleClientIdChange = (value: string,) => {
-    const nextClientId = value.trim();
-    const currentClientId = settings.googleOAuthClientId.trim();
-    const shouldResetConnection = nextClientId !== currentClientId
-      && (
-        !!settings.googleAccountEmail.trim()
-        || !!settings.googleAccessToken.trim()
-        || !!settings.googleRefreshToken.trim()
-      );
-
-    setGoogleError("",);
-    update(
-      shouldResetConnection
-        ? {
-          googleOAuthClientId: value,
-          googleAccountEmail: "",
-          googleAccessToken: "",
-          googleRefreshToken: "",
-          googleAccessTokenExpiresAt: "",
-          googleGrantedScopes: [],
-        }
-        : { googleOAuthClientId: value, },
-    );
   };
 
   const detectFromVault = async (vaultDir: string,) => {
@@ -621,7 +594,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
             Google Account
           </label>
           <p className="text-xs text-gray-400" style={mono}>
-            Create a Google Cloud OAuth client as a desktop app, paste the client ID here, then connect.
+            Philo uses a built-in desktop OAuth client. Connect your Google account in the browser when needed.
           </p>
           <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-3">
             <div className="flex flex-wrap items-center gap-2">
@@ -643,20 +616,6 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
               {googleConnected ? settings.googleAccountEmail : "No Google account connected yet."}
             </p>
           </div>
-          <label className="block text-sm text-gray-600" style={mono}>
-            OAuth Client ID
-          </label>
-          <input
-            type="text"
-            value={settings.googleOAuthClientId}
-            onChange={(e,) => handleGoogleClientIdChange(e.target.value,)}
-            placeholder={GOOGLE_OAUTH_CLIENT_ID_PLACEHOLDER}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
-            style={mono}
-          />
-          <p className="text-xs text-gray-400" style={mono}>
-            Changing the client ID clears the saved Google session so you can reconnect cleanly.
-          </p>
           {googleError && (
             <p className="text-xs text-red-600" style={mono}>
               {googleError}
@@ -665,7 +624,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
           <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={handleConnectGoogle}
-              disabled={googleBusy || !hasGoogleClientId}
+              disabled={googleBusy}
               className="inline-flex min-h-10 items-center gap-3 rounded-full border px-3 pr-4 text-[14px] leading-5 font-medium text-[#1f1f1f] transition-colors cursor-pointer hover:bg-[#e8eaed] focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/20 disabled:cursor-default disabled:opacity-60"
               style={{
                 ...googleButtonText,

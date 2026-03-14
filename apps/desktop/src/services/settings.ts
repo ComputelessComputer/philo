@@ -35,6 +35,8 @@ export interface ActiveAiConfig {
 }
 
 export const DEFAULT_FILENAME_PATTERN = "{YYYY}-{MM}-{DD}";
+export const DEFAULT_GOOGLE_OAUTH_CLIENT_ID =
+  "426453142223-dnbr4440defc5ms857fhmd715v4fe68n.apps.googleusercontent.com";
 
 const DEFAULT_SETTINGS: Settings = {
   aiProvider: DEFAULT_AI_PROVIDER,
@@ -42,7 +44,7 @@ const DEFAULT_SETTINGS: Settings = {
   openaiApiKey: "",
   googleApiKey: "",
   openrouterApiKey: "",
-  googleOAuthClientId: "",
+  googleOAuthClientId: DEFAULT_GOOGLE_OAUTH_CLIENT_ID,
   googleAccountEmail: "",
   googleAccessToken: "",
   googleRefreshToken: "",
@@ -66,6 +68,10 @@ function normalizeAiProvider(value: unknown,): AiProvider {
 function normalizeGoogleGrantedScopes(value: unknown,) {
   if (!Array.isArray(value,)) return [];
   return value.filter((entry,): entry is string => typeof entry === "string" && entry.trim().length > 0);
+}
+
+function normalizeGoogleOAuthClientId(_value: unknown,) {
+  return DEFAULT_GOOGLE_OAUTH_CLIENT_ID;
 }
 
 export function getAiProviderLabel(provider: AiProvider,) {
@@ -122,6 +128,7 @@ export async function loadSettings(): Promise<Settings> {
       ...DEFAULT_SETTINGS,
       ...parsed,
       aiProvider: normalizeAiProvider(parsed.aiProvider,),
+      googleOAuthClientId: normalizeGoogleOAuthClientId(parsed.googleOAuthClientId,),
       googleGrantedScopes: normalizeGoogleGrantedScopes(parsed.googleGrantedScopes,),
     };
   } catch {
@@ -136,7 +143,17 @@ export async function saveSettings(settings: Settings,): Promise<void> {
     await mkdir(base, { recursive: true, },);
   }
   const path = await join(base, SETTINGS_FILE,);
-  await writeTextFile(path, JSON.stringify(settings, null, 2,),);
+  await writeTextFile(
+    path,
+    JSON.stringify(
+      {
+        ...settings,
+        googleOAuthClientId: DEFAULT_GOOGLE_OAUTH_CLIENT_ID,
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 export async function getApiKey(): Promise<string> {

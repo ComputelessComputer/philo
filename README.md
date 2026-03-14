@@ -52,13 +52,13 @@ Tauri v2, React 19, TypeScript, TipTap, Tailwind CSS v4, and Rust.
 
 ## Google Account Setup
 
-Philo's `Settings -> Google Account` flow expects a Google OAuth client for an installed desktop app.
+Philo's `Settings -> Google Account` flow uses Philo's bundled desktop OAuth client. End users only need to click `Continue with Google` in settings and complete consent in their browser.
 
-1. In Google Cloud, enable the Gmail API and Google Calendar API for your project.
-2. Configure the OAuth consent screen in `Google Auth platform`.
-3. Create an OAuth client with `Application type -> Desktop app`.
-4. Copy the generated client ID into Philo's `OAuth Client ID` field.
-5. Click `Continue with Google` in settings and complete consent in your browser.
+If you are maintaining Philo's Google Cloud project, make sure:
+
+1. The Gmail API and Google Calendar API are enabled.
+2. The OAuth consent screen is configured in `Google Auth platform`.
+3. The bundled desktop OAuth client remains active on the project.
 
 Philo currently requests:
 

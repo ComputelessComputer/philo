@@ -70,7 +70,7 @@ What each field means:
 - `openrouterApiKey`
   - OpenRouter API key used when OpenRouter is the active provider.
 - `googleOAuthClientId`
-  - Google OAuth desktop client ID used by the `Continue with Google` flow in settings.
+  - Bundled Google OAuth desktop client ID used by the `Continue with Google` flow in settings.
 - `googleAccountEmail`
   - Email address of the currently connected Google account.
 - `googleAccessToken`
