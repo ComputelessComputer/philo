@@ -2,7 +2,7 @@ import { Extension, } from "@tiptap/core";
 import { Plugin, PluginKey, } from "@tiptap/pm/state";
 import { Decoration, DecorationSet, } from "@tiptap/pm/view";
 
-const HASHTAG_RE = /(?:#|@)[a-zA-Z]\w*/g;
+const HASHTAG_RE = /(^|[\s([{])([#@][a-zA-Z]\w*)\b/g;
 
 export const HashtagExtension = Extension.create({
   name: "hashtag",
@@ -24,8 +24,11 @@ export const HashtagExtension = Extension.create({
               HASHTAG_RE.lastIndex = 0;
               let match;
               while ((match = HASHTAG_RE.exec(text,)) !== null) {
+                const prefix = match[1] ?? "";
+                const token = match[2] ?? "";
+                const start = pos + match.index + prefix.length;
                 decorations.push(
-                  Decoration.inline(pos + match.index, pos + match.index + match[0].length, {
+                  Decoration.inline(start, start + token.length, {
                     class: "hashtag",
                   },),
                 );

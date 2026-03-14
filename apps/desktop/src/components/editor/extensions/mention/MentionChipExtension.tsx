@@ -268,6 +268,7 @@ export function buildMentionChipSuggestion(referenceDate?: string,): Omit<Sugges
   return {
     char: "@",
     allowSpaces: true,
+    allowedPrefixes: [" ", "(", "[", "{",],
     pluginKey: new PluginKey("mention-chip-suggestion",),
     items: ({ query, },) => getMentionSuggestions(query, referenceDate,),
     command: ({ editor, range, props, },) => {
