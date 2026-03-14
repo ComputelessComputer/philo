@@ -1,30 +1,19 @@
 ---
-import { getCollection, render, } from "astro:content";
-
-export async function getStaticPaths() {
-  const posts = await getCollection("blog",);
-  return posts.map((post,) => ({
-    params: { slug: post.slug, },
-    props: { post, },
-  }));
+interface Props {
+  title: string;
+  description: string;
+  effectiveDate: string;
 }
 
-const { post, } = Astro.props;
-const { Content, } = await render(post,);
-
-const publishedLabel = post.data.publishedAt.toLocaleDateString("en-US", {
-  year: "numeric",
-  month: "short",
-  day: "numeric",
-},);
+const { title, description, effectiveDate, } = Astro.props;
 ---
 
 <html lang="en">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>{post.data.title} | Philo</title>
-    <meta name="description" content={post.data.summary} />
+    <title>{title} | Philo</title>
+    <meta name="description" content={description} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -35,16 +24,16 @@ const publishedLabel = post.data.publishedAt.toLocaleDateString("en-US", {
   <body>
     <div class="ambient"></div>
     <main class="shell">
-      <header class="post-header">
+      <header class="page-header">
         <a class="back-link" href="/">← Back to Philo</a>
-        <p class="label">Notes from the team</p>
-        <h1>{post.data.title}</h1>
-        <p class="meta">{publishedLabel}</p>
-        <p class="summary">{post.data.summary}</p>
+        <p class="label">Legal</p>
+        <h1>{title}</h1>
+        <p class="summary">{description}</p>
+        <p class="meta">Effective date: {effectiveDate}</p>
       </header>
 
-      <article class="post-content">
-        <Content />
+      <article class="content">
+        <slot />
       </article>
 
       <footer class="footer">
@@ -101,9 +90,14 @@ const publishedLabel = post.data.publishedAt.toLocaleDateString("en-US", {
 
   .shell {
     position: relative;
-    width: min(100%, 720px);
+    width: min(100%, 760px);
     margin: 0 auto;
     padding: 56px 24px 88px;
+  }
+
+  .page-header {
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 18px;
   }
 
   .back-link {
@@ -117,11 +111,6 @@ const publishedLabel = post.data.publishedAt.toLocaleDateString("en-US", {
 
   .back-link:hover {
     text-decoration: underline;
-  }
-
-  .post-header {
-    border-bottom: 1px solid var(--line);
-    padding-bottom: 18px;
   }
 
   .label {
@@ -140,24 +129,24 @@ const publishedLabel = post.data.publishedAt.toLocaleDateString("en-US", {
     line-height: 1.6;
   }
 
-  .meta {
-    margin: 8px 0 0;
-    color: #6b6b66;
-    font-size: var(--fs-sm);
-  }
-
   .summary {
     margin: 10px 0 0;
     color: #3f3f3d;
     font-size: var(--fs-md);
   }
 
-  .post-content {
+  .meta {
+    margin: 8px 0 0;
+    color: #6b6b66;
+    font-size: var(--fs-sm);
+  }
+
+  .content {
     margin-top: 22px;
     color: var(--muted);
   }
 
-  .post-content :global(h2) {
+  .content :global(h2) {
     margin: 24px 0 6px;
     color: var(--text);
     font-size: var(--fs-md);
@@ -166,40 +155,51 @@ const publishedLabel = post.data.publishedAt.toLocaleDateString("en-US", {
     text-transform: uppercase;
   }
 
-  .post-content :global(p) {
+  .content :global(p) {
     margin: 10px 0;
     color: var(--muted);
     font-size: var(--fs-md);
     line-height: 1.7;
   }
 
-  .post-content :global(ul),
-  .post-content :global(ol) {
+  .content :global(ul),
+  .content :global(ol) {
     margin: 10px 0;
     padding-left: 18px;
   }
 
-  .post-content :global(ol) {
+  .content :global(ol) {
     list-style: none;
     counter-reset: ol-counter;
     padding-left: 0;
   }
 
-  .post-content :global(ol) > :global(li) {
+  .content :global(ol) > :global(li) {
     counter-increment: ol-counter;
   }
 
-  .post-content :global(ol) > :global(li)::before {
+  .content :global(ol) > :global(li)::before {
     content: counter(ol-counter) ".\00a0";
   }
 
-  .post-content :global(li) {
+  .content :global(li) {
     margin: 6px 0;
     font-size: var(--fs-md);
     color: var(--muted);
   }
 
-  .post-content :global(code) {
+  .content :global(a),
+  .footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+
+  .content :global(a:hover),
+  .footer a:hover {
+    text-decoration: underline;
+  }
+
+  .content :global(code) {
     background: color-mix(in srgb, var(--bg-soft) 80%, #ffffff);
     border: 1px solid var(--line);
     padding: 1px 4px;
@@ -216,15 +216,6 @@ const publishedLabel = post.data.publishedAt.toLocaleDateString("en-US", {
     display: flex;
     flex-wrap: wrap;
     gap: 16px;
-  }
-
-  .footer a {
-    color: var(--accent);
-    text-decoration: none;
-  }
-
-  .footer a:hover {
-    text-decoration: underline;
   }
 
   @media (max-width: 720px) {
