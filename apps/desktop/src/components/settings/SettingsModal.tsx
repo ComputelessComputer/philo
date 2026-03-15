@@ -576,7 +576,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
             Google Account
           </label>
           <p className="text-xs text-gray-400" style={mono}>
-            Philo uses a built-in desktop OAuth client. Connect your Google account in the browser when needed.
+            Connect Google so Philo can pull in important unread emails and relevant calendar events as task candidates.
           </p>
           <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-3">
             <div className="flex flex-wrap items-center gap-2">
