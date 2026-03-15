@@ -259,6 +259,7 @@ export default function AppLayout() {
   const [aiApplyingDates, setAiApplyingDates,] = useState<string[]>([],);
   const aiAbortControllerRef = useRef<AbortController | null>(null,);
   const aiSelectionEditorRef = useRef<TiptapEditor | null>(null,);
+  const preserveAiSelectionOnOpenRef = useRef(false,);
   const aiLastSubmittedPromptRef = useRef("",);
   const todayNoteRef = useRef<DailyNote | null>(null,);
   const suppressWatcherUntilRef = useRef(0,);
@@ -303,15 +304,18 @@ export default function AppLayout() {
   }, [],);
 
   const openAiComposer = useCallback((selectedText?: string,) => {
+    const nextSelectedText = selectedText?.trim() || currentEditorSelection || null;
+    preserveAiSelectionOnOpenRef.current = Boolean(nextSelectedText,);
     setGlobalSearchOpen(false,);
     setAiScope("recent",);
-    setAiSelectedText(selectedText?.trim() || currentEditorSelection || null,);
+    setAiSelectedText(nextSelectedText,);
     setAiComposerOpen(true,);
     setAiError(null,);
     refreshAiAvailability();
   }, [currentEditorSelection, refreshAiAvailability,],);
 
   const closeAiComposer = useCallback(() => {
+    preserveAiSelectionOnOpenRef.current = false;
     setAiComposerOpen(false,);
     setAiError(null,);
     setAiSelectedText(null,);
@@ -320,6 +324,11 @@ export default function AppLayout() {
   const handleAiSelectionChange = useCallback((editor: TiptapEditor, selectedText: string | null,) => {
     aiSelectionEditorRef.current = editor;
     setCurrentEditorSelection(selectedText,);
+    if (selectedText === null && preserveAiSelectionOnOpenRef.current) {
+      preserveAiSelectionOnOpenRef.current = false;
+      return;
+    }
+    preserveAiSelectionOnOpenRef.current = false;
     if (aiComposerOpen) {
       setAiSelectedText(selectedText,);
     }
