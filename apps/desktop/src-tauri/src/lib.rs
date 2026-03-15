@@ -4,6 +4,8 @@ extern crate objc;
 
 pub mod philo_tools;
 
+use keyring::{Entry as KeyringEntry, Error as KeyringError};
+use reqwest::blocking::{Client as HttpClient, Response as HttpResponse};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -22,6 +24,12 @@ use tauri_plugin_fs::FsExt;
 use tauri_plugin_updater::UpdaterExt;
 
 const GOOGLE_OAUTH_DEFAULT_TIMEOUT_MS: u64 = 180_000;
+const GOOGLE_OAUTH_ACCESS_TOKEN_BUFFER_MS: u64 = 60_000;
+const GOOGLE_OAUTH_TOKEN_URL: &str = "https://oauth2.googleapis.com/token";
+const GOOGLE_OAUTH_USERINFO_URL: &str = "https://openidconnect.googleapis.com/v1/userinfo";
+const GOOGLE_OAUTH_KEYRING_SERVICE: &str = "com.johnjeong.philo.google-oauth";
+const GOOGLE_OAUTH_KEYRING_SERVICE_DEV: &str = "com.johnjeong.philo.dev.google-oauth";
+const GOOGLE_OAUTH_KEYRING_ACCOUNT: &str = "session";
 
 #[derive(Default)]
 struct GoogleOAuthState {
@@ -41,6 +49,73 @@ struct GoogleOAuthCallbackPayload {
     code: Option<String>,
     state: Option<String>,
     error: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GoogleOAuthLegacySessionInput {
+    #[serde(default)]
+    access_token: String,
+    access_token_expires_at_ms: u64,
+    refresh_token: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GoogleCompleteOAuthInput {
+    client_id: String,
+    code: String,
+    code_verifier: String,
+    #[serde(default)]
+    legacy_session: Option<GoogleOAuthLegacySessionInput>,
+    redirect_uri: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GoogleEnsureAccessTokenInput {
+    client_id: String,
+    #[serde(default)]
+    granted_scopes: Vec<String>,
+    #[serde(default)]
+    legacy_session: Option<GoogleOAuthLegacySessionInput>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GoogleStoredSession {
+    access_token: String,
+    access_token_expires_at_ms: u64,
+    refresh_token: String,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct GoogleTokenResponse {
+    access_token: Option<String>,
+    expires_in: Option<u64>,
+    refresh_token: Option<String>,
+    scope: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct GoogleUserInfoResponse {
+    email: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GoogleOAuthConnectionResult {
+    access_token_expires_at_ms: u64,
+    account_email: String,
+    granted_scopes: Vec<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct GoogleAccessTokenResult {
+    access_token: String,
+    access_token_expires_at_ms: u64,
+    granted_scopes: Vec<String>,
 }
 
 #[tauri::command]
@@ -494,6 +569,298 @@ fn wait_for_google_oauth_callback(
             timeout_ms.unwrap_or(GOOGLE_OAUTH_DEFAULT_TIMEOUT_MS),
         ))
         .map_err(|_| "Timed out waiting for Google authorization.".to_string())
+}
+
+fn google_oauth_client_secret() -> Option<&'static str> {
+    option_env!("PHILO_GOOGLE_OAUTH_CLIENT_SECRET")
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+}
+
+fn google_oauth_keyring_service() -> &'static str {
+    if cfg!(debug_assertions) {
+        GOOGLE_OAUTH_KEYRING_SERVICE_DEV
+    } else {
+        GOOGLE_OAUTH_KEYRING_SERVICE
+    }
+}
+
+fn google_oauth_keyring_entry() -> Result<KeyringEntry, String> {
+    KeyringEntry::new(google_oauth_keyring_service(), GOOGLE_OAUTH_KEYRING_ACCOUNT)
+        .map_err(|e| format!("Could not access secure Google session storage: {e}"))
+}
+
+fn load_google_stored_session() -> Result<Option<GoogleStoredSession>, String> {
+    let entry = google_oauth_keyring_entry()?;
+    match entry.get_password() {
+        Ok(raw) => serde_json::from_str::<GoogleStoredSession>(&raw)
+            .map(Some)
+            .map_err(|e| format!("Could not read secure Google session storage: {e}")),
+        Err(KeyringError::NoEntry) => Ok(None),
+        Err(e) => Err(format!(
+            "Could not access secure Google session storage: {e}"
+        )),
+    }
+}
+
+fn store_google_stored_session(session: &GoogleStoredSession) -> Result<(), String> {
+    let entry = google_oauth_keyring_entry()?;
+    let payload = serde_json::to_string(session)
+        .map_err(|e| format!("Could not serialize Google session: {e}"))?;
+    entry
+        .set_password(&payload)
+        .map_err(|e| format!("Could not store Google session securely: {e}"))
+}
+
+fn clear_google_stored_session() -> Result<(), String> {
+    let entry = google_oauth_keyring_entry()?;
+    match entry.delete_credential() {
+        Ok(()) | Err(KeyringError::NoEntry) => Ok(()),
+        Err(e) => Err(format!(
+            "Could not clear secure Google session storage: {e}"
+        )),
+    }
+}
+
+fn resolve_google_stored_session(
+    legacy_session: Option<GoogleOAuthLegacySessionInput>,
+) -> Result<Option<GoogleStoredSession>, String> {
+    if let Some(stored) = load_google_stored_session()? {
+        return Ok(Some(stored));
+    }
+
+    let Some(legacy) = legacy_session else {
+        return Ok(None);
+    };
+    let refresh_token = legacy.refresh_token.trim().to_string();
+    if refresh_token.is_empty() {
+        return Ok(None);
+    }
+
+    let stored = GoogleStoredSession {
+        access_token: legacy.access_token.trim().to_string(),
+        access_token_expires_at_ms: legacy.access_token_expires_at_ms,
+        refresh_token,
+    };
+    store_google_stored_session(&stored)?;
+    Ok(Some(stored))
+}
+
+fn google_http_client() -> Result<HttpClient, String> {
+    HttpClient::builder()
+        .build()
+        .map_err(|e| format!("Could not start Google OAuth client: {e}"))
+}
+
+fn parse_google_error(response: HttpResponse) -> String {
+    let payload = response.json::<Value>().unwrap_or(Value::Null);
+    let error = payload
+        .get("error")
+        .and_then(|value| value.as_str())
+        .unwrap_or("request_failed");
+    let description = payload
+        .get("error_description")
+        .and_then(|value| value.as_str())
+        .or_else(|| {
+            payload
+                .get("error")
+                .and_then(|value| value.get("message"))
+                .and_then(|value| value.as_str())
+        })
+        .unwrap_or_default();
+    if description.is_empty() {
+        format!("Google {error}.")
+    } else {
+        format!("Google {error}: {description}")
+    }
+}
+
+fn exchange_google_token(
+    client: &HttpClient,
+    body: Vec<(String, String)>,
+) -> Result<GoogleTokenResponse, String> {
+    let response = client
+        .post(GOOGLE_OAUTH_TOKEN_URL)
+        .form(&body)
+        .send()
+        .map_err(|e| format!("Google token request failed: {e}"))?;
+
+    if !response.status().is_success() {
+        return Err(parse_google_error(response));
+    }
+
+    response
+        .json::<GoogleTokenResponse>()
+        .map_err(|e| format!("Could not parse Google token response: {e}"))
+}
+
+fn fetch_google_user_email(client: &HttpClient, access_token: &str) -> Result<String, String> {
+    let response = client
+        .get(GOOGLE_OAUTH_USERINFO_URL)
+        .bearer_auth(access_token)
+        .send()
+        .map_err(|e| format!("Google user info request failed: {e}"))?;
+
+    if !response.status().is_success() {
+        return Err(parse_google_error(response));
+    }
+
+    let payload = response
+        .json::<GoogleUserInfoResponse>()
+        .map_err(|e| format!("Could not parse Google user info response: {e}"))?;
+    payload
+        .email
+        .filter(|email| !email.trim().is_empty())
+        .ok_or("Google did not return an email address.".to_string())
+}
+
+fn build_google_granted_scopes(
+    scope_value: Option<String>,
+    fallback_scopes: &[String],
+) -> Vec<String> {
+    let Some(scope_value) = scope_value else {
+        return fallback_scopes.to_vec();
+    };
+    let normalized = scope_value
+        .split(' ')
+        .map(str::trim)
+        .filter(|scope| !scope.is_empty())
+        .map(ToOwned::to_owned)
+        .collect::<HashSet<_>>();
+
+    if normalized.is_empty() {
+        fallback_scopes.to_vec()
+    } else {
+        normalized.into_iter().collect()
+    }
+}
+
+fn current_time_ms() -> Result<u64, String> {
+    Ok(SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| e.to_string())?
+        .as_millis() as u64)
+}
+
+fn access_token_expires_at_ms(expires_in: u64) -> Result<u64, String> {
+    Ok(current_time_ms()? + (expires_in * 1000))
+}
+
+#[tauri::command]
+fn complete_google_oauth(
+    input: GoogleCompleteOAuthInput,
+) -> Result<GoogleOAuthConnectionResult, String> {
+    let client_id = input.client_id.trim();
+    if client_id.is_empty() {
+        return Err("Google sign-in is not configured yet.".to_string());
+    }
+
+    let existing_session = resolve_google_stored_session(input.legacy_session)?;
+    let mut body = vec![
+        ("client_id".to_string(), client_id.to_string()),
+        ("code".to_string(), input.code),
+        ("code_verifier".to_string(), input.code_verifier),
+        ("grant_type".to_string(), "authorization_code".to_string()),
+        ("redirect_uri".to_string(), input.redirect_uri),
+    ];
+    if let Some(client_secret) = google_oauth_client_secret() {
+        body.push(("client_secret".to_string(), client_secret.to_string()));
+    }
+
+    let client = google_http_client()?;
+    let token = exchange_google_token(&client, body)?;
+    let access_token = token
+        .access_token
+        .filter(|value| !value.trim().is_empty())
+        .ok_or("Google did not return an access token.".to_string())?;
+    let expires_in = token
+        .expires_in
+        .ok_or("Google did not return an access token expiry.".to_string())?;
+    let refresh_token = token
+        .refresh_token
+        .filter(|value| !value.trim().is_empty())
+        .or_else(|| {
+            existing_session
+                .as_ref()
+                .map(|session| session.refresh_token.clone())
+        })
+        .ok_or(
+            "Google did not return a refresh token. Reconnect Google and try again.".to_string(),
+        )?;
+    let granted_scopes = build_google_granted_scopes(token.scope, &[]);
+    let account_email = fetch_google_user_email(&client, &access_token)?;
+    let access_token_expires_at_ms = access_token_expires_at_ms(expires_in)?;
+
+    store_google_stored_session(&GoogleStoredSession {
+        access_token,
+        access_token_expires_at_ms,
+        refresh_token,
+    })?;
+
+    Ok(GoogleOAuthConnectionResult {
+        access_token_expires_at_ms,
+        account_email,
+        granted_scopes,
+    })
+}
+
+#[tauri::command]
+fn ensure_google_access_token(
+    input: GoogleEnsureAccessTokenInput,
+) -> Result<GoogleAccessTokenResult, String> {
+    let client_id = input.client_id.trim();
+    if client_id.is_empty() {
+        return Err("Reconnect Google to refresh access.".to_string());
+    }
+
+    let mut session = resolve_google_stored_session(input.legacy_session)?
+        .ok_or("Reconnect Google to refresh access.".to_string())?;
+    let now_ms = current_time_ms()?;
+    if !session.access_token.trim().is_empty()
+        && session.access_token_expires_at_ms > (now_ms + GOOGLE_OAUTH_ACCESS_TOKEN_BUFFER_MS)
+    {
+        return Ok(GoogleAccessTokenResult {
+            access_token: session.access_token,
+            access_token_expires_at_ms: session.access_token_expires_at_ms,
+            granted_scopes: input.granted_scopes,
+        });
+    }
+
+    let mut body = vec![
+        ("client_id".to_string(), client_id.to_string()),
+        ("grant_type".to_string(), "refresh_token".to_string()),
+        ("refresh_token".to_string(), session.refresh_token.clone()),
+    ];
+    if let Some(client_secret) = google_oauth_client_secret() {
+        body.push(("client_secret".to_string(), client_secret.to_string()));
+    }
+
+    let client = google_http_client()?;
+    let token = exchange_google_token(&client, body)?;
+    session.access_token = token
+        .access_token
+        .filter(|value| !value.trim().is_empty())
+        .ok_or("Google did not return an access token.".to_string())?;
+    session.access_token_expires_at_ms = access_token_expires_at_ms(
+        token
+            .expires_in
+            .ok_or("Google did not return an access token expiry.".to_string())?,
+    )?;
+    if let Some(refresh_token) = token.refresh_token.filter(|value| !value.trim().is_empty()) {
+        session.refresh_token = refresh_token;
+    }
+    store_google_stored_session(&session)?;
+
+    Ok(GoogleAccessTokenResult {
+        access_token: session.access_token,
+        access_token_expires_at_ms: session.access_token_expires_at_ms,
+        granted_scopes: build_google_granted_scopes(token.scope, &input.granted_scopes),
+    })
+}
+
+#[tauri::command]
+fn clear_google_oauth_session() -> Result<(), String> {
+    clear_google_stored_session()
 }
 
 #[tauri::command]
@@ -2193,6 +2560,9 @@ pub fn run() {
             write_markdown_file,
             start_google_oauth_callback,
             wait_for_google_oauth_callback,
+            complete_google_oauth,
+            ensure_google_access_token,
+            clear_google_oauth_session,
             run_ai_tool,
             set_window_opacity,
             search_markdown_files,
