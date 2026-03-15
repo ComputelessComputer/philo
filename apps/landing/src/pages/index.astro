@@ -3,29 +3,29 @@ import { getCollection, } from "astro:content";
 
 const capabilities = [
   {
-    title: "Local-first, Obsidian-compatible",
-    description: "Open an existing Obsidian vault and keep your notes as markdown on disk.",
-    placeholder: "replace with obsidian vault screenshot",
+    title: "Daily notes in one timeline",
+    description: "Review older notes in a continuous feed instead of bouncing through tabs and old files.",
+    placeholder: "replace with timeline screenshot",
   },
   {
-    title: "CLI-first for claws",
-    description: "Drive workflows from claws like openclaw and use robust tool calling inside the app.",
-    placeholder: "replace with claw workflow screenshot",
+    title: "Unfinished tasks roll forward",
+    description: "If a task is still open when the date changes, Philo brings it into today automatically.",
+    placeholder: "replace with task rollover screenshot",
   },
   {
-    title: "Simple, powerful UI",
-    description: "Stay in a clean interface that keeps notes, tasks, and tools within reach.",
-    placeholder: "replace with app ui screenshot",
+    title: "Markdown, not lock-in",
+    description: "Keep your journal as plain files on disk and use your existing Obsidian vault if you want.",
+    placeholder: "replace with markdown vault screenshot",
   },
   {
-    title: "Disposable or reusable components",
-    description: "Generate custom components for one-off jobs or keep them around as part of your system.",
-    placeholder: "replace with custom component screenshot",
+    title: "Free and open source",
+    description: "Philo is meant to augment your vault, not turn your daily notes into another subscription silo.",
+    placeholder: "replace with repo screenshot",
   },
   {
-    title: "AI that works with your notes",
-    description: "Chat with your notes to ask questions, or have AI edit them when you want a draft.",
-    placeholder: "replace with ai note editing screenshot",
+    title: "AI and claw workflows are optional",
+    description: "Widgets, in-note AI, and OpenClaw-style automation sit on top of the core loop instead of replacing it.",
+    placeholder: "replace with optional tools screenshot",
   },
 ];
 
@@ -70,10 +70,10 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Philo | Local-first notes for humans and claws</title>
+    <title>Philo | Daily notes that carry unfinished work forward</title>
     <meta
       name="description"
-      content="Use Philo with existing Obsidian vaults, chat with notes, call tools, and build disposable or reusable components inline."
+      content="Open source, local-first daily notes app that keeps markdown in your Obsidian vault and rolls unfinished tasks into today automatically."
     />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -93,11 +93,16 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
         </header>
 
         <section class="hero enter" style="--delay: 70ms;">
-          <h1>Local-first notes for humans and claws.</h1>
+          <h1>Daily notes that carry unfinished work forward.</h1>
           <p class="lede">
-            Open your existing Obsidian vault, keep everything on disk, and move between a simple
-            UI, CLI-first claws like openclaw, and in-app AI that can answer questions or edit
-            notes for you.
+            Philo started with one problem: daily notes are a great place to think, but unfinished
+            tasks get buried in yesterday&apos;s file. It keeps your journal as markdown in your
+            Obsidian vault, shows notes in a timeline, and rolls open tasks into today
+            automatically.
+          </p>
+          <p class="hero-note">
+            Widgets, in-note AI, and computer-use workflows are there when they help. They are not
+            the reason the app exists.
           </p>
           <div class="download-split" data-download>
             <a class="download-button" data-download-primary href="https://github.com/ComputelessComputer/philo/releases/latest">
@@ -127,7 +132,7 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
         </section>
 
         <section class="panel enter" style="--delay: 140ms;">
-          <h2>Why Philo</h2>
+          <h2>Why Philo exists</h2>
           <ul class="detail-list">
             {
               capabilities.map((item,) => (
@@ -146,9 +151,10 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
         </section>
 
         <section class="panel enter" style="--delay: 210ms;">
-          <h2>Disposable or reusable components</h2>
+          <h2>Inline tools when a note needs one</h2>
           <p class="item-copy">
-            Spin up a custom component for today&apos;s problem, then keep the ones worth reusing.
+            Philo is a daily notes app first. When text is not enough, you can spin up a small tool
+            inside the note and keep the ones that earn a permanent spot.
           </p>
           <div class="carousel" data-carousel>
             <div class="carousel-controls">
@@ -203,10 +209,10 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
         </section>
 
         <section class="panel enter" style="--delay: 350ms;">
-          <h2>Local-first, without leaving your vault behind</h2>
+          <h2>Built to sit beside your vault, not replace it</h2>
           <p class="item-copy">
-            Philo keeps your notes as markdown files on disk and works with existing Obsidian
-            vaults instead of forcing a migration into a new format.
+            Philo is open source and free forever. Your notes stay as markdown files on disk, and
+            the app is meant to make daily notes lighter, not trap them in a new format or workflow.
           </p>
         </section>
 
@@ -482,6 +488,13 @@ primary.firstChild.textContent = labels[os];
     font-size: var(--fs-md);
     line-height: 1.6;
     color: #3f3f3d;
+  }
+
+  .hero-note {
+    margin: 12px 0 0;
+    max-width: 56ch;
+    color: var(--muted);
+    font-size: var(--fs-sm);
   }
 
   .download-split {
