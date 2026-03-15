@@ -319,6 +319,10 @@ export default function AppLayout() {
     setAiSelectedText(selectedText,);
   }, [aiComposerOpen,],);
 
+  const getCurrentSelectionText = useCallback(() => {
+    return window.getSelection?.()?.toString().trim() || undefined;
+  }, [],);
+
   const toggleLibrary = useCallback(() => {
     setLibraryOpen((prev,) => !prev);
   }, [],);
@@ -389,7 +393,7 @@ export default function AppLayout() {
         if (aiComposerOpen) {
           closeAiComposer();
         } else {
-          openAiComposer();
+          openAiComposer(getCurrentSelectionText(),);
         }
         return;
       }
@@ -454,6 +458,7 @@ export default function AppLayout() {
     globalSearchOpen,
     globalSearchResults,
     globalSearchSelectedIndex,
+    getCurrentSelectionText,
     openAiComposer,
     openGlobalSearch,
     openGlobalSearchResult,
