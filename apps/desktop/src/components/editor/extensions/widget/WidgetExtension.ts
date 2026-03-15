@@ -3,6 +3,7 @@ import type { JSONContent, } from "@tiptap/core";
 import { ReactNodeViewRenderer, } from "@tiptap/react";
 import { getAiConfigurationMessage, isAiKeyMissingError, } from "../../../../services/ai";
 import { generateWidget, } from "../../../../services/generate";
+import { getEditorSelectionText, } from "../../selectionText";
 import { WidgetView, } from "./WidgetView";
 
 function escapeAttr(s: string,): string {
@@ -138,8 +139,7 @@ export const WidgetExtension = Node.create({
   addKeyboardShortcuts() {
     return {
       "Mod-Shift-b": () => {
-        const { from, to, } = this.editor.state.selection;
-        const selectedText = this.editor.state.doc.textBetween(from, to,);
+        const selectedText = getEditorSelectionText(this.editor,);
         if (!selectedText.trim()) return false;
 
         const widgetId = crypto.randomUUID();

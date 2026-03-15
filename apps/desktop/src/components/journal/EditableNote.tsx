@@ -34,6 +34,7 @@ import {
 import { CustomTaskItem, } from "../editor/extensions/task-item/TaskItemNode";
 import { UnderlineExtension, } from "../editor/extensions/underline/UnderlineExtension";
 import { WidgetExtension, } from "../editor/extensions/widget/WidgetExtension";
+import { getEditorSelectionText, } from "../editor/selectionText";
 
 export interface EditableNoteHandle {
   focus(): void;
@@ -322,7 +323,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
 
       const syncSelection = () => {
         const { from, to, } = editor.state.selection;
-        const selectedText = editor.state.doc.textBetween(from, to,).trim();
+        const selectedText = getEditorSelectionText(editor,);
         if (!editor.isFocused && !selectedText) return;
         onSelectionChange(
           selectedText

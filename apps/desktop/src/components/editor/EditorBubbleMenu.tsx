@@ -3,6 +3,7 @@ import { BubbleMenu, } from "@tiptap/react/menus";
 import { useState, } from "react";
 import { getAiConfigurationMessage, isAiKeyMissingError, } from "../../services/ai";
 import { generateWidget, } from "../../services/generate";
+import { getEditorSelectionText, } from "./selectionText";
 
 interface EditorBubbleMenuProps {
   editor: Editor;
@@ -35,8 +36,7 @@ export function EditorBubbleMenu({ editor, onChatSelection, }: EditorBubbleMenuP
   const [building, setBuilding,] = useState(false,);
 
   const getSelectedText = () => {
-    const { from, to, } = editor.state.selection;
-    return editor.state.doc.textBetween(from, to,).trim();
+    return getEditorSelectionText(editor,);
   };
 
   const handleBuild = async () => {
