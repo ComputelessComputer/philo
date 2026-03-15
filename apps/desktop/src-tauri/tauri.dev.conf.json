@@ -1,4 +1,11 @@
 {
   "productName": "Philo Dev",
-  "identifier": "com.johnjeong.philo.dev"
+  "identifier": "com.johnjeong.philo.dev",
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": ["philo-dev"]
+      }
+    }
+  }
 }

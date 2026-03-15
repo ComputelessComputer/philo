@@ -18,6 +18,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::{env, fs};
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_fs::FsExt;
 #[cfg(desktop)]
@@ -271,7 +272,24 @@ fn write_google_oauth_response(
         .map_err(|e| e.to_string())
 }
 
+fn philo_deep_link_url() -> &'static str {
+    if cfg!(debug_assertions) {
+        "philo-dev://google-connected"
+    } else {
+        "philo://google-connected"
+    }
+}
+
+fn focus_main_window<R: tauri::Runtime>(app: &AppHandle<R>) {
+    if let Some(window) = app.get_webview_window("main") {
+        let _ = window.unminimize();
+        let _ = window.show();
+        let _ = window.set_focus();
+    }
+}
+
 fn google_oauth_callback_page(success: bool) -> String {
+    let deep_link_url = philo_deep_link_url();
     let eyebrow = if success {
         "Google connected"
     } else {
@@ -288,7 +306,7 @@ fn google_oauth_callback_page(success: bool) -> String {
         "Philo could not finish connecting your Google account."
     };
     let detail = if success {
-        "Return to the app to keep going. You can close this window."
+        "Philo should reopen automatically. If it stays in the background, open it below."
     } else {
         "Close this window and try again from Philo."
     };
@@ -296,6 +314,26 @@ fn google_oauth_callback_page(success: bool) -> String {
         "panel panel-success"
     } else {
         "panel panel-error"
+    };
+    let action_markup = if success {
+        format!(
+            r#"<div class="actions">
+          <a class="open-button" href="{deep_link_url}">Open Philo</a>
+        </div>"#
+        )
+    } else {
+        String::new()
+    };
+    let auto_open_script = if success {
+        format!(
+            r#"<script>
+      window.setTimeout(() => {{
+        window.location.href = "{deep_link_url}";
+      }}, 300);
+    </script>"#
+        )
+    } else {
+        String::new()
     };
 
     format!(
@@ -439,6 +477,38 @@ fn google_oauth_callback_page(success: bool) -> String {
         color: var(--muted);
       }}
 
+      .actions {{
+        display: flex;
+        margin-top: 22px;
+      }}
+
+      .open-button {{
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0 18px;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: #ffffff;
+        color: var(--text);
+        font-size: 14px;
+        font-weight: 500;
+        text-decoration: none;
+        transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+      }}
+
+      .open-button:hover {{
+        border-color: rgba(95, 112, 216, 0.35);
+        box-shadow: 0 16px 28px rgba(95, 112, 216, 0.14);
+        transform: translateY(-1px);
+      }}
+
+      .open-button:active {{
+        transform: translateY(0);
+        box-shadow: none;
+      }}
+
       @media (max-width: 640px) {{
         .shell {{
           padding: 18px;
@@ -461,9 +531,11 @@ fn google_oauth_callback_page(success: bool) -> String {
           <h1>{title}</h1>
           <p class="description">{description}</p>
           <p class="detail">{detail}</p>
+          {action_markup}
         </section>
       </div>
     </main>
+    {auto_open_script}
   </body>
 </html>"#
     )
@@ -2549,7 +2621,11 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            focus_main_window(app);
+        }))
         .manage(GoogleOAuthState::default())
         .invoke_handler(tauri::generate_handler![
             extend_fs_scope,
@@ -2575,6 +2651,11 @@ pub fn run() {
             run_shared_component_mutation
         ])
         .setup(|app| {
+            let app_handle = app.handle().clone();
+            app.deep_link().on_open_url(move |_| {
+                focus_main_window(&app_handle);
+            });
+
             let app_name = if cfg!(debug_assertions) {
                 "Philo Dev"
             } else {
