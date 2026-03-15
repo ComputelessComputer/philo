@@ -5,7 +5,7 @@ import { watch, } from "@tauri-apps/plugin-fs";
 import { openPath, } from "@tauri-apps/plugin-opener";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, } from "react";
 import { useCurrentDate, } from "../../hooks/useCurrentDate";
-import { useTimezoneCity, } from "../../hooks/useTimezoneCity";
+import { useCurrentCity, } from "../../hooks/useTimezoneCity";
 import { getAiConfigurationMessage, } from "../../services/ai";
 import {
   AI_NOT_CONFIGURED,
@@ -228,7 +228,7 @@ function LazyNote({
 
 export default function AppLayout() {
   const today = useCurrentDate();
-  const currentCity = useTimezoneCity();
+  const currentCity = useCurrentCity();
   const [todayNote, setTodayNote,] = useState<DailyNote | null>(null,);
   const pastDates = useMemo(() => Array.from({ length: 30, }, (_, i,) => getDaysAgo(i + 1,),), [today,],);
   const [settingsOpen, setSettingsOpen,] = useState(false,);
@@ -584,6 +584,15 @@ export default function AppLayout() {
     }
     load();
   }, [isConfigured, storageRevision, today,],);
+
+  useEffect(() => {
+    const note = todayNoteRef.current;
+    if (!note || note.city?.trim() || !currentCity) return;
+    const updated = { ...note, city: currentCity, };
+    suppressWatcherUntilRef.current = Date.now() + LOCAL_SAVE_WATCH_SUPPRESSION_MS;
+    setTodayNote(updated,);
+    saveDailyNote(updated,).catch(console.error,);
+  }, [currentCity, todayNote,],);
 
   // Watch the journal directory for external changes
   useEffect(() => {
