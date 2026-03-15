@@ -59,12 +59,15 @@ If you are maintaining Philo's Google Cloud project, make sure:
 1. The Gmail API and Google Calendar API are enabled.
 2. The OAuth consent screen is configured in `Google Auth platform`.
 3. The bundled desktop OAuth client remains active on the project.
+4. `PHILO_GOOGLE_OAUTH_CLIENT_SECRET` is available in local build envs and GitHub Actions secrets if that client requires a secret during token exchange.
 
 Philo currently requests:
 
 - `openid`, `email`, and `profile`
-- `https://www.googleapis.com/auth/calendar.readonly`
+- `https://www.googleapis.com/auth/calendar.events.readonly`
 - `https://www.googleapis.com/auth/gmail.readonly`
+
+Google access and refresh tokens are stored in the OS credential store, not in Philo's plain JSON settings file.
 
 If your OAuth consent screen is still in testing and your audience is external, add your Google account as a test user before signing in. Gmail read-only is a restricted scope, so a public rollout may require Google verification.
 

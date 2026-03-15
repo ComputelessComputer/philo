@@ -13,6 +13,7 @@ The important distinction is:
 
 - Configuration always lives under the app data directory.
 - Notes, images, Excalidraw files, and widget-library files live under the resolved content directory.
+- Google OAuth secrets and tokens live in the OS credential store for new sessions.
 
 ## Base App Data Directory
 
@@ -40,7 +41,7 @@ The shape comes from `apps/desktop/src/services/settings.ts`:
   "openaiApiKey": "",
   "googleApiKey": "",
   "openrouterApiKey": "",
-  "googleOAuthClientId": "",
+  "googleOAuthClientId": "<bundled google oauth client id>",
   "googleAccountEmail": "",
   "googleAccessToken": "",
   "googleRefreshToken": "",
@@ -74,11 +75,11 @@ What each field means:
 - `googleAccountEmail`
   - Email address of the currently connected Google account.
 - `googleAccessToken`
-  - Cached Google OAuth access token for Gmail and Calendar reads.
+  - Legacy migration field. New Google sessions keep the access token in the OS credential store instead of `settings.json`.
 - `googleRefreshToken`
-  - Refresh token used to rotate the Google access token without reconnecting.
+  - Legacy migration field. New Google sessions keep the refresh token in the OS credential store instead of `settings.json`.
 - `googleAccessTokenExpiresAt`
-  - Expiration timestamp for the cached Google access token.
+  - Expiration timestamp for the cached Google access token summary shown to the app.
 - `googleGrantedScopes`
   - OAuth scopes currently granted to Philo for the connected Google account.
 - `journalDir`
@@ -279,6 +280,7 @@ The settings UI already warns about the filename and folder cases. The code appl
 If you want to know where something is stored:
 
 - app settings and API key: `<baseDir>/settings.json`
+- Google OAuth access and refresh tokens: OS credential store (Keychain on macOS, equivalent secure store on other platforms)
 - daily notes: resolved `journalDir` plus `filenamePattern`
 - pasted images: resolved assets folder
 - widget library: `library/` under the vault or journal root
@@ -287,4 +289,5 @@ If you want to know where something is stored:
 The clean mental model is:
 
 - `settings.json` tells Philo where to read and write content
+- Google OAuth tokens are stored separately in the OS credential store
 - the actual user data stays as normal files on disk
