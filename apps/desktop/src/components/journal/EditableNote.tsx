@@ -302,15 +302,11 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
         onSelectionChange(editor, selectedText || null,);
       };
 
-      const clearSelection = () => onSelectionChange(editor, null,);
-
       syncSelection();
       editor.on("selectionUpdate", syncSelection,);
-      editor.on("blur", clearSelection,);
 
       return () => {
         editor.off("selectionUpdate", syncSelection,);
-        editor.off("blur", clearSelection,);
       };
     }, [editor, onSelectionChange,],);
 
