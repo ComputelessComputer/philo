@@ -6,7 +6,7 @@ import claudeAiSymbol from "../../assets/claude-ai-symbol.svg";
 import googleGeminiIcon from "../../assets/google-gemini-icon.svg";
 import openaiSymbol from "../../assets/openai-symbol.svg";
 import openrouterIcon from "../../assets/openrouter.svg";
-import { connectGoogleAccount, isGoogleAccountConnected, } from "../../services/google";
+import { connectGoogleAccount, disconnectGoogleAccount, isGoogleAccountConnected, } from "../../services/google";
 import { detectObsidianFolders, } from "../../services/obsidian";
 import { applyFilenamePattern, getJournalDir, initJournalScope, resetJournalDir, } from "../../services/paths";
 import {
@@ -354,13 +354,12 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
     setGoogleBusy(true,);
     setGoogleError("",);
     try {
-      await persistGooglePatch({
-        googleAccountEmail: "",
-        googleAccessToken: "",
-        googleRefreshToken: "",
-        googleAccessTokenExpiresAt: "",
-        googleGrantedScopes: [],
-      },);
+      const currentSettings = settingsRef.current;
+      if (!currentSettings) return;
+      const nextSettings = await disconnectGoogleAccount(currentSettings,);
+      settingsRef.current = nextSettings;
+      lastSavedSettingsRef.current = nextSettings;
+      setSettings(nextSettings,);
     } finally {
       setGoogleBusy(false,);
     }

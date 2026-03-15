@@ -3,12 +3,9 @@ import { openUrl, } from "@tauri-apps/plugin-opener";
 import { loadSettings, saveSettings, type Settings, } from "./settings";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
-const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
-const GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo";
 const GOOGLE_CONNECT_TIMEOUT_MS = 180_000;
-const GOOGLE_EXPIRY_BUFFER_MS = 60_000;
 
-export const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.readonly";
+export const GOOGLE_CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events.readonly";
 export const GOOGLE_GMAIL_SCOPE = "https://www.googleapis.com/auth/gmail.readonly";
 
 export const GOOGLE_ACCOUNT_SCOPES = [
@@ -30,29 +27,26 @@ interface GoogleOAuthCallback {
   error?: string;
 }
 
-interface GoogleTokenResponse {
-  access_token?: string;
-  expires_in?: number;
-  refresh_token?: string;
-  scope?: string;
-  error?: string;
-  error_description?: string;
-}
-
-interface GoogleUserInfoResponse {
-  email?: string;
-}
-
-interface GoogleTokenResult {
+interface GoogleLegacySessionInput {
   accessToken: string;
-  expiresIn: number;
-  refreshToken?: string;
-  scope?: string;
+  accessTokenExpiresAtMs: number;
+  refreshToken: string;
+}
+
+interface GoogleOAuthConnectionResult {
+  accountEmail: string;
+  accessTokenExpiresAtMs: number;
+  grantedScopes: string[];
+}
+
+interface GoogleAccessTokenResult {
+  accessToken: string;
+  accessTokenExpiresAtMs: number;
+  grantedScopes: string[];
 }
 
 export function isGoogleAccountConnected(settings: Settings,) {
-  return !!settings.googleAccountEmail.trim()
-    && (!!settings.googleRefreshToken.trim() || !!settings.googleAccessToken.trim());
+  return !!settings.googleAccountEmail.trim();
 }
 
 export function hasGoogleAccess(settings: Settings, scope: string,) {
@@ -82,108 +76,52 @@ async function createCodeChallenge(verifier: string,) {
   return toBase64Url(new Uint8Array(digest,),);
 }
 
-async function parseGoogleError(response: Response,) {
-  const payload = await response.json().catch(() => null);
-  if (!payload || typeof payload !== "object") {
-    throw new Error("Google request failed.",);
-  }
-
-  const error = typeof payload.error === "string" ? payload.error : "request_failed";
-  const description = typeof payload.error_description === "string"
-    ? payload.error_description
-    : typeof payload.error?.message === "string"
-    ? payload.error.message
-    : "";
-  throw new Error(description ? `Google ${error}: ${description}` : `Google ${error}.`,);
-}
-
-async function exchangeAuthorizationCode(
-  clientId: string,
-  code: string,
-  redirectUri: string,
-  codeVerifier: string,
-): Promise<GoogleTokenResult> {
-  const body = new URLSearchParams({
-    client_id: clientId,
-    code,
-    code_verifier: codeVerifier,
-    grant_type: "authorization_code",
-    redirect_uri: redirectUri,
-  },);
-
-  const response = await fetch(GOOGLE_TOKEN_URL, {
-    method: "POST",
-    headers: {
-      "content-type": "application/x-www-form-urlencoded",
-    },
-    body,
-  },);
-
-  if (!response.ok) {
-    await parseGoogleError(response,);
-  }
-
-  const payload = await response.json() as GoogleTokenResponse;
-  if (!payload.access_token || !payload.expires_in) {
-    throw new Error("Google did not return an access token.",);
-  }
-  return {
-    accessToken: payload.access_token,
-    expiresIn: payload.expires_in,
-    refreshToken: payload.refresh_token,
-    scope: payload.scope,
-  };
-}
-
-async function fetchGoogleUserEmail(accessToken: string,) {
-  const response = await fetch(GOOGLE_USERINFO_URL, {
-    headers: {
-      authorization: `Bearer ${accessToken}`,
-    },
-  },);
-
-  if (!response.ok) {
-    await parseGoogleError(response,);
-  }
-
-  const payload = await response.json() as GoogleUserInfoResponse;
-  if (!payload.email) {
-    throw new Error("Google did not return an email address.",);
-  }
-  return payload.email;
-}
-
-function buildGrantedScopes(scopeValue: string | undefined,) {
-  if (!scopeValue) return [...GOOGLE_ACCOUNT_SCOPES,];
+function buildGrantedScopes(scopes: string[] | undefined,) {
+  if (!scopes || scopes.length === 0) return [...GOOGLE_ACCOUNT_SCOPES,];
   return Array.from(
     new Set(
-      scopeValue
-        .split(" ",)
+      scopes
         .map((scope,) => scope.trim())
         .filter(Boolean,),
     ),
   );
 }
 
-function toExpiryTimestamp(expiresInSeconds: number,) {
-  return new Date(Date.now() + (expiresInSeconds * 1000),).toISOString();
+function toExpiryTimestamp(expiresAtMs: number,) {
+  if (!Number.isFinite(expiresAtMs,) || expiresAtMs <= 0) return "";
+  return new Date(expiresAtMs,).toISOString();
+}
+
+function buildLegacySessionInput(settings: Settings,): GoogleLegacySessionInput | null {
+  const refreshToken = settings.googleRefreshToken.trim();
+  if (!refreshToken) return null;
+
+  const accessTokenExpiresAtMs = settings.googleAccessTokenExpiresAt
+    ? new Date(settings.googleAccessTokenExpiresAt,).getTime()
+    : 0;
+
+  return {
+    accessToken: settings.googleAccessToken.trim(),
+    accessTokenExpiresAtMs: Number.isFinite(accessTokenExpiresAtMs,) && accessTokenExpiresAtMs > 0
+      ? accessTokenExpiresAtMs
+      : 0,
+    refreshToken,
+  };
 }
 
 function buildConnectionPatch(
   clientId: string,
-  accessToken: string,
-  expiresInSeconds: number,
-  refreshToken: string,
+  accessTokenExpiresAtMs: number,
   email: string,
   grantedScopes: string[],
 ) {
   return {
     googleOAuthClientId: clientId.trim(),
-    googleAccessToken: accessToken,
-    googleAccessTokenExpiresAt: toExpiryTimestamp(expiresInSeconds,),
-    googleRefreshToken: refreshToken,
+    googleAccessToken: "",
+    googleAccessTokenExpiresAt: toExpiryTimestamp(accessTokenExpiresAtMs,),
+    googleRefreshToken: "",
     googleAccountEmail: email,
-    googleGrantedScopes: grantedScopes,
+    googleGrantedScopes: buildGrantedScopes(grantedScopes,),
   } satisfies Pick<
     Settings,
     | "googleOAuthClientId"
@@ -241,25 +179,26 @@ export async function connectGoogleAccount(settings: Settings,) {
     throw new Error("Google OAuth state mismatch. Please try again.",);
   }
 
-  const token = await exchangeAuthorizationCode(clientId, callback.code, session.redirectUri, verifier,);
-  const email = await fetchGoogleUserEmail(token.accessToken,);
-  const grantedScopes = buildGrantedScopes(token.scope,);
-  const refreshToken = token.refreshToken ?? settings.googleRefreshToken.trim();
-  if (!refreshToken) {
-    throw new Error("Google did not return a refresh token. Use a desktop OAuth client ID and try again.",);
-  }
+  const result = await invoke<GoogleOAuthConnectionResult>("complete_google_oauth", {
+    input: {
+      clientId,
+      code: callback.code,
+      codeVerifier: verifier,
+      legacySession: buildLegacySessionInput(settings,),
+      redirectUri: session.redirectUri,
+    },
+  },);
 
   return buildConnectionPatch(
     clientId,
-    token.accessToken,
-    token.expiresIn,
-    refreshToken,
-    email,
-    grantedScopes,
+    result.accessTokenExpiresAtMs,
+    result.accountEmail,
+    result.grantedScopes,
   );
 }
 
 export async function disconnectGoogleAccount(settings: Settings,) {
+  await invoke("clear_google_oauth_session",);
   const next = {
     ...settings,
     googleAccountEmail: "",
@@ -273,59 +212,28 @@ export async function disconnectGoogleAccount(settings: Settings,) {
   return next;
 }
 
-async function refreshGoogleAccessToken(settings: Settings,) {
+export async function getGoogleAccessToken() {
+  const settings = await loadSettings();
   const clientId = settings.googleOAuthClientId.trim();
-  const refreshToken = settings.googleRefreshToken.trim();
-  if (!clientId || !refreshToken) {
+  if (!clientId) {
     throw new Error("Reconnect Google to refresh access.",);
   }
 
-  const body = new URLSearchParams({
-    client_id: clientId,
-    grant_type: "refresh_token",
-    refresh_token: refreshToken,
-  },);
-
-  const response = await fetch(GOOGLE_TOKEN_URL, {
-    method: "POST",
-    headers: {
-      "content-type": "application/x-www-form-urlencoded",
+  const result = await invoke<GoogleAccessTokenResult>("ensure_google_access_token", {
+    input: {
+      clientId,
+      grantedScopes: [...settings.googleGrantedScopes,],
+      legacySession: buildLegacySessionInput(settings,),
     },
-    body,
   },);
-
-  if (!response.ok) {
-    await parseGoogleError(response,);
-  }
-
-  const payload = await response.json() as GoogleTokenResponse;
-  if (!payload.access_token || !payload.expires_in) {
-    throw new Error("Google did not return a refreshed access token.",);
-  }
-
-  return buildConnectionPatch(
-    clientId,
-    payload.access_token,
-    payload.expires_in,
-    refreshToken,
-    settings.googleAccountEmail.trim(),
-    buildGrantedScopes(payload.scope || settings.googleGrantedScopes.join(" ",),),
+  await saveGoogleFields(
+    settings,
+    buildConnectionPatch(
+      clientId,
+      result.accessTokenExpiresAtMs,
+      settings.googleAccountEmail.trim(),
+      result.grantedScopes,
+    ),
   );
-}
-
-export async function getGoogleAccessToken() {
-  const settings = await loadSettings();
-  const expiry = settings.googleAccessTokenExpiresAt
-    ? new Date(settings.googleAccessTokenExpiresAt,).getTime()
-    : 0;
-  if (
-    settings.googleAccessToken.trim()
-    && expiry > (Date.now() + GOOGLE_EXPIRY_BUFFER_MS)
-  ) {
-    return settings.googleAccessToken.trim();
-  }
-
-  const refreshed = await refreshGoogleAccessToken(settings,);
-  const nextSettings = await saveGoogleFields(settings, refreshed,);
-  return nextSettings.googleAccessToken;
+  return result.accessToken;
 }
