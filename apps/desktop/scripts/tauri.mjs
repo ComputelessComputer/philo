@@ -23,6 +23,22 @@ function applyEnv(mode,) {
   }
 }
 
+function applyGoogleOAuthAliases() {
+  if (
+    process.env.PHILO_GOOGLE_OAUTH_CLIENT_SECRET === undefined
+    && process.env.GOOGLE_OAUTH_CLIENT_SECRET
+  ) {
+    process.env.PHILO_GOOGLE_OAUTH_CLIENT_SECRET = process.env.GOOGLE_OAUTH_CLIENT_SECRET;
+  }
+
+  if (
+    process.env.VITE_GOOGLE_OAUTH_CLIENT_ID === undefined
+    && process.env.GOOGLE_OAUTH_CLIENT_ID
+  ) {
+    process.env.VITE_GOOGLE_OAUTH_CLIENT_ID = process.env.GOOGLE_OAUTH_CLIENT_ID;
+  }
+}
+
 function run(cmd, cmdArgs, options = {},) {
   return new Promise((resolvePromise, rejectPromise,) => {
     const child = spawn(cmd, cmdArgs, {
@@ -106,6 +122,7 @@ const tauriArgs = command === "dev"
 
 try {
   applyEnv(command === "dev" ? "development" : "production",);
+  applyGoogleOAuthAliases();
 
   if (command === "dev") {
     await buildSidecar("debug",);

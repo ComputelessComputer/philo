@@ -35,8 +35,9 @@ export interface ActiveAiConfig {
 }
 
 export const DEFAULT_FILENAME_PATTERN = "{YYYY}-{MM}-{DD}";
-export const DEFAULT_GOOGLE_OAUTH_CLIENT_ID =
-  "426453142223-dnbr4440defc5ms857fhmd715v4fe68n.apps.googleusercontent.com";
+const BUNDLED_GOOGLE_OAUTH_CLIENT_ID = "426453142223-dnbr4440defc5ms857fhmd715v4fe68n.apps.googleusercontent.com";
+export const DEFAULT_GOOGLE_OAUTH_CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID?.trim()
+  || BUNDLED_GOOGLE_OAUTH_CLIENT_ID;
 
 const DEFAULT_SETTINGS: Settings = {
   aiProvider: DEFAULT_AI_PROVIDER,

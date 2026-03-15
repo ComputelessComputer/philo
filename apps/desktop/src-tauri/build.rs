@@ -1,5 +1,6 @@
 fn main() {
     println!("cargo:rerun-if-env-changed=PHILO_GOOGLE_OAUTH_CLIENT_SECRET");
+    println!("cargo:rerun-if-env-changed=GOOGLE_OAUTH_CLIENT_SECRET");
 
     let target_triple = std::env::var("TAURI_ENV_TARGET_TRIPLE")
         .or_else(|_| std::env::var("TARGET"))
