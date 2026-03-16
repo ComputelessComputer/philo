@@ -618,7 +618,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
             Google Account
           </label>
           <p className="text-xs text-gray-400" style={mono}>
-            Connect Google so Philo can pull in important unread emails and relevant calendar events as task candidates.
+            Connect your mail and calendar to get summaries.
           </p>
           {googleConnected
             ? (
