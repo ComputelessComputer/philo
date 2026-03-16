@@ -1,9 +1,11 @@
+import { checkPermissions, getCurrentPosition, requestPermissions, } from "@tauri-apps/plugin-geolocation";
 import { useEffect, useState, } from "react";
 
 const CITY_CACHE_KEY = "philo:current-city";
 const CITY_CACHE_TTL_MS = 30 * 60 * 1000;
-const CITY_LOOKUP_TIMEOUT_MS = 4000;
-const CITY_LOOKUP_URL = "https://ipwho.is/";
+const GEOLOCATION_TIMEOUT_MS = 10_000;
+const GEOCODE_LOOKUP_TIMEOUT_MS = 4_000;
+const REVERSE_GEOCODE_URL = "https://nominatim.openstreetmap.org/reverse";
 
 function readCachedCity(): string {
   if (typeof window === "undefined") return "";
@@ -50,8 +52,16 @@ function clearCachedCity() {
   } catch {}
 }
 
-async function fetchCurrentCity(signal: AbortSignal,): Promise<string> {
-  const response = await fetch(CITY_LOOKUP_URL, {
+async function reverseGeocodeCity(latitude: number, longitude: number, signal: AbortSignal,): Promise<string> {
+  const params = new URLSearchParams({
+    format: "jsonv2",
+    lat: String(latitude,),
+    lon: String(longitude,),
+    zoom: "10",
+    addressdetails: "1",
+  },);
+
+  const response = await fetch(`${REVERSE_GEOCODE_URL}?${params.toString()}`, {
     signal,
     headers: {
       Accept: "application/json",
@@ -59,9 +69,34 @@ async function fetchCurrentCity(signal: AbortSignal,): Promise<string> {
   },);
   if (!response.ok) return "";
 
-  const payload = await response.json() as { success?: unknown; city?: unknown; };
-  if (payload.success === false) return "";
-  return typeof payload.city === "string" ? payload.city.trim() : "";
+  const payload = await response.json() as {
+    address?: {
+      city?: unknown;
+      town?: unknown;
+      village?: unknown;
+      municipality?: unknown;
+      county?: unknown;
+      state_district?: unknown;
+      state?: unknown;
+    };
+  };
+  const candidates = [
+    payload.address?.city,
+    payload.address?.town,
+    payload.address?.village,
+    payload.address?.municipality,
+    payload.address?.county,
+    payload.address?.state_district,
+    payload.address?.state,
+  ];
+
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim()) {
+      return candidate.trim();
+    }
+  }
+
+  return "";
 }
 
 export function useCurrentCity(): string {
@@ -71,17 +106,49 @@ export function useCurrentCity(): string {
     let disposed = false;
 
     async function refresh() {
-      const controller = new AbortController();
-      const timeoutId = window.setTimeout(() => controller.abort(), CITY_LOOKUP_TIMEOUT_MS,);
-
       try {
-        const nextCity = await fetchCurrentCity(controller.signal,);
+        let permissions = await checkPermissions();
         if (disposed) return;
 
-        if (nextCity) {
-          writeCachedCity(nextCity,);
-          setCity((prev,) => (prev !== nextCity ? nextCity : prev));
+        if (
+          permissions.location === "prompt"
+          || permissions.location === "prompt-with-rationale"
+        ) {
+          permissions = await requestPermissions(["location",],);
+          if (disposed) return;
+        }
+
+        if (permissions.location !== "granted") {
+          clearCachedCity();
+          setCity("",);
           return;
+        }
+
+        const position = await getCurrentPosition({
+          enableHighAccuracy: false,
+          timeout: GEOLOCATION_TIMEOUT_MS,
+          maximumAge: CITY_CACHE_TTL_MS,
+        },);
+        if (disposed) return;
+
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), GEOCODE_LOOKUP_TIMEOUT_MS,);
+
+        try {
+          const nextCity = await reverseGeocodeCity(
+            position.coords.latitude,
+            position.coords.longitude,
+            controller.signal,
+          );
+          if (disposed) return;
+
+          if (nextCity) {
+            writeCachedCity(nextCity,);
+            setCity((prev,) => (prev !== nextCity ? nextCity : prev));
+            return;
+          }
+        } finally {
+          window.clearTimeout(timeoutId,);
         }
 
         clearCachedCity();
@@ -90,8 +157,6 @@ export function useCurrentCity(): string {
         if ((error as Error).name === "AbortError" || disposed) return;
         clearCachedCity();
         setCity("",);
-      } finally {
-        window.clearTimeout(timeoutId,);
       }
     }
 
