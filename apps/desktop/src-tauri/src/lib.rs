@@ -272,14 +272,6 @@ fn write_google_oauth_response(
         .map_err(|e| e.to_string())
 }
 
-fn philo_deep_link_url() -> &'static str {
-    if cfg!(debug_assertions) {
-        "philo-dev://google-connected"
-    } else {
-        "philo://google-connected"
-    }
-}
-
 fn focus_main_window<R: tauri::Runtime>(app: &AppHandle<R>) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
@@ -289,7 +281,7 @@ fn focus_main_window<R: tauri::Runtime>(app: &AppHandle<R>) {
 }
 
 fn google_oauth_callback_page(success: bool) -> String {
-    let deep_link_url = philo_deep_link_url();
+    let offer_deep_link = success && !cfg!(debug_assertions);
     let eyebrow = if success {
         "Google connected"
     } else {
@@ -305,8 +297,10 @@ fn google_oauth_callback_page(success: bool) -> String {
     } else {
         "Philo could not finish connecting your Google account."
     };
-    let detail = if success {
+    let detail = if offer_deep_link {
         "Philo should reopen automatically. If it stays in the background, open it below."
+    } else if success {
+        "Philo should come forward automatically. If it stays in the background, switch back to the app."
     } else {
         "Close this window and try again from Philo."
     };
@@ -315,23 +309,21 @@ fn google_oauth_callback_page(success: bool) -> String {
     } else {
         "panel panel-error"
     };
-    let action_markup = if success {
-        format!(
-            r#"<div class="actions">
-          <a class="open-button" href="{deep_link_url}">Open Philo</a>
+    let action_markup = if offer_deep_link {
+        r#"<div class="actions">
+          <a class="open-button" href="philo://google-connected">Open Philo</a>
         </div>"#
-        )
+            .to_string()
     } else {
         String::new()
     };
-    let auto_open_script = if success {
-        format!(
-            r#"<script>
-      window.setTimeout(() => {{
-        window.location.href = "{deep_link_url}";
-      }}, 300);
+    let auto_open_script = if offer_deep_link {
+        r#"<script>
+      window.setTimeout(() => {
+        window.location.href = "philo://google-connected";
+      }, 300);
     </script>"#
-        )
+            .to_string()
     } else {
         String::new()
     };
@@ -592,6 +584,7 @@ fn receive_google_oauth_callback(listener: TcpListener) -> GoogleOAuthCallbackPa
 
 #[tauri::command]
 fn start_google_oauth_callback(
+    app: AppHandle,
     state: State<GoogleOAuthState>,
 ) -> Result<GoogleOAuthSession, String> {
     let listener = TcpListener::bind("127.0.0.1:0").map_err(|e| e.to_string())?;
@@ -615,6 +608,7 @@ fn start_google_oauth_callback(
     std::thread::spawn(move || {
         let payload = receive_google_oauth_callback(listener);
         let _ = sender.send(payload);
+        focus_main_window(&app);
     });
 
     Ok(GoogleOAuthSession {
