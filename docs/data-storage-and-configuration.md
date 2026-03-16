@@ -42,6 +42,7 @@ The shape comes from `apps/desktop/src/services/settings.ts`:
   "googleApiKey": "",
   "openrouterApiKey": "",
   "googleOAuthClientId": "<bundled google oauth client id>",
+  "googleAccounts": [],
   "googleAccountEmail": "",
   "googleAccessToken": "",
   "googleRefreshToken": "",
@@ -72,16 +73,19 @@ What each field means:
   - OpenRouter API key used when OpenRouter is the active provider.
 - `googleOAuthClientId`
   - Bundled Google OAuth desktop client ID used by the `Continue with Google` flow in settings.
+- `googleAccounts`
+  - Connected Google accounts tracked by the app.
+  - Each entry stores the email address, granted scopes, and cached access-token expiry summary.
 - `googleAccountEmail`
-  - Email address of the currently connected Google account.
+  - Legacy migration field from the old single-account model.
 - `googleAccessToken`
   - Legacy migration field. New Google sessions keep the access token in the OS credential store instead of `settings.json`.
 - `googleRefreshToken`
   - Legacy migration field. New Google sessions keep the refresh token in the OS credential store instead of `settings.json`.
 - `googleAccessTokenExpiresAt`
-  - Expiration timestamp for the cached Google access token summary shown to the app.
+  - Legacy migration field from the old single-account model.
 - `googleGrantedScopes`
-  - OAuth scopes currently granted to Philo for the connected Google account.
+  - Legacy migration field from the old single-account model.
 - `journalDir`
   - The currently resolved root directory for daily notes.
   - When a vault is configured, this is usually `<vaultDir>/<dailyLogsFolder>`.

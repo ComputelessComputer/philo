@@ -69,7 +69,7 @@ Philo currently requests:
 - `https://www.googleapis.com/auth/calendar.events.readonly`
 - `https://www.googleapis.com/auth/gmail.readonly`
 
-Google access and refresh tokens are stored in the OS credential store, not in Philo's plain JSON settings file.
+Philo can connect multiple Google accounts. Account metadata is stored in `settings.json`, while access and refresh tokens stay in the OS credential store.
 
 If your OAuth consent screen is still in testing and your audience is external, add your Google account as a test user before signing in. Gmail read-only is a restricted scope, so a public rollout may require Google verification.
 
