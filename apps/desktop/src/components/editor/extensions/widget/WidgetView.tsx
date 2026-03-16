@@ -2,7 +2,8 @@ import type { Spec, } from "@json-render/core";
 import { JSONUIProvider, Renderer, } from "@json-render/react";
 import { NodeViewWrapper, } from "@tiptap/react";
 import type { NodeViewProps, } from "@tiptap/react";
-import { Component, useCallback, useEffect, useMemo, useState, } from "react";
+import { Archive, PencilLine, RefreshCw, Trash2, } from "lucide-react";
+import { Component, useCallback, useEffect, useMemo, useRef, useState, } from "react";
 import type { ErrorInfo, ReactNode, } from "react";
 import { getAiConfigurationMessage, isAiKeyMissingError, } from "../../../../services/ai";
 import { generateSharedWidget, generateWidget, } from "../../../../services/generate";
@@ -126,6 +127,9 @@ export function WidgetView({ node, updateAttributes, deleteNode, }: NodeViewProp
   const [manifest, setManifest,] = useState<SharedComponentManifest | null>(null,);
   const [sharedLoadError, setSharedLoadError,] = useState<string | null>(null,);
   const [runtimeRefreshToken, setRuntimeRefreshToken,] = useState(0,);
+  const [isIterating, setIsIterating,] = useState(false,);
+  const [promptDraft, setPromptDraft,] = useState(prompt,);
+  const promptInputRef = useRef<HTMLTextAreaElement>(null,);
 
   const inlineSpec = useMemo(() => parseSpec(specStr,), [specStr,],);
 
@@ -176,6 +180,16 @@ export function WidgetView({ node, updateAttributes, deleteNode, }: NodeViewProp
     return () => window.removeEventListener(SHARED_COMPONENTS_UPDATED_EVENT, handleSharedUpdate,);
   }, [componentId, loadManifest,],);
 
+  useEffect(() => {
+    setPromptDraft(prompt,);
+  }, [prompt,],);
+
+  useEffect(() => {
+    if (!isIterating) return;
+    promptInputRef.current?.focus();
+    promptInputRef.current?.setSelectionRange(promptDraft.length, promptDraft.length,);
+  }, [isIterating, promptDraft,],);
+
   const isShared = Boolean(componentId,);
   const runtimeApi: SharedWidgetRuntimeApi = useMemo(() => {
     if (!isShared || !componentId || missingComponent || !manifest) {
@@ -208,29 +222,47 @@ export function WidgetView({ node, updateAttributes, deleteNode, }: NodeViewProp
   const sharedSpec = manifest?.uiSpec ? parseSpec(manifest.uiSpec,) : null;
   const currentSpec = useMemo(() => (isShared ? sharedSpec : inlineSpec), [isShared, sharedSpec, inlineSpec,],);
 
-  const handleRebuild = async () => {
-    updateAttributes({ loading: true, error: "", },);
+  const runGeneration = async (nextPrompt: string,) => {
+    updateAttributes({ prompt: nextPrompt, loading: true, error: "", },);
     try {
       if (isShared && manifest) {
-        const generated = await generateSharedWidget(prompt, manifest.storageSchema,);
+        const generated = await generateSharedWidget(nextPrompt, manifest.storageSchema,);
         if (!storageSchemaMatch(generated.storageSchema, manifest.storageSchema,)) {
           throw new Error("Storage schema changed. Save as a new component to rebuild with a new DB schema.",);
         }
-        const next = await updateSharedComponent(manifest.id, generated.uiSpec, manifest.prompt,);
+        const next = await updateSharedComponent(manifest.id, generated.uiSpec, nextPrompt,);
         setManifest(next,);
-        updateAttributes({ loading: false, spec: "", saved: true, error: "", },);
+        updateAttributes({ prompt: nextPrompt, loading: false, spec: "", saved: true, error: "", },);
         return;
       }
 
-      const nextSpec = await generateWidget(prompt,);
-      updateAttributes({ spec: JSON.stringify(nextSpec,), loading: false, error: "", },);
+      const nextSpec = await generateWidget(nextPrompt,);
+      updateAttributes({ prompt: nextPrompt, spec: JSON.stringify(nextSpec,), loading: false, error: "", },);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : typeof err === "string" ? err : "Something went wrong.";
       updateAttributes({
+        prompt: nextPrompt,
         loading: false,
         error: isAiKeyMissingError(errMsg,) ? getAiConfigurationMessage(errMsg,) : errMsg,
       },);
     }
+  };
+
+  const handleRebuild = async () => {
+    await runGeneration(prompt,);
+  };
+
+  const handleIterateSubmit = async (event: React.FormEvent<HTMLFormElement>,) => {
+    event.preventDefault();
+    const nextPrompt = promptDraft.trim();
+    if (!nextPrompt) return;
+    setIsIterating(false,);
+    await runGeneration(nextPrompt,);
+  };
+
+  const handleIterateCancel = () => {
+    setPromptDraft(prompt,);
+    setIsIterating(false,);
   };
 
   const handleSave = async () => {
@@ -273,13 +305,9 @@ export function WidgetView({ node, updateAttributes, deleteNode, }: NodeViewProp
   };
 
   const renderError = error || sharedLoadError;
-
-  const toolbarState = isShared
-    ? saved ? "Shared" : "Insert" // fallback, not expected for shared
-    : saved
-    ? "Saved"
-    : "Unsaved";
   const toolbarTitle = formatToolbarTitle(prompt,);
+  const saveTitle = isShared || saved ? "Archived in library" : "Archive in library";
+  const rebuildTitle = loading || sharedLoading ? "Refreshing widget" : "Refresh widget";
 
   return (
     <NodeViewWrapper className="widget-node">
@@ -290,24 +318,84 @@ export function WidgetView({ node, updateAttributes, deleteNode, }: NodeViewProp
           </span>
           <div className="widget-actions">
             <button
-              className="widget-btn widget-btn-rebuild"
-              onClick={handleRebuild}
+              className={`widget-btn widget-btn-icon widget-btn-iterate ${isIterating ? "widget-btn-active" : ""}`}
+              onClick={() => {
+                if (isIterating) {
+                  handleIterateCancel();
+                  return;
+                }
+                setPromptDraft(prompt,);
+                setIsIterating(true,);
+              }}
               disabled={loading || sharedLoading}
+              title="Iterate widget"
+              aria-label="Iterate widget"
             >
-              {loading || sharedLoading ? "Updating..." : "Rebuild"}
+              <PencilLine strokeWidth={2} />
             </button>
             <button
-              className={`widget-btn ${toolbarState === "Shared" || isShared ? "widget-btn-saved" : ""}`}
-              onClick={handleSave}
-              disabled={isShared || loading || missingComponent}
+              className="widget-btn widget-btn-icon widget-btn-rebuild"
+              onClick={() => {
+                void handleRebuild();
+              }}
+              disabled={loading || sharedLoading}
+              title={rebuildTitle}
+              aria-label={rebuildTitle}
             >
-              {isShared || toolbarState === "Shared" ? "✓ Saved" : "Save to Library"}
+              <RefreshCw className={loading || sharedLoading ? "animate-spin" : undefined} strokeWidth={2} />
             </button>
-            <button className="widget-btn widget-btn-delete" onClick={deleteNode}>
-              ✕
+            <button
+              className={`widget-btn widget-btn-icon ${isShared || saved ? "widget-btn-saved" : ""}`}
+              onClick={() => {
+                void handleSave();
+              }}
+              disabled={isShared || loading || missingComponent}
+              title={saveTitle}
+              aria-label={saveTitle}
+            >
+              <Archive strokeWidth={2} />
+            </button>
+            <button
+              className="widget-btn widget-btn-icon widget-btn-delete"
+              onClick={deleteNode}
+              title="Delete widget"
+              aria-label="Delete widget"
+            >
+              <Trash2 strokeWidth={2} />
             </button>
           </div>
         </div>
+
+        {isIterating && (
+          <form className="widget-iterate-form" onSubmit={(event,) => void handleIterateSubmit(event,)}>
+            <textarea
+              ref={promptInputRef}
+              className="widget-iterate-input"
+              value={promptDraft}
+              onChange={(event,) => setPromptDraft(event.target.value,)}
+              placeholder="Refine this widget..."
+              rows={3}
+              disabled={loading || sharedLoading}
+            />
+            <div className="widget-iterate-actions">
+              <button
+                type="button"
+                className="widget-btn widget-iterate-btn"
+                onClick={handleIterateCancel}
+                disabled={loading || sharedLoading}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="widget-btn widget-btn-rebuild widget-iterate-btn"
+                disabled={!promptDraft.trim() || loading || sharedLoading}
+              >
+                Update widget
+              </button>
+            </div>
+          </form>
+        )}
 
         {loading || sharedLoading
           ? (

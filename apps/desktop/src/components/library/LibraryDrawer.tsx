@@ -1,3 +1,4 @@
+import { Trash2, } from "lucide-react";
 import { useEffect, useRef, useState, } from "react";
 import type { LibraryItem, } from "../../services/library";
 import { loadLibrary, removeFromLibrary, } from "../../services/library";
@@ -122,11 +123,13 @@ export function LibraryDrawer({ open, onClose, onInsert, }: LibraryDrawerProps,)
                     <button
                       onClick={(e,) => {
                         e.stopPropagation();
-                        handleRemove(item.id,);
+                        void handleRemove(item.id,);
                       }}
                       className="text-gray-300 hover:text-red-400 text-xs transition-colors opacity-0 group-hover:opacity-100 cursor-pointer"
+                      title={`Delete ${item.title}`}
+                      aria-label={`Delete ${item.title}`}
                     >
-                      ✕
+                      <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
                     </button>
                   </div>
                 </div>
