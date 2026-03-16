@@ -618,7 +618,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
             Google Account
           </label>
           <p className="text-xs text-gray-400" style={mono}>
-            Connect your mail and calendar to get summaries.
+            Connect your account to get summaries
           </p>
           {googleConnected
             ? (
