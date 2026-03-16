@@ -1,7 +1,7 @@
 import { join, } from "@tauri-apps/api/path";
 import { open as openDialog, } from "@tauri-apps/plugin-dialog";
 import { exists, } from "@tauri-apps/plugin-fs";
-import { RefreshCw, X, } from "lucide-react";
+import { Check, RefreshCw, X, } from "lucide-react";
 import { useEffect, useRef, useState, } from "react";
 import claudeAiSymbol from "../../assets/claude-ai-symbol.svg";
 import googleGeminiIcon from "../../assets/google-gemini-icon.svg";
@@ -620,63 +620,63 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
           <p className="text-xs text-gray-400" style={mono}>
             Connect Google so Philo can pull in important unread emails and relevant calendar events as task candidates.
           </p>
-          <div className="rounded-lg border border-gray-200 bg-gray-50/70 p-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-gray-500" style={mono}>
-                Status
-              </span>
-              <span
-                className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] ${
-                  googleConnected
-                    ? "bg-emerald-100 text-emerald-700"
-                    : "bg-gray-200 text-gray-600"
-                }`}
-                style={mono}
-              >
-                {googleConnected ? "Connected" : "Not connected"}
-              </span>
-            </div>
-            {googleConnected
-              ? (
-                <div className="mt-2 space-y-2">
-                  {googleAccounts.map((account,) => {
-                    const isRefreshing = googleAction?.type === "refreshing" && googleAction.email === account.email;
-                    const isDisconnecting = googleAction?.type === "disconnecting"
-                      && googleAction.email === account.email;
-                    return (
-                      <div key={account.email} className="flex items-start gap-2">
-                        <p className="min-w-0 flex-1 text-sm text-gray-700 break-all" style={mono}>
-                          {account.email}
-                        </p>
-                        <button
-                          onClick={() => handleRefreshGoogle(account.email,)}
-                          disabled={googleAction !== null}
-                          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition-colors cursor-pointer hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300/40 disabled:cursor-default disabled:opacity-60"
-                          title={`Refresh ${account.email}`}
-                          aria-label={`Refresh ${account.email}`}
-                        >
-                          <RefreshCw className={`h-4 w-4 ${isRefreshing ? "animate-spin" : ""}`} strokeWidth={2} />
-                        </button>
-                        <button
-                          onClick={() => handleDisconnectGoogle(account.email,)}
-                          disabled={googleAction !== null}
-                          className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition-colors cursor-pointer hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-300/40 disabled:cursor-default disabled:opacity-60"
-                          title={`Disconnect ${account.email}`}
-                          aria-label={`Disconnect ${account.email}`}
-                        >
-                          <X className={`h-4 w-4 ${isDisconnecting ? "opacity-60" : ""}`} strokeWidth={2} />
-                        </button>
-                      </div>
-                    );
-                  },)}
-                </div>
-              )
-              : (
-                <p className="mt-2 text-sm text-gray-700 break-all" style={mono}>
-                  No Google account connected yet.
-                </p>
-              )}
-          </div>
+          {googleConnected
+            ? (
+              <div className="space-y-1.5">
+                {googleAccounts.map((account,) => {
+                  const isRefreshing = googleAction?.type === "refreshing" && googleAction.email === account.email;
+                  const isDisconnecting = googleAction?.type === "disconnecting"
+                    && googleAction.email === account.email;
+                  return (
+                    <div key={account.email} className="flex min-w-0 items-center gap-1">
+                      <p
+                        className="min-w-0 flex-1 truncate text-xs text-gray-500"
+                        style={mono}
+                        title={account.email}
+                      >
+                        {account.email}
+                      </p>
+                      <button
+                        onClick={() => handleRefreshGoogle(account.email,)}
+                        disabled={googleAction !== null}
+                        className="group relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-emerald-600 transition-colors cursor-pointer hover:bg-emerald-50 hover:text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-300/40 disabled:cursor-default disabled:opacity-60"
+                        title={`Refresh ${account.email}`}
+                        aria-label={`Refresh ${account.email}`}
+                      >
+                        {isRefreshing
+                          ? <RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+                          : (
+                            <>
+                              <Check
+                                className="h-3.5 w-3.5 transition-opacity group-hover:opacity-0"
+                                strokeWidth={2.25}
+                              />
+                              <RefreshCw
+                                className="absolute h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100"
+                                strokeWidth={2}
+                              />
+                            </>
+                          )}
+                      </button>
+                      <button
+                        onClick={() => handleDisconnectGoogle(account.email,)}
+                        disabled={googleAction !== null}
+                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-gray-400 transition-colors cursor-pointer hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300/40 disabled:cursor-default disabled:opacity-60"
+                        title={`Disconnect ${account.email}`}
+                        aria-label={`Disconnect ${account.email}`}
+                      >
+                        <X className={`h-3.5 w-3.5 ${isDisconnecting ? "opacity-60" : ""}`} strokeWidth={2} />
+                      </button>
+                    </div>
+                  );
+                },)}
+              </div>
+            )
+            : (
+              <p className="text-xs text-gray-500" style={mono}>
+                No Google account connected yet.
+              </p>
+            )}
           {googleError && (
             <p className="text-xs text-red-600" style={mono}>
               {googleError}
