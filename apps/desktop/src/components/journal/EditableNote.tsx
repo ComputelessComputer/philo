@@ -54,6 +54,7 @@ interface EditableNoteProps {
   placeholder?: string;
   onSave?: (note: DailyNote,) => void;
   onOpenDate?: (date: string,) => void;
+  onInteract?: () => void;
   onChatSelection?: (selection: EditableNoteSelection,) => void;
   onSelectionChange?: (selection: EditableNoteSelection | null,) => void;
   onSelectionBlur?: (editor: TiptapEditor,) => void;
@@ -108,6 +109,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
       placeholder = "Start writing...",
       onSave,
       onOpenDate,
+      onInteract,
       onChatSelection,
       onSelectionChange,
       onSelectionBlur,
@@ -383,7 +385,9 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
             }}
           />
         )}
-        <EditorContent editor={editor} />
+        <div onMouseDownCapture={onInteract}>
+          <EditorContent editor={editor} />
+        </div>
       </>
     );
   },

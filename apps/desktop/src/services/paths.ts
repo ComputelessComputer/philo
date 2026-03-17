@@ -125,6 +125,13 @@ export async function getWidgetsDir(): Promise<string> {
   return await join(journal, "widgets",);
 }
 
+export async function getChatsDir(): Promise<string> {
+  const vaultDir = await getVaultDirSetting();
+  if (vaultDir) return await join(vaultDir, "chats",);
+  const journal = await getJournalDir();
+  return await join(journal, "chats",);
+}
+
 /**
  * Apply a filename pattern to a date string (YYYY-MM-DD).
  * Supported tokens: {YYYY}, {MM}, {DD}

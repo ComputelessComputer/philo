@@ -1,16 +1,21 @@
 import { ArrowUp, LoaderCircle, Square, } from "lucide-react";
 import { useEffect, useRef, } from "react";
 import type { AssistantCitation, AssistantPendingChange, } from "../../services/assistant";
+import type { ChatHistoryEntry, } from "../../services/chats";
 import { AiResultPanel, } from "./AiResultPanel";
 
 interface AiComposerProps {
   open: boolean;
   prompt: string;
   selectedText: string | null;
+  title: string | null;
+  activeChatId: string | null;
+  chatHistory: ChatHistoryEntry[];
   answer: string | null;
   citations: AssistantCitation[];
   pendingChanges: AssistantPendingChange[];
   applyingDates: string[];
+  canApplyPendingChanges: boolean;
   hasAiConfigured: boolean;
   isSubmitting: boolean;
   error: string | null;
@@ -21,6 +26,7 @@ interface AiComposerProps {
   onStop: () => void;
   onOpenSettings: () => void;
   onOpenDate: (date: string,) => void;
+  onSelectChat: (id: string,) => void;
   onApplyChange: (date: string,) => void;
   onDiscardChange: (date: string,) => void;
 }
@@ -29,10 +35,14 @@ export function AiComposer({
   open,
   prompt,
   selectedText,
+  title,
+  activeChatId,
+  chatHistory,
   answer,
   citations,
   pendingChanges,
   applyingDates,
+  canApplyPendingChanges,
   hasAiConfigured,
   isSubmitting,
   error,
@@ -42,11 +52,13 @@ export function AiComposer({
   onStop,
   onOpenSettings,
   onOpenDate,
+  onSelectChat,
   onApplyChange,
   onDiscardChange,
 }: AiComposerProps,) {
   const inputRef = useRef<HTMLInputElement>(null,);
   const hasResult = Boolean(answer,) || citations.length > 0 || pendingChanges.length > 0;
+  const hasPanel = hasResult || Boolean(title,) || chatHistory.length > 0;
   const selectedLabel = selectedText ? formatSelectedLabel(selectedText,) : null;
 
   useEffect(() => {
@@ -80,13 +92,18 @@ export function AiComposer({
           )
           : (
             <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-[0_-18px_52px_rgba(15,23,42,0.12)]">
-              {hasResult && (
+              {hasPanel && (
                 <>
                   <AiResultPanel
+                    title={title}
+                    activeChatId={activeChatId}
+                    chatHistory={chatHistory}
                     answer={answer}
                     citations={citations}
                     pendingChanges={pendingChanges}
                     applyingDates={applyingDates}
+                    canApplyPendingChanges={canApplyPendingChanges}
+                    onSelectChat={onSelectChat}
                     onOpenDate={onOpenDate}
                     onApplyChange={onApplyChange}
                     onDiscardChange={onDiscardChange}

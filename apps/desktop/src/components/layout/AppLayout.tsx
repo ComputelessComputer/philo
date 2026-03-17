@@ -15,6 +15,13 @@ import {
   type AssistantScope,
   runAssistant,
 } from "../../services/assistant";
+import {
+  buildChatHistoryEntry,
+  type ChatHistoryEntry,
+  deriveChatTitle,
+  loadChatHistory,
+  saveChatHistoryEntry,
+} from "../../services/chats";
 import type { LibraryItem, } from "../../services/library";
 import { getJournalDir, initJournalScope, parseDateFromNoteLinkTarget, } from "../../services/paths";
 import { getFilenamePattern, hasActiveAiProvider, loadSettings, } from "../../services/settings";
@@ -180,6 +187,7 @@ function DateHeader({
 function LazyNote({
   date,
   onOpenDate,
+  onInteract,
   onChatSelection,
   onSelectionChange,
   onSelectionBlur,
@@ -187,6 +195,7 @@ function LazyNote({
 }: {
   date: string;
   onOpenDate?: (date: string,) => void;
+  onInteract?: () => void;
   onChatSelection?: (selection: EditableNoteSelection,) => void;
   onSelectionChange?: (selection: EditableNoteSelection | null,) => void;
   onSelectionBlur?: (editor: TiptapEditor,) => void;
@@ -229,6 +238,7 @@ function LazyNote({
           <EditableNote
             note={note}
             onOpenDate={onOpenDate}
+            onInteract={onInteract}
             onChatSelection={onChatSelection}
             onSelectionChange={onSelectionChange}
             onSelectionBlur={onSelectionBlur}
@@ -271,6 +281,9 @@ export default function AppLayout() {
   const [aiRunning, setAiRunning,] = useState(false,);
   const [aiError, setAiError,] = useState<string | null>(null,);
   const [aiResult, setAiResult,] = useState<AssistantResult | null>(null,);
+  const [aiChatHistory, setAiChatHistory,] = useState<ChatHistoryEntry[]>([],);
+  const [aiActiveChatId, setAiActiveChatId,] = useState<string | null>(null,);
+  const [aiLatestChatId, setAiLatestChatId,] = useState<string | null>(null,);
   const [aiApplyingDates, setAiApplyingDates,] = useState<string[]>([],);
   const aiAbortControllerRef = useRef<AbortController | null>(null,);
   const currentSelectionRef = useRef<EditableNoteSelection | null>(null,);
@@ -283,6 +296,59 @@ export default function AppLayout() {
   useEffect(() => {
     todayNoteRef.current = todayNote;
   }, [todayNote,],);
+
+  const upsertAiChatHistoryEntry = useCallback((entry: ChatHistoryEntry, persist = true,) => {
+    setAiChatHistory((current,) => {
+      const next = [entry, ...current.filter((item,) => item.id !== entry.id),];
+      next.sort((left, right,) => right.createdAt.localeCompare(left.createdAt,));
+      return next;
+    },);
+    if (persist) {
+      saveChatHistoryEntry(entry,).catch(console.error,);
+    }
+  }, [],);
+
+  const activeAiChat = useMemo(
+    () => aiChatHistory.find((chat,) => chat.id === aiActiveChatId) ?? null,
+    [aiActiveChatId, aiChatHistory,],
+  );
+  const displayedAiResult = useMemo(() => {
+    if (aiRunning || aiResult) {
+      return aiResult;
+    }
+
+    if (!activeAiChat) {
+      return null;
+    }
+
+    return {
+      answer: activeAiChat.answer,
+      citations: activeAiChat.citations,
+      pendingChanges: activeAiChat.pendingChanges,
+    } satisfies AssistantResult;
+  }, [activeAiChat, aiResult, aiRunning,],);
+  const canApplyPendingChanges = !aiRunning && !!aiResult && !!activeAiChat && activeAiChat.id === aiLatestChatId;
+  const aiPanelTitle = useMemo(() => {
+    if (aiRunning || aiResult) {
+      const sourcePrompt = aiLastSubmittedPromptRef.current || aiPrompt;
+      return sourcePrompt.trim() ? deriveChatTitle(sourcePrompt, aiResult?.answer ?? null,) : null;
+    }
+
+    return activeAiChat?.title ?? null;
+  }, [activeAiChat?.title, aiPrompt, aiResult, aiRunning,],);
+
+  const syncLatestAiChatHistory = useCallback((result: AssistantResult | null,) => {
+    if (!aiLatestChatId) return;
+    const existing = aiChatHistory.find((chat,) => chat.id === aiLatestChatId);
+    if (!existing) return;
+
+    upsertAiChatHistoryEntry({
+      ...existing,
+      answer: result?.answer ?? "",
+      citations: result?.citations ?? [],
+      pendingChanges: result?.pendingChanges ?? [],
+    },);
+  }, [aiChatHistory, aiLatestChatId, upsertAiChatHistoryEntry,],);
 
   const syncTodayNoteFromDisk = useCallback(() => {
     loadDailyNote(today,)
@@ -412,6 +478,17 @@ export default function AppLayout() {
       },)
       .catch(console.error,);
   }, [],);
+
+  useEffect(() => {
+    if (!isConfigured) return;
+    loadChatHistory()
+      .then((history,) => {
+        setAiChatHistory(history,);
+        setAiActiveChatId((current,) => current ?? history[0]?.id ?? null);
+        setAiLatestChatId((current,) => current ?? history[0]?.id ?? null);
+      },)
+      .catch(console.error,);
+  }, [isConfigured,],);
 
   // Poll for app updates every 5 minutes
   useEffect(() => {
@@ -700,6 +777,30 @@ export default function AppLayout() {
     const todayNoteValue = todayNoteRef.current;
     const normalizedPrompt = promptText.trim();
     if (!todayNoteValue || aiRunning || !normalizedPrompt) return;
+    const previousActiveChatId = aiActiveChatId;
+    const previousLatestChatId = aiLatestChatId;
+    const draftEntry = buildChatHistoryEntry({
+      prompt: normalizedPrompt,
+      selectedText: aiSelectedText ?? null,
+      scope: aiScope,
+      result: {
+        answer: "",
+        citations: [],
+        pendingChanges: [],
+      },
+    },);
+    let latestResult: AssistantResult | null = null;
+
+    const syncDraftEntry = (result: AssistantResult, persist = false,) => {
+      const nextEntry = {
+        ...draftEntry,
+        answer: result.answer,
+        citations: result.citations,
+        pendingChanges: result.pendingChanges,
+      };
+      upsertAiChatHistoryEntry(nextEntry, persist,);
+      return nextEntry;
+    };
 
     aiLastSubmittedPromptRef.current = normalizedPrompt;
     const controller = new AbortController();
@@ -707,6 +808,9 @@ export default function AppLayout() {
     setAiRunning(true,);
     setAiError(null,);
     setAiResult(null,);
+    setAiLatestChatId(draftEntry.id,);
+    setAiActiveChatId(draftEntry.id,);
+    upsertAiChatHistoryEntry(draftEntry, false,);
 
     try {
       const recentNotes = aiScope === "recent" ? await loadPastNotes(14,) : [];
@@ -718,11 +822,36 @@ export default function AppLayout() {
           today: todayNoteValue,
           recentNotes,
         },
-      }, controller.signal,);
+      }, {
+        signal: controller.signal,
+        onUpdate(nextResult,) {
+          latestResult = nextResult;
+          setAiResult(nextResult,);
+          syncDraftEntry(nextResult, false,);
+        },
+      },);
 
+      latestResult = result;
+      const entry = syncDraftEntry(result, true,);
       setAiResult(result,);
       setAiPrompt("",);
+      setAiLatestChatId(entry.id,);
+      setAiActiveChatId(entry.id,);
     } catch (error) {
+      const hasDraftContent = !!latestResult
+        && (
+          !!latestResult.answer
+          || latestResult.citations.length > 0
+          || latestResult.pendingChanges.length > 0
+        );
+      if (!hasDraftContent) {
+        setAiChatHistory((current,) => current.filter((item,) => item.id !== draftEntry.id));
+        setAiActiveChatId(previousActiveChatId,);
+        setAiLatestChatId(previousLatestChatId,);
+      } else if (latestResult) {
+        syncDraftEntry(latestResult, true,);
+      }
+
       if (error instanceof DOMException && error.name === "AbortError") {
         setAiError(null,);
       } else if (error instanceof Error && error.message.startsWith(AI_NOT_CONFIGURED,)) {
@@ -737,7 +866,14 @@ export default function AppLayout() {
       }
       setAiRunning(false,);
     }
-  }, [aiRunning, aiScope, aiSelectedText,],);
+  }, [
+    aiActiveChatId,
+    aiLatestChatId,
+    aiRunning,
+    aiScope,
+    aiSelectedText,
+    upsertAiChatHistoryEntry,
+  ],);
 
   const handleAiSubmit = useCallback(async () => {
     await runAiPrompt(aiPrompt,);
@@ -767,31 +903,47 @@ export default function AppLayout() {
         }
       }
 
-      setAiResult((current,) => {
-        if (!current) return current;
-        return {
-          ...current,
-          pendingChanges: current.pendingChanges.filter((item,) => item.date !== date),
-        };
-      },);
+      const nextResult = aiResult
+        ? {
+          ...aiResult,
+          pendingChanges: aiResult.pendingChanges.filter((item,) => item.date !== date),
+        }
+        : null;
+      setAiResult(nextResult,);
+      syncLatestAiChatHistory(nextResult,);
       setStorageRevision((value,) => value + 1);
     } catch (error) {
       setAiError(error instanceof Error ? error.message : "Could not apply note changes.",);
     } finally {
       setAiApplyingDates((current,) => current.filter((value,) => value !== date));
     }
-  }, [aiResult, today,],);
+  }, [aiResult, syncLatestAiChatHistory, today,],);
 
   const handleDiscardAiChange = useCallback((date: string,) => {
-    setAiResult((current,) => {
-      if (!current) return current;
-      const pendingChanges = current.pendingChanges.filter((item,) => item.date !== date);
-      if (!current.answer && current.citations.length === 0 && pendingChanges.length === 0) {
-        return null;
-      }
-      return { ...current, pendingChanges, };
-    },);
-  }, [],);
+    if (!aiResult) return;
+    const pendingChanges = aiResult.pendingChanges.filter((item,) => item.date !== date);
+    const nextResult = !aiResult.answer && aiResult.citations.length === 0 && pendingChanges.length === 0
+      ? null
+      : { ...aiResult, pendingChanges, };
+    setAiResult(nextResult,);
+    syncLatestAiChatHistory(nextResult,);
+  }, [aiResult, syncLatestAiChatHistory,],);
+
+  const handleSelectAiChat = useCallback((id: string,) => {
+    const chat = aiChatHistory.find((item,) => item.id === id);
+    if (!chat) return;
+    setAiActiveChatId(chat.id,);
+    setAiPrompt(chat.prompt,);
+    setAiSelectedText(chat.selectedText,);
+    setAiSelectionHighlight(null,);
+    setAiScope(chat.scope,);
+    aiLastSubmittedPromptRef.current = chat.prompt;
+  }, [aiChatHistory,],);
+
+  const handleEditorInteract = useCallback(() => {
+    if (!aiComposerOpen) return;
+    closeAiComposer();
+  }, [aiComposerOpen, closeAiComposer,],);
 
   const todayEditorRef = useRef<EditableNoteHandle>(null,);
   const todayRef = useRef<HTMLDivElement>(null,);
@@ -1013,6 +1165,7 @@ export default function AppLayout() {
                   <LazyNote
                     date={focusedDate}
                     onOpenDate={scrollToDate}
+                    onInteract={handleEditorInteract}
                     onChatSelection={openAiComposer}
                     onSelectionChange={handleAiSelectionChange}
                     onSelectionBlur={handleAiSelectionBlur}
@@ -1043,6 +1196,7 @@ export default function AppLayout() {
                     note={todayNote}
                     onOpenDate={scrollToDate}
                     onSave={handleTodaySave}
+                    onInteract={handleEditorInteract}
                     onChatSelection={openAiComposer}
                     onSelectionChange={handleAiSelectionChange}
                     onSelectionBlur={handleAiSelectionBlur}
@@ -1059,6 +1213,7 @@ export default function AppLayout() {
                   <LazyNote
                     date={date}
                     onOpenDate={scrollToDate}
+                    onInteract={handleEditorInteract}
                     onChatSelection={openAiComposer}
                     onSelectionChange={handleAiSelectionChange}
                     onSelectionBlur={handleAiSelectionBlur}
@@ -1088,11 +1243,15 @@ export default function AppLayout() {
       <AiComposer
         open={aiComposerOpen}
         prompt={aiPrompt}
-        selectedText={aiSelectedText}
-        answer={aiResult?.answer ?? null}
-        citations={aiResult?.citations ?? []}
-        pendingChanges={aiResult?.pendingChanges ?? []}
+        selectedText={aiSelectedText ?? activeAiChat?.selectedText ?? null}
+        title={aiPanelTitle}
+        activeChatId={aiActiveChatId}
+        chatHistory={aiChatHistory}
+        answer={displayedAiResult?.answer ?? null}
+        citations={displayedAiResult?.citations ?? []}
+        pendingChanges={displayedAiResult?.pendingChanges ?? []}
         applyingDates={aiApplyingDates}
+        canApplyPendingChanges={canApplyPendingChanges}
         hasAiConfigured={hasAiConfigured}
         isSubmitting={aiRunning}
         error={aiError}
@@ -1102,6 +1261,7 @@ export default function AppLayout() {
         onRefresh={handleRefreshAi}
         onStop={handleStopAi}
         onOpenDate={scrollToDate}
+        onSelectChat={handleSelectAiChat}
         onApplyChange={handleApplyAiChange}
         onDiscardChange={handleDiscardAiChange}
         onOpenSettings={() => {

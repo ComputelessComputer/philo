@@ -1,0 +1,177 @@
+.hero-note-shell {
+  min-height: 560px;
+  border: 1px dashed color-mix(in srgb, #d8d7cf 82%, #bfc2ce);
+  background:
+    radial-gradient(circle at bottom right, rgba(201, 211, 255, 0.65), transparent 28%),
+    linear-gradient(180deg, #f7f7f2 0%, #efeee7 100%);
+  overflow: hidden;
+}
+
+.hero-note-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 16px 10px;
+}
+
+.hero-note-dots {
+  display: flex;
+  gap: 7px;
+}
+
+.hero-note-dots span {
+  width: 11px;
+  height: 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.hero-note-dots span:nth-child(1) {
+  background: #ff6259;
+}
+
+.hero-note-dots span:nth-child(2) {
+  background: #ffbd44;
+}
+
+.hero-note-dots span:nth-child(3) {
+  background: #28c840;
+}
+
+.hero-note-pin {
+  width: 16px;
+  height: 16px;
+  color: #a0a7b2;
+}
+
+.hero-note-surface {
+  min-height: calc(100% - 37px);
+  margin: 0 14px 14px;
+  padding: 18px 18px 20px;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 24px 48px rgba(44, 49, 63, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.hero-note-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.hero-note-date {
+  margin: 0;
+  font-family: "Instrument Serif", Georgia, serif;
+  font-size: 22px;
+  font-style: italic;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #1f2937;
+}
+
+.hero-note-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 11px 3px;
+  border-radius: 999px;
+  background: linear-gradient(to bottom, #4b5563, #1f2937);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hero-note-city {
+  color: #9ca3af;
+  font-size: 13px;
+  font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+}
+
+.hero-note-editor {
+  padding: 0;
+  color: #1f2937;
+  font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.hero-note-editor.ProseMirror {
+  min-height: 0;
+}
+
+.hero-note-editor p {
+  margin: 0 0 8px;
+}
+
+.hero-note-editor a {
+  color: #3b82f6;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.12em;
+  overflow-wrap: anywhere;
+}
+
+.hero-note-editor ul[data-type="taskList"] {
+  margin-top: 18px;
+}
+
+.hero-note-editor ul[data-type="taskList"] li {
+  margin: 0 0 8px;
+}
+
+.hero-note-editor ul[data-type="taskList"] li > label {
+  align-self: start;
+}
+
+.hero-note-editor ul[data-type="taskList"] li > div {
+  min-width: 0;
+}
+
+.hero-note-editor .hero-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
+.hero-note-editor .hero-chip-today {
+  border-color: #fde68a;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.hero-note-editor .hero-chip-date {
+  border-color: #bfdbfe;
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+@media (max-width: 980px) {
+  .hero-note-shell {
+    min-height: 620px;
+  }
+}
+
+@media (max-width: 720px) {
+  .hero-note-shell {
+    min-height: 560px;
+  }
+
+  .hero-note-surface {
+    margin: 0 10px 10px;
+    padding: 16px;
+  }
+}
