@@ -143,6 +143,56 @@ function toStringValue(value: unknown,): string {
   return String(value,);
 }
 
+function padTimerSegment(value: number,): string {
+  return String(value,).padStart(2, "0",);
+}
+
+function formatTimerValue(totalMs: number,): string {
+  const totalSeconds = Math.max(0, Math.ceil(totalMs / 1000,),);
+  const hours = Math.floor(totalSeconds / 3600,);
+  const minutes = Math.floor((totalSeconds % 3600) / 60,);
+  const seconds = totalSeconds % 60;
+  return `${padTimerSegment(hours,)}:${padTimerSegment(minutes,)}:${padTimerSegment(seconds,)}`;
+}
+
+function parseTimerDuration(value: unknown,): number | null {
+  const raw = toStringValue(value,).trim();
+  if (!raw) return null;
+
+  if (/^\d+$/.test(raw,)) {
+    return Number(raw,) * 1000;
+  }
+
+  const parts = raw.split(":",).map((part,) => part.trim());
+  if (parts.length < 2 || parts.length > 3 || parts.some((part,) => !/^\d+$/.test(part,))) {
+    return null;
+  }
+
+  const numbers = parts.map((part,) => Number(part,));
+  const [hours, minutes, seconds,] = parts.length === 3
+    ? numbers
+    : [0, numbers[0], numbers[1],];
+  return ((hours * 3600) + (minutes * 60) + seconds) * 1000;
+}
+
+function parseTimerEnd(value: unknown,): number | null {
+  if (typeof value === "number" && Number.isFinite(value,)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    if (/^\d+$/.test(trimmed,)) {
+      return Number(trimmed,);
+    }
+    const parsed = Date.parse(trimmed,);
+    return Number.isNaN(parsed,) ? null : parsed;
+  }
+
+  return null;
+}
+
 function normalizeBoolean(value: unknown,): boolean {
   if (typeof value === "boolean") return value;
   if (typeof value === "number") return value === 1;
@@ -277,6 +327,34 @@ function resolveTemplateString(
       const field = token.slice(separatorIndex + 1,);
       const resolved = formatTemporalField(temporal.now, timeZone, field,);
       return resolved || `{{${token}}}`;
+    }
+
+    if (token.startsWith("countdown:",) && temporal) {
+      const [endToken, fallbackToken,] = token
+        .slice("countdown:".length,)
+        .split("|",)
+        .map((part,) => part.trim());
+
+      if (widgetState) {
+        const endValue = endToken ? widgetState.getValue(endToken,) : undefined;
+        const endMs = parseTimerEnd(endValue,);
+        if (endMs !== null) {
+          return formatTimerValue(endMs - temporal.now.getTime(),);
+        }
+
+        if (fallbackToken) {
+          const fallbackValue = widgetState.getValue(fallbackToken,);
+          const fallbackDuration = parseTimerDuration(fallbackValue,);
+          if (fallbackDuration !== null) {
+            return formatTimerValue(fallbackDuration,);
+          }
+
+          const fallbackText = toStringValue(fallbackValue ?? "",);
+          return fallbackText || "00:00:00";
+        }
+      }
+
+      return "00:00:00";
     }
 
     if (widgetState) {
@@ -538,7 +616,7 @@ export const { registry, } = defineRegistry(widgetCatalog, {
       const label = resolveTemplateString(props.label, temporal, widgetState,);
       const [running, setRunning,] = useState(false,);
       const canMutate = Boolean(runtime && runtime.mode !== "inline" && props.mutation,);
-      const canRunLocalAction = Boolean(widgetState && runtime?.mode === "inline" && props.action,);
+      const canRunLocalAction = Boolean(widgetState && props.action,);
 
       const handleClick = async () => {
         if (!canMutate || !runtime || !props.mutation) return;
@@ -596,6 +674,13 @@ export const { registry, } = defineRegistry(widgetCatalog, {
             widgetState.setValue(targetKey, resolvedValue ?? sourceValue ?? "",);
             return;
           }
+          case "startTimer": {
+            if (!targetKey) return;
+            const durationMs = parseTimerDuration(sourceValue,) ?? parseTimerDuration(resolvedValue ?? "",);
+            if (durationMs === null) return;
+            widgetState.setValue(targetKey, (temporal?.now.getTime() ?? Date.now()) + durationMs,);
+            return;
+          }
         }
       };
 
@@ -604,12 +689,11 @@ export const { registry, } = defineRegistry(widgetCatalog, {
       return (
         <button
           onClick={() => {
-            if (canMutate) {
-              void handleClick();
-              return;
-            }
             if (canRunLocalAction) {
               handleLocalAction();
+            }
+            if (canMutate) {
+              void handleClick();
             }
           }}
           disabled={(running && canMutate) || (!canMutate && !canRunLocalAction)}
@@ -683,7 +767,7 @@ export const { registry, } = defineRegistry(widgetCatalog, {
             onChange={(event,) => {
               const next = event.target.value;
               setValue(next,);
-              if (runtimeMode === "inline" && props.binding && widgetState) {
+              if (props.binding && widgetState) {
                 widgetState.setValue(props.binding, next,);
               }
             }}
@@ -768,12 +852,12 @@ export const { registry, } = defineRegistry(widgetCatalog, {
             onChange={(event,) => {
               const next = event.target.checked;
               setLocalChecked(next,);
+              if (props.binding && widgetState) {
+                widgetState.setValue(props.binding, next,);
+              }
               if (runtimeMode !== "inline" && canWrite) {
                 void submit(next,);
                 return;
-              }
-              if (props.binding && widgetState) {
-                widgetState.setValue(props.binding, next,);
               }
             }}
             style={{ width: "16px", height: "16px", }}

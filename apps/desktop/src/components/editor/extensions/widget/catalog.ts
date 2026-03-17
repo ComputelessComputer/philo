@@ -67,7 +67,7 @@ export const widgetCatalog = defineCatalog(schema, {
         variant: z.enum(["primary", "secondary", "ghost",],).optional(),
         size: z.enum(["sm", "md", "lg",],).optional(),
         mutation: z.string().optional(),
-        action: z.enum(["append", "clear", "pickRandom", "set",],).optional(),
+        action: z.enum(["append", "clear", "pickRandom", "set", "startTimer",],).optional(),
         source: z.string().optional(),
         target: z.string().optional(),
         value: z.string().optional(),

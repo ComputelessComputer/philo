@@ -40,7 +40,7 @@ Supported UI components:
 - Badge { text: string, variant?: "default"|"success"|"warning"|"error"|"info" }
 - Image { src: string, alt?: string, rounded?: boolean }
 - ProgressBar { value: number, max?: number, color?: "default"|"success"|"warning"|"error"|"accent", showLabel?: boolean }
-- Button { label: string, variant?: "primary"|"secondary"|"ghost", size?: "sm"|"md"|"lg", action?: "append"|"clear"|"pickRandom"|"set", source?: string, target?: string, value?: string, mutation?: string }
+- Button { label: string, variant?: "primary"|"secondary"|"ghost", size?: "sm"|"md"|"lg", action?: "append"|"clear"|"pickRandom"|"set"|"startTimer", source?: string, target?: string, value?: string, mutation?: string }
 - TextInput { placeholder?: string, label?: string, binding?: string, value?: string, query?: string, bindColumn?: string, mutation?: string }
 - Checkbox { label: string, binding?: string, checked?: boolean, query?: string, bindColumn?: string, mutation?: string }
 - List { items?: [{ label: string, description?: string, trailing?: string }], binding?: string, query?: string, labelColumn?: string, descriptionColumn?: string, trailingColumn?: string }
@@ -50,6 +50,7 @@ Live bindings available in any string prop:
 - {{local.time}}, {{local.shortTime}}, {{local.date}}, {{local.hour}}, {{local.minute}}, {{local.second}}, {{local.period}}, {{local.city}}, {{local.timezone}}, {{local.abbr}}, {{local.offset}}
 - {{zone:America/New_York.time}}, {{zone:America/New_York.shortTime}}, {{zone:America/New_York.date}}, {{zone:America/New_York.hour}}, {{zone:America/New_York.minute}}, {{zone:America/New_York.second}}, {{zone:America/New_York.period}}, {{zone:America/New_York.city}}, {{zone:America/New_York.timezone}}, {{zone:America/New_York.abbr}}, {{zone:America/New_York.offset}}
 - {{state.someKey}} or {{someKey}}
+- {{countdown:endKey}} or {{countdown:endKey|fallbackKey}} to show a live hh:mm:ss countdown from a stored end timestamp, with an optional fallback duration display before the timer starts
 
 Storage rules:
 - If the widget needs durable user data, use query-backed or mutation-backed components and generate a matching storageSchema.
@@ -65,6 +66,7 @@ Design rules:
 - Prefer query-backed lists/tables, editable fields, and buttons that perform clear mutations when persistence matters.
 - For lightweight inline interactions, use TextInput.binding / Checkbox.binding / Button.action.
 - Use Button.action="append" with source/target for add-to-list flows, Button.action="pickRandom" to choose from a bound array, and Button.action="clear" to reset bound state.
+- For timers/countdowns, bind the duration input to a key, use Button.action="startTimer" with source="<duration-key>" and target="<end-timestamp-key>", and display the timer with {{countdown:<end-timestamp-key>|<duration-key>}}.
 - When showing local user-added collections, use List.binding instead of hardcoded placeholders.
 - Never hardcode the current time, date, timezone abbreviation, or UTC offset when a live binding fits.`;
 
