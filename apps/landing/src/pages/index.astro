@@ -1224,14 +1224,42 @@ const heroMetaDescription =
       display: none;
     }
 
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(300px, 42vw);
+      column-gap: clamp(24px, 4vw, 40px);
+      align-items: center;
+    }
+
+    .hero h1,
+    .hero .lede,
+    .hero .download-split {
+      grid-column: 1;
+    }
+
+    .hero .lede {
+      white-space: normal;
+      max-width: 34ch;
+    }
+
     .hero-media-mobile {
       display: block;
+      width: min(100%, 420px);
+      margin: 0 0 0 auto;
+      grid-column: 2;
+      grid-row: 1 / span 3;
+      align-self: center;
     }
   }
 
   @media (max-width: 720px) {
+    .hero {
+      display: block;
+    }
+
     .hero-media-mobile {
       width: 100%;
+      margin: 18px auto 0;
     }
 
     .shell {
