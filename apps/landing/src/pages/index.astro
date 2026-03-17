@@ -415,15 +415,17 @@ const heroMetaDescription =
     padding: 0 24px;
     min-height: 100vh;
     display: flex;
+    justify-content: center;
     align-items: flex-start;
     gap: 42px;
   }
 
   .shell {
     position: relative;
-    width: 100%;
+    width: auto;
+    min-width: 0;
     max-width: 780px;
-    flex: 1 1 auto;
+    flex: 0 1 780px;
     padding: 68px 0 88px;
   }
 
@@ -1115,7 +1117,7 @@ const heroMetaDescription =
 
   .video-column {
     position: sticky;
-    top: clamp(108px, 14vh, 150px);
+    top: clamp(92px, 12vh, 128px);
     align-self: flex-start;
     flex: 0 0 clamp(400px, 34vw, 500px);
     width: clamp(400px, 34vw, 500px);
