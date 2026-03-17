@@ -781,13 +781,16 @@ primary.firstChild.textContent = labels[os];
   }
 
   .mini-timeline {
+    --mini-timeline-day-height: 44px;
+    --mini-timeline-gap: 6px;
+    --mini-timeline-step: calc(var(--mini-timeline-day-height) + var(--mini-timeline-gap));
     position: relative;
     overflow: hidden;
   }
 
   .mini-timeline-track {
     display: grid;
-    gap: 6px;
+    gap: var(--mini-timeline-gap);
     animation: mini-timeline-scroll 6s ease-in-out infinite;
   }
 
@@ -801,7 +804,8 @@ primary.firstChild.textContent = labels[os];
   }
 
   .mini-timeline-day {
-    min-height: 28px;
+    block-size: var(--mini-timeline-day-height);
+    align-content: start;
   }
 
   .mini-timeline-day p,
@@ -1047,17 +1051,17 @@ primary.firstChild.textContent = labels[os];
 
     28%,
     46% {
-      transform: translateY(-34px);
+      transform: translateY(calc(-1 * var(--mini-timeline-step)));
     }
 
     56%,
     74% {
-      transform: translateY(-68px);
+      transform: translateY(calc(-2 * var(--mini-timeline-step)));
     }
 
     84%,
     100% {
-      transform: translateY(-68px);
+      transform: translateY(calc(-2 * var(--mini-timeline-step)));
     }
   }
 
