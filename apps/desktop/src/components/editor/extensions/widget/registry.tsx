@@ -324,7 +324,7 @@ export const { registry, } = defineRegistry(widgetCatalog, {
         <WidgetCardDepthContext.Provider value={cardDepth + 1}>
           <div
             style={{
-              borderRadius: isRootCard ? 0 : "12px",
+              borderRadius: 0,
               border: isRootCard ? "none" : "1px solid #e5e7eb",
               background: isRootCard ? "transparent" : "#fff",
               padding: props.padding === "none"
@@ -521,7 +521,7 @@ export const { registry, } = defineRegistry(widgetCatalog, {
             fontSize: "11px",
             fontWeight: 500,
             padding: "2px 8px",
-            borderRadius: "100px",
+            borderRadius: 0,
             background: color.bg,
             color: color.fg,
           }}
@@ -617,7 +617,7 @@ export const { registry, } = defineRegistry(widgetCatalog, {
             fontFamily: "'IBM Plex Sans', sans-serif",
             fontSize: props.size === "sm" ? "12px" : props.size === "lg" ? "14px" : "13px",
             padding: props.size === "sm" ? "4px 10px" : props.size === "lg" ? "10px 20px" : "6px 14px",
-            borderRadius: "8px",
+            borderRadius: 0,
             border: isGhost ? "none" : "1px solid",
             borderColor: isPrimary ? "#6366f1" : "#e5e7eb",
             background: isPrimary ? "#6366f1" : isGhost ? "transparent" : "#fff",
@@ -703,7 +703,7 @@ export const { registry, } = defineRegistry(widgetCatalog, {
               width: "100%",
               padding: "8px 12px",
               border: "1px solid #e5e7eb",
-              borderRadius: "8px",
+              borderRadius: 0,
               fontSize: "13px",
               outline: "none",
               boxSizing: "border-box",
@@ -798,13 +798,13 @@ export const { registry, } = defineRegistry(widgetCatalog, {
         : "#6366f1";
       return (
         <div style={{ fontFamily: "'IBM Plex Sans', sans-serif", }}>
-          <div style={{ height: "8px", borderRadius: "4px", background: "#f3f4f6", overflow: "hidden", }}>
+          <div style={{ height: "8px", borderRadius: 0, background: "#f3f4f6", overflow: "hidden", }}>
             <div
               style={{
                 height: "100%",
                 width: `${pct}%`,
                 background: barColor,
-                borderRadius: "4px",
+                borderRadius: 0,
                 transition: "width 0.3s ease",
               }}
             />
@@ -842,7 +842,7 @@ export const { registry, } = defineRegistry(widgetCatalog, {
       <img
         src={props.src}
         alt={props.alt ?? ""}
-        style={{ maxWidth: "100%", borderRadius: props.rounded ? 8 : 0, }}
+        style={{ maxWidth: "100%", borderRadius: 0, }}
       />
     ),
 

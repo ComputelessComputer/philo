@@ -452,7 +452,7 @@
 .widget-container {
   position: relative;
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  border-radius: 0;
   overflow: hidden;
   background: #ffffff;
 }
@@ -499,7 +499,7 @@
 .widget-btn {
   padding: 4px;
   border: none;
-  border-radius: 8px;
+  border-radius: 0;
   background: transparent;
   color: #6b7280;
   font-size: 12px;
@@ -572,7 +572,7 @@
   min-height: 72px;
   resize: vertical;
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  border-radius: 0;
   padding: 10px 12px;
   font-size: 13px;
   line-height: 1.5;
@@ -684,7 +684,7 @@
 
 .excalidraw-container {
   border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  border-radius: 0;
   overflow: hidden;
   background: #ffffff;
 }
