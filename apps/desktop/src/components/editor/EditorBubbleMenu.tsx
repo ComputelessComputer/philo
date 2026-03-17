@@ -3,6 +3,7 @@ import { BubbleMenu, } from "@tiptap/react/menus";
 import { useState, } from "react";
 import { getAiConfigurationMessage, isAiKeyMissingError, } from "../../services/ai";
 import { generateWidget, } from "../../services/generate";
+import { createWidgetFile, } from "../../services/widget-files";
 import { getEditorSelectionText, } from "./selectionText";
 
 interface EditorBubbleMenuProps {
@@ -10,9 +11,6 @@ interface EditorBubbleMenuProps {
   onChatSelection: (selectedText: string,) => void;
 }
 
-/**
- * Find a widget node by ID and update its attributes.
- */
 function updateWidgetById(editor: Editor, id: string, attrs: Record<string, unknown>,) {
   const { doc, } = editor.state;
   const tr = editor.state.tr;
@@ -32,6 +30,13 @@ function updateWidgetById(editor: Editor, id: string, attrs: Record<string, unkn
   }
 }
 
+function deriveTitle(prompt: string,): string {
+  const firstSentence = prompt.split(/[.!?\n]/,)[0].trim();
+  if (!firstSentence) return "Widget";
+  if (firstSentence.length <= 40) return firstSentence;
+  return `${firstSentence.slice(0, 37,)}...`;
+}
+
 export function EditorBubbleMenu({ editor, onChatSelection, }: EditorBubbleMenuProps,) {
   const [building, setBuilding,] = useState(false,);
 
@@ -45,7 +50,6 @@ export function EditorBubbleMenu({ editor, onChatSelection, }: EditorBubbleMenuP
 
     setBuilding(true,);
 
-    // Insert loading widget, replacing selection
     const widgetId = crypto.randomUUID();
     editor
       .chain()
@@ -59,7 +63,20 @@ export function EditorBubbleMenu({ editor, onChatSelection, }: EditorBubbleMenuP
 
     try {
       const spec = await generateWidget(selectedText,);
-      updateWidgetById(editor, widgetId, { spec: JSON.stringify(spec,), loading: false, },);
+      const specString = JSON.stringify(spec,);
+      const record = await createWidgetFile({
+        title: deriveTitle(selectedText,),
+        prompt: selectedText,
+        spec: specString,
+        saved: false,
+      },);
+      updateWidgetById(editor, widgetId, {
+        id: record.id,
+        file: record.file,
+        path: record.path,
+        spec: record.spec,
+        loading: false,
+      },);
     } catch (err) {
       console.error("Build failed:", err,);
       const msg = err instanceof Error && isAiKeyMissingError(err.message,)

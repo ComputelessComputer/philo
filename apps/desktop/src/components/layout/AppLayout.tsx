@@ -26,6 +26,7 @@ import {
   type PostUpdateInfo,
   type UpdateInfo,
 } from "../../services/updater";
+import { createWidgetFile, } from "../../services/widget-files";
 import { DailyNote, formatDate, getDaysAgo, isToday, } from "../../types/note";
 import { AiComposer, } from "../ai/AiComposer";
 import EditableNote, { type EditableNoteHandle, type EditableNoteSelection, } from "../journal/EditableNote";
@@ -1066,23 +1067,41 @@ export default function AppLayout() {
       <LibraryDrawer
         open={libraryOpen}
         onClose={() => setLibraryOpen(false,)}
-        onInsert={(item: LibraryItem,) => {
+        onInsert={async (item: LibraryItem,) => {
           const editor = todayEditorRef.current?.editor;
           if (!editor) return;
-          const isShared = !!item.componentId && !!item.storageKind;
-          editor.chain().focus().insertContent({
-            type: "widget",
-            attrs: {
-              id: crypto.randomUUID(),
-              spec: isShared ? "" : item.html,
-              componentId: isShared ? item.componentId : null,
+          try {
+            const isShared = !!item.componentId && !!item.storageKind;
+            const spec = typeof item.uiSpec === "string"
+              ? item.uiSpec
+              : item.uiSpec
+              ? JSON.stringify(item.uiSpec,)
+              : item.html;
+            const record = await createWidgetFile({
+              title: item.title,
               prompt: item.prompt,
+              spec,
               saved: true,
-              loading: false,
-              error: "",
-            },
-          },).run();
-          setLibraryOpen(false,);
+              componentId: isShared ? item.componentId : null,
+            },);
+            editor.chain().focus().insertContent({
+              type: "widget",
+              attrs: {
+                id: record.id,
+                spec: record.spec,
+                file: record.file,
+                path: record.path,
+                componentId: isShared ? item.componentId : null,
+                prompt: item.prompt,
+                saved: true,
+                loading: false,
+                error: "",
+              },
+            },).run();
+            setLibraryOpen(false,);
+          } catch (err) {
+            console.error("Failed to insert widget from library:", err,);
+          }
         }}
       />
 

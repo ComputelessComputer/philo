@@ -11,6 +11,7 @@ import {
   getFilenamePattern,
   getVaultDirSetting,
 } from "./settings";
+import { resolveWidgetEmbeds, } from "./widget-files";
 
 const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n?/;
 const CANONICAL_DUE_LINK_RE = /\[\[(\d{4}-\d{2}-\d{2})\(due date\)\]\]/g;
@@ -100,7 +101,8 @@ export async function loadDailyNote(date: string,): Promise<DailyNote | null> {
   const { city, body, } = parseFrontmatter(raw,);
   const withDateMentionLinks = await rewriteNoteLinksToDateMentionLinks(body,);
   const withEmbeds = await resolveExcalidrawEmbeds(withDateMentionLinks,);
-  const withMentionChips = replaceMentionWikiLinksWithChips(withEmbeds, date,);
+  const withWidgets = await resolveWidgetEmbeds(withEmbeds,);
+  const withMentionChips = replaceMentionWikiLinksWithChips(withWidgets, date,);
   const resolved = await resolveMarkdownImages(withMentionChips,);
   const indentation = await getMarkdownIndentation();
   const content = JSON.stringify(md2json(resolved, { indentation, },),);

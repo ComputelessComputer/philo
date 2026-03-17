@@ -3,6 +3,7 @@ import type { JSONContent, } from "@tiptap/core";
 import { ReactNodeViewRenderer, } from "@tiptap/react";
 import { getAiConfigurationMessage, isAiKeyMissingError, } from "../../../../services/ai";
 import { generateWidget, } from "../../../../services/generate";
+import { createWidgetFile, } from "../../../../services/widget-files";
 import { getEditorSelectionText, } from "../../selectionText";
 import { WidgetView, } from "./WidgetView";
 
@@ -14,10 +15,19 @@ function escapeAttr(s: string,): string {
     .replace(/>/g, "&gt;",);
 }
 
+function deriveTitle(prompt: string,): string {
+  const firstSentence = prompt.split(/[.!?\n]/,)[0].trim();
+  if (!firstSentence) return "Widget";
+  if (firstSentence.length <= 40) return firstSentence;
+  return `${firstSentence.slice(0, 37,)}...`;
+}
+
 export interface WidgetAttributes {
   id: string;
   /** JSON-stringified Spec from json-render, or empty string */
   spec: string;
+  file?: string;
+  path?: string;
   componentId?: string | null;
   prompt: string;
   saved: boolean;
@@ -33,9 +43,6 @@ declare module "@tiptap/core" {
   }
 }
 
-/**
- * Find a widget node by ID and update its attributes via transaction.
- */
 function updateWidgetById(editor: import("@tiptap/core").Editor, id: string, attrs: Record<string, unknown>,) {
   const { doc, } = editor.state;
   const tr = editor.state.tr;
@@ -62,16 +69,20 @@ export const WidgetExtension = Node.create({
   draggable: true,
 
   renderMarkdown(node: JSONContent,) {
-    const a = node.attrs || {};
-    const parts = ['<div data-widget=""',];
-    if (a.id) parts.push(` data-id="${escapeAttr(String(a.id,),)}"`,);
-    if (a.componentId) {
-      parts.push(` data-component-id="${escapeAttr(String(a.componentId,),)}"`,);
-    } else if (a.spec) {
-      parts.push(` data-spec="${escapeAttr(String(a.spec,),)}"`,);
+    const attrs = node.attrs || {};
+    if (attrs.file) {
+      return `![[${String(attrs.file,)}]]\n\n`;
     }
-    if (a.prompt) parts.push(` data-prompt="${escapeAttr(String(a.prompt,),)}"`,);
-    if (a.saved) parts.push(' data-saved="true"',);
+
+    const parts = ['<div data-widget=""',];
+    if (attrs.id) parts.push(` data-id="${escapeAttr(String(attrs.id,),)}"`,);
+    if (attrs.componentId) {
+      parts.push(` data-component-id="${escapeAttr(String(attrs.componentId,),)}"`,);
+    } else if (attrs.spec) {
+      parts.push(` data-spec="${escapeAttr(String(attrs.spec,),)}"`,);
+    }
+    if (attrs.prompt) parts.push(` data-prompt="${escapeAttr(String(attrs.prompt,),)}"`,);
+    if (attrs.saved) parts.push(' data-saved="true"',);
     parts.push("></div>",);
     return parts.join("",) + "\n\n";
   },
@@ -85,6 +96,14 @@ export const WidgetExtension = Node.create({
       spec: {
         default: "",
         parseHTML: (el: HTMLElement,) => el.getAttribute("data-spec",) || "",
+      },
+      file: {
+        default: "",
+        parseHTML: (el: HTMLElement,) => el.getAttribute("data-file",) || "",
+      },
+      path: {
+        default: "",
+        parseHTML: (el: HTMLElement,) => el.getAttribute("data-path",) || "",
       },
       componentId: {
         default: null,
@@ -111,7 +130,19 @@ export const WidgetExtension = Node.create({
   },
 
   renderHTML({ HTMLAttributes, },) {
-    return ["div", mergeAttributes(HTMLAttributes, { "data-widget": "", },),];
+    return [
+      "div",
+      mergeAttributes(HTMLAttributes, {
+        "data-widget": "",
+        "data-id": String(HTMLAttributes.id ?? "",),
+        "data-spec": String(HTMLAttributes.spec ?? "",),
+        "data-prompt": String(HTMLAttributes.prompt ?? "",),
+        "data-file": String(HTMLAttributes.file ?? "",),
+        "data-path": String(HTMLAttributes.path ?? "",),
+        ...(HTMLAttributes.componentId ? { "data-component-id": String(HTMLAttributes.componentId,), } : {}),
+        ...(HTMLAttributes.saved ? { "data-saved": "true", } : {}),
+      },),
+    ];
   },
 
   addNodeView() {
@@ -126,6 +157,8 @@ export const WidgetExtension = Node.create({
           attrs: {
             id: crypto.randomUUID(),
             spec: "",
+            file: "",
+            path: "",
             saved: false,
             loading: false,
             error: "",
@@ -154,8 +187,21 @@ export const WidgetExtension = Node.create({
           .run();
 
         generateWidget(selectedText,)
-          .then((spec,) => {
-            updateWidgetById(this.editor, widgetId, { spec: JSON.stringify(spec,), loading: false, },);
+          .then(async (spec,) => {
+            const specString = JSON.stringify(spec,);
+            const record = await createWidgetFile({
+              title: deriveTitle(selectedText,),
+              prompt: selectedText,
+              spec: specString,
+              saved: false,
+            },);
+            updateWidgetById(this.editor, widgetId, {
+              id: record.id,
+              file: record.file,
+              path: record.path,
+              spec: record.spec,
+              loading: false,
+            },);
           },)
           .catch((err,) => {
             const msg = err instanceof Error && isAiKeyMissingError(err.message,)

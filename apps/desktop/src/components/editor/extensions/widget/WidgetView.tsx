@@ -17,6 +17,7 @@ import {
   type SharedStorageSchema,
   updateSharedComponent,
 } from "../../../../services/library";
+import { createWidgetFile, updateWidgetFile, } from "../../../../services/widget-files";
 import { type SharedWidgetRuntimeApi, WidgetRuntimeProvider, WidgetTemporalProvider, } from "./registry";
 import { registry, } from "./registry";
 
@@ -77,6 +78,12 @@ function parseSpec(candidate: unknown,): Spec | null {
   return null;
 }
 
+function stringifySpec(candidate: unknown, fallback = "",): string {
+  if (typeof candidate === "string") return candidate;
+  if (!candidate) return fallback;
+  return JSON.stringify(candidate,);
+}
+
 class RendererBoundary extends Component<{ children: ReactNode; }, { error: string | null; }> {
   state = { error: null as string | null, };
 
@@ -103,8 +110,9 @@ class RendererBoundary extends Component<{ children: ReactNode; }, { error: stri
 
 function deriveTitle(prompt: string,): string {
   const firstSentence = prompt.split(/[.!?\n]/,)[0].trim();
+  if (!firstSentence) return "Widget";
   if (firstSentence.length <= 40) return firstSentence;
-  return firstSentence.slice(0, 37,) + "...";
+  return `${firstSentence.slice(0, 37,)}...`;
 }
 
 function formatToolbarTitle(prompt: string,): string {
@@ -114,13 +122,16 @@ function formatToolbarTitle(prompt: string,): string {
 }
 
 export function WidgetView({ node, updateAttributes, deleteNode, }: NodeViewProps,) {
-  const { spec: specStr, saved, prompt, loading, error, componentId, } = node.attrs as {
+  const { id, spec: specStr, saved, prompt, loading, error, componentId, file, path, } = node.attrs as {
+    id: string;
     spec: string;
     saved: boolean;
     prompt: string;
     loading: boolean;
     error: string;
     componentId?: string | null;
+    file?: string;
+    path?: string;
   };
   const [missingComponent, setMissingComponent,] = useState(false,);
   const [sharedLoading, setSharedLoading,] = useState(false,);
@@ -220,7 +231,37 @@ export function WidgetView({ node, updateAttributes, deleteNode, }: NodeViewProp
   }, [componentId, isShared, manifest, missingComponent, runtimeRefreshToken,],);
 
   const sharedSpec = manifest?.uiSpec ? parseSpec(manifest.uiSpec,) : null;
-  const currentSpec = useMemo(() => (isShared ? sharedSpec : inlineSpec), [isShared, sharedSpec, inlineSpec,],);
+  const currentSpec = useMemo(
+    () => (isShared ? sharedSpec ?? inlineSpec : inlineSpec),
+    [inlineSpec, isShared, sharedSpec,],
+  );
+
+  const persistWidgetRecord = useCallback(async (
+    nextPrompt: string,
+    nextSpec: string,
+    nextSaved: boolean,
+    nextComponentId?: string | null,
+  ) => {
+    const title = deriveTitle(nextPrompt,);
+    if (path && file) {
+      return await updateWidgetFile(path, file, {
+        id,
+        title,
+        prompt: nextPrompt,
+        saved: nextSaved,
+        spec: nextSpec,
+        componentId: nextComponentId ?? null,
+      },);
+    }
+
+    return await createWidgetFile({
+      title,
+      prompt: nextPrompt,
+      spec: nextSpec,
+      saved: nextSaved,
+      componentId: nextComponentId ?? null,
+    },);
+  }, [file, id, path,],);
 
   const runGeneration = async (nextPrompt: string,) => {
     updateAttributes({ prompt: nextPrompt, loading: true, error: "", },);
@@ -232,12 +273,31 @@ export function WidgetView({ node, updateAttributes, deleteNode, }: NodeViewProp
         }
         const next = await updateSharedComponent(manifest.id, generated.uiSpec, nextPrompt,);
         setManifest(next,);
-        updateAttributes({ prompt: nextPrompt, loading: false, spec: "", saved: true, error: "", },);
+        const record = await persistWidgetRecord(nextPrompt, stringifySpec(next.uiSpec,), true, manifest.id,);
+        updateAttributes({
+          id: record.id,
+          file: record.file,
+          path: record.path,
+          prompt: nextPrompt,
+          loading: false,
+          spec: record.spec,
+          saved: true,
+          error: "",
+        },);
         return;
       }
 
       const nextSpec = await generateWidget(nextPrompt,);
-      updateAttributes({ prompt: nextPrompt, spec: JSON.stringify(nextSpec,), loading: false, error: "", },);
+      const record = await persistWidgetRecord(nextPrompt, JSON.stringify(nextSpec,), saved, componentId,);
+      updateAttributes({
+        id: record.id,
+        file: record.file,
+        path: record.path,
+        prompt: nextPrompt,
+        spec: record.spec,
+        loading: false,
+        error: "",
+      },);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : typeof err === "string" ? err : "Something went wrong.";
       updateAttributes({
@@ -284,10 +344,19 @@ export function WidgetView({ node, updateAttributes, deleteNode, }: NodeViewProp
         uiSpec: JSON.stringify(generated.uiSpec,),
         storageSchema: generated.storageSchema,
       },);
+      const record = await persistWidgetRecord(
+        prompt,
+        stringifySpec(item.uiSpec, JSON.stringify(generated.uiSpec,),),
+        true,
+        item.componentId,
+      );
 
       updateAttributes({
+        id: record.id,
+        file: record.file,
+        path: record.path,
         componentId: item.componentId,
-        spec: "",
+        spec: record.spec,
         saved: true,
         loading: false,
         error: "",

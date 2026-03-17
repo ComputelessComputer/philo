@@ -81,12 +81,14 @@ export async function initJournalScope(): Promise<void> {
   const vaultDir = await getVaultDirSetting();
   const excalidrawDir = await getExcalidrawDir();
   const assetsDir = await getAssetsDir();
+  const widgetsDir = await getWidgetsDir();
 
   if (customDir) paths.add(customDir,);
   if (journalDir) paths.add(journalDir,);
   if (vaultDir) paths.add(vaultDir,);
   if (excalidrawDir) paths.add(excalidrawDir,);
   if (assetsDir) paths.add(assetsDir,);
+  if (widgetsDir) paths.add(widgetsDir,);
 
   for (const path of paths) {
     await invoke("extend_fs_scope", { path, },);
@@ -114,6 +116,13 @@ export async function getExcalidrawDir(): Promise<string | null> {
   if (vaultDir) return await join(vaultDir, configured,);
   const journal = await getJournalDir();
   return await join(journal, configured,);
+}
+
+export async function getWidgetsDir(): Promise<string> {
+  const vaultDir = await getVaultDirSetting();
+  if (vaultDir) return await join(vaultDir, "widgets",);
+  const journal = await getJournalDir();
+  return await join(journal, "widgets",);
 }
 
 /**
