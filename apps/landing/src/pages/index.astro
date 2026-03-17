@@ -1238,8 +1238,8 @@ primary.firstChild.textContent = labels[os];
 
   .video-column {
     position: relative;
-    flex: 0 0 320px;
-    width: 320px;
+    flex: 0 0 418px;
+    width: 418px;
     padding-top: 0;
   }
 
@@ -1260,7 +1260,11 @@ primary.firstChild.textContent = labels[os];
   }
 
   .video-column .product-video {
-    aspect-ratio: 9 / 16;
+    width: 400px;
+    max-width: none;
+    height: 600px;
+    aspect-ratio: auto;
+    object-fit: cover;
   }
 
   .video-note {
