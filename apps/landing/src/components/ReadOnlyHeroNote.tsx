@@ -7,6 +7,48 @@ const BUILD_PROMPT = "chest workout for today";
 const TASK_ONE_TEXT = "start scaffolding philo mobile";
 const TASK_TWO_TEXT = "polish landing page";
 const DEMO_TICK_MS = 50;
+const DEMO_TIMING = (() => {
+  const ideaStart = 400;
+  const ideaEnd = ideaStart + IDEA_TEXT.length * 46;
+  const taskOneStart = ideaEnd + 450;
+  const taskOneTextEnd = taskOneStart + TASK_ONE_TEXT.length * 38;
+  const taskOneMentionStart = taskOneTextEnd + 140;
+  const taskOneMenuStart = taskOneMentionStart + 160;
+  const taskOneSelect = taskOneMenuStart + 900;
+  const taskTwoStart = taskOneSelect + 320;
+  const taskTwoTextEnd = taskTwoStart + TASK_TWO_TEXT.length * 38;
+  const taskTwoMentionStart = taskTwoTextEnd + 150;
+  const taskTwoComplete = taskTwoMentionStart + 500;
+  const buildEntryStart = taskTwoComplete + 850;
+  const buildEntryEnd = buildEntryStart + BUILD_PROMPT.length * 38;
+  const buildSelectionStart = buildEntryEnd + 350;
+  const bubbleBuildStart = buildSelectionStart + 650;
+  const widgetLoadingStart = bubbleBuildStart + 450;
+  const widgetReadyStart = widgetLoadingStart + 1500;
+  const loopEnd = widgetReadyStart + 2200;
+
+  return {
+    ideaStart,
+    ideaEnd,
+    taskOneStart,
+    taskOneTextEnd,
+    taskOneMentionStart,
+    taskOneMenuStart,
+    taskOneSelect,
+    taskTwoStart,
+    taskTwoTextEnd,
+    taskTwoMentionStart,
+    taskTwoComplete,
+    buildEntryStart,
+    buildEntryEnd,
+    buildSelectionStart,
+    bubbleBuildStart,
+    widgetLoadingStart,
+    widgetReadyStart,
+    loopEnd,
+  };
+})();
+const DEMO_LOOP_START = DEMO_TIMING.taskOneStart;
 
 function toLocalDateString(date: Date,): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1,).padStart(2, "0",)}-${
@@ -58,19 +100,21 @@ function getTypedText(text: string, elapsed: number, start: number, stepMs: numb
   return text.slice(0, count,);
 }
 
-function useLoopingElapsed(durationMs: number,): number {
-  const [elapsed, setElapsed,] = useState(0,);
+function useLoopingElapsed(durationMs: number, loopStart = 0,): number {
+  const [elapsed, setElapsed,] = useState(loopStart,);
 
   useEffect(() => {
+    const span = Math.max(durationMs - loopStart, 1,);
     const startedAt = Date.now();
+    setElapsed(loopStart,);
     const timer = window.setInterval(() => {
-      setElapsed((Date.now() - startedAt) % durationMs,);
+      setElapsed(loopStart + (Date.now() - startedAt) % span,);
     }, DEMO_TICK_MS,);
 
     return () => {
       window.clearInterval(timer,);
     };
-  }, [durationMs,],);
+  }, [durationMs, loopStart,],);
 
   return elapsed;
 }
@@ -118,60 +162,41 @@ function DeleteIcon() {
 function buildDemoState(elapsed: number, today: string,) {
   const tomorrow = addDays(today, 1,);
 
-  const ideaStart = 400;
-  const ideaEnd = ideaStart + IDEA_TEXT.length * 46;
-  const taskOneStart = ideaEnd + 450;
-  const taskOneTextEnd = taskOneStart + TASK_ONE_TEXT.length * 38;
-  const taskOneMentionStart = taskOneTextEnd + 140;
-  const taskOneMenuStart = taskOneMentionStart + 160;
-  const taskOneSelect = taskOneMenuStart + 900;
-  const taskTwoStart = taskOneSelect + 320;
-  const taskTwoTextEnd = taskTwoStart + TASK_TWO_TEXT.length * 38;
-  const taskTwoMentionStart = taskTwoTextEnd + 150;
-  const taskTwoComplete = taskTwoMentionStart + 500;
-  const buildEntryStart = taskTwoComplete + 850;
-  const buildEntryEnd = buildEntryStart + BUILD_PROMPT.length * 38;
-  const buildSelectionStart = buildEntryEnd + 350;
-  const bubbleBuildStart = buildSelectionStart + 650;
-  const widgetLoadingStart = bubbleBuildStart + 450;
-  const widgetReadyStart = widgetLoadingStart + 1500;
-  const loopEnd = widgetReadyStart + 2200;
-
   return {
-    duration: loopEnd,
-    ideaText: getTypedText(IDEA_TEXT, elapsed, ideaStart, 46,),
-    showIdeaCaret: elapsed >= ideaStart && elapsed < ideaEnd,
-    showTaskOne: elapsed >= taskOneStart,
-    taskOneText: getTypedText(TASK_ONE_TEXT, elapsed, taskOneStart, 38,),
-    taskOneMentionDraft: elapsed >= taskOneMentionStart && elapsed < taskOneSelect
-      ? getTypedText(" @t", elapsed, taskOneMentionStart, 120,)
+    duration: DEMO_TIMING.loopEnd,
+    ideaText: getTypedText(IDEA_TEXT, elapsed, DEMO_TIMING.ideaStart, 46,),
+    showIdeaCaret: elapsed >= DEMO_TIMING.ideaStart && elapsed < DEMO_TIMING.ideaEnd,
+    showTaskOne: elapsed >= DEMO_TIMING.taskOneStart,
+    taskOneText: getTypedText(TASK_ONE_TEXT, elapsed, DEMO_TIMING.taskOneStart, 38,),
+    taskOneMentionDraft: elapsed >= DEMO_TIMING.taskOneMentionStart && elapsed < DEMO_TIMING.taskOneSelect
+      ? getTypedText(" @t", elapsed, DEMO_TIMING.taskOneMentionStart, 120,)
       : "",
-    showTaskOneCaret: elapsed >= taskOneStart && elapsed < taskOneSelect,
-    showMentionMenu: elapsed >= taskOneMenuStart && elapsed < taskOneSelect,
-    taskOneChip: elapsed >= taskOneSelect ? "Today" : "",
-    showTaskTwo: elapsed >= taskTwoStart,
-    taskTwoText: getTypedText(TASK_TWO_TEXT, elapsed, taskTwoStart, 38,),
-    taskTwoMentionDraft: elapsed >= taskTwoMentionStart && elapsed < taskTwoComplete
-      ? getTypedText(" @tomorrow", elapsed, taskTwoMentionStart, 70,)
+    showTaskOneCaret: elapsed >= DEMO_TIMING.taskOneStart && elapsed < DEMO_TIMING.taskOneSelect,
+    showMentionMenu: elapsed >= DEMO_TIMING.taskOneMenuStart && elapsed < DEMO_TIMING.taskOneSelect,
+    taskOneChip: elapsed >= DEMO_TIMING.taskOneSelect ? "Today" : "",
+    showTaskTwo: elapsed >= DEMO_TIMING.taskTwoStart,
+    taskTwoText: getTypedText(TASK_TWO_TEXT, elapsed, DEMO_TIMING.taskTwoStart, 38,),
+    taskTwoMentionDraft: elapsed >= DEMO_TIMING.taskTwoMentionStart && elapsed < DEMO_TIMING.taskTwoComplete
+      ? getTypedText(" @tomorrow", elapsed, DEMO_TIMING.taskTwoMentionStart, 70,)
       : "",
-    showTaskTwoCaret: elapsed >= taskTwoStart && elapsed < taskTwoComplete,
-    taskTwoChip: elapsed >= taskTwoComplete ? formatMentionDate(tomorrow,) : "",
-    showBuildArea: elapsed >= buildEntryStart,
-    showBuildEntry: elapsed >= buildEntryStart && elapsed < widgetLoadingStart,
-    buildEntryText: getTypedText(BUILD_PROMPT, elapsed, buildEntryStart, 38,),
-    showBuildCaret: elapsed >= buildEntryStart && elapsed < buildSelectionStart,
-    buildEntrySelected: elapsed >= buildSelectionStart && elapsed < widgetLoadingStart,
-    showBubbleMenu: elapsed >= buildSelectionStart && elapsed < widgetLoadingStart,
-    bubbleBuildPressed: elapsed >= bubbleBuildStart && elapsed < widgetLoadingStart,
-    showWidgetLoading: elapsed >= widgetLoadingStart && elapsed < widgetReadyStart,
-    showWidgetReady: elapsed >= widgetReadyStart,
+    showTaskTwoCaret: elapsed >= DEMO_TIMING.taskTwoStart && elapsed < DEMO_TIMING.taskTwoComplete,
+    taskTwoChip: elapsed >= DEMO_TIMING.taskTwoComplete ? formatMentionDate(tomorrow,) : "",
+    showBuildArea: elapsed >= DEMO_TIMING.buildEntryStart,
+    showBuildEntry: elapsed >= DEMO_TIMING.buildEntryStart && elapsed < DEMO_TIMING.widgetLoadingStart,
+    buildEntryText: getTypedText(BUILD_PROMPT, elapsed, DEMO_TIMING.buildEntryStart, 38,),
+    showBuildCaret: elapsed >= DEMO_TIMING.buildEntryStart && elapsed < DEMO_TIMING.buildSelectionStart,
+    buildEntrySelected: elapsed >= DEMO_TIMING.buildSelectionStart && elapsed < DEMO_TIMING.widgetLoadingStart,
+    showBubbleMenu: elapsed >= DEMO_TIMING.buildSelectionStart && elapsed < DEMO_TIMING.widgetLoadingStart,
+    bubbleBuildPressed: elapsed >= DEMO_TIMING.bubbleBuildStart && elapsed < DEMO_TIMING.widgetLoadingStart,
+    showWidgetLoading: elapsed >= DEMO_TIMING.widgetLoadingStart && elapsed < DEMO_TIMING.widgetReadyStart,
+    showWidgetReady: elapsed >= DEMO_TIMING.widgetReadyStart,
   };
 }
 
 export default function ReadOnlyHeroNote() {
   const today = getToday();
   const baseDemo = useMemo(() => buildDemoState(0, today,), [today,],);
-  const elapsed = useLoopingElapsed(baseDemo.duration,);
+  const elapsed = useLoopingElapsed(baseDemo.duration, DEMO_LOOP_START,);
   const demo = useMemo(() => buildDemoState(elapsed, today,), [elapsed, today,],);
 
   return (
