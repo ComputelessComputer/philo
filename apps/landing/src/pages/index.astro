@@ -94,13 +94,10 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
         </header>
 
         <section class="hero enter" style="--delay: 70ms;">
-          <h1>Build widgets inside your daily notes.</h1>
+          <h1>Your daily notes is your IDE.</h1>
           <p class="lede">
-            Generate a tracker, checklist, calculator, or countdown inline when plain text is not
-            enough.
-          </p>
-          <p class="hero-note">
-            Keep the useful ones, delete the throwaway ones, and stay in markdown the whole time.
+            Generate a tracker, checklist, calculator, or countdown inline without leaving
+            markdown.
           </p>
           <div class="download-split" data-download>
             <a class="download-button" data-download-primary href="https://github.com/ComputelessComputer/philo/releases/latest">
@@ -636,14 +633,6 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
     color: #3f3f3d;
   }
 
-  .hero-note {
-    margin: 16px 0 0;
-    max-width: 72ch;
-    color: var(--muted);
-    font-size: 13px;
-    line-height: 1.72;
-  }
-
   .download-split {
     position: relative;
     display: inline-flex;
@@ -917,6 +906,7 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
   .mini-task-row,
   .mini-recurring-task {
     display: grid;
+    --mini-task-row-height: 8px;
     grid-template-columns: 8px minmax(0, 1fr);
     gap: 5px;
     align-items: center;
@@ -948,7 +938,7 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
     content: "";
     position: absolute;
     left: 1px;
-    top: -1px;
+    top: -2px;
     width: 3px;
     height: 6px;
     border-right: 1.5px solid var(--accent);
@@ -1131,11 +1121,11 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
 
   @keyframes mini-rollover-source-focus {
     0%,
-    48% {
+    34% {
       box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 34%, var(--line));
     }
 
-    55%,
+    42%,
     100% {
       box-shadow: inset 0 0 0 1px transparent;
     }
@@ -1143,11 +1133,11 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
 
   @keyframes mini-rollover-target-focus {
     0%,
-    48% {
+    34% {
       box-shadow: inset 0 0 0 1px transparent;
     }
 
-    55%,
+    42%,
     100% {
       box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 34%, var(--line));
     }
@@ -1155,11 +1145,11 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
 
   @keyframes mini-today-source-fade {
     0%,
-    45% {
+    32% {
       opacity: 1;
     }
 
-    55%,
+    42%,
     100% {
       opacity: 0;
     }
@@ -1167,11 +1157,11 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
 
   @keyframes mini-today-target-fade {
     0%,
-    45% {
+    32% {
       opacity: 0;
     }
 
-    55%,
+    42%,
     100% {
       opacity: 1;
     }
@@ -1179,18 +1169,18 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
 
   @keyframes mini-rollover-move {
     0%,
-    38% {
+    52% {
       opacity: 0;
       transform: translateX(-40px);
     }
 
-    45%,
-    72% {
+    60%,
+    82% {
       opacity: 1;
       transform: translateX(10px);
     }
 
-    80%,
+    90%,
     100% {
       opacity: 0;
       transform: translateX(34px);
@@ -1199,13 +1189,13 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
 
   @keyframes mini-source-task-fade {
     0%,
-    40% {
+    56% {
       opacity: 1;
     }
 
-    55%,
+    64%,
     100% {
-      opacity: 0.28;
+      opacity: 0;
     }
   }
 
@@ -1477,8 +1467,7 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
       line-height: 1.5;
     }
 
-    .lede,
-    .hero-note {
+    .lede {
       max-width: none;
     }
 
