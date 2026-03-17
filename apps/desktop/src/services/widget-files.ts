@@ -6,6 +6,15 @@ import { compactWidgetSpec, encodeWidgetDataAttr, escapeWidgetHtmlAttr, } from "
 
 const OBSIDIAN_EMBED_RE = /!\[\[([^[\]]+)\]\]/g;
 const WIDGET_SUFFIX = ".widget.md";
+const WIDGET_HISTORY_INFO = "json widget-history";
+const CODE_BLOCK_RE = /```([^\n]*)\n([\s\S]*?)```/g;
+
+export interface WidgetRevisionRecord {
+  id: string;
+  createdAt: string;
+  prompt: string;
+  spec: string;
+}
 
 export interface WidgetFileRecord {
   id: string;
@@ -13,6 +22,8 @@ export interface WidgetFileRecord {
   prompt: string;
   saved: boolean;
   spec: string;
+  currentRevisionId: string;
+  revisions: WidgetRevisionRecord[];
   libraryItemId?: string | null;
   componentId?: string | null;
   file: string;
@@ -24,6 +35,8 @@ interface WidgetFileInput {
   prompt: string;
   spec: string;
   saved?: boolean;
+  currentRevisionId?: string;
+  revisions?: WidgetRevisionRecord[];
   libraryItemId?: string | null;
   componentId?: string | null;
 }
@@ -59,6 +72,120 @@ function normalizeWidgetEmbedTarget(target: string,): string {
   return `${trimmed}${WIDGET_SUFFIX}`;
 }
 
+function createWidgetRevision(prompt: string, spec: string,): WidgetRevisionRecord {
+  return {
+    id: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+    prompt,
+    spec,
+  };
+}
+
+function normalizeSpecForComparison(spec: string,): string {
+  try {
+    return JSON.stringify(JSON.parse(spec,),);
+  } catch {
+    return spec.trim();
+  }
+}
+
+function buildLegacyHistory(prompt: string, spec: string,): {
+  currentRevisionId: string;
+  revisions: WidgetRevisionRecord[];
+} {
+  const revision = createWidgetRevision(prompt, spec,);
+  return {
+    currentRevisionId: revision.id,
+    revisions: [revision,],
+  };
+}
+
+function parseHistoryBlock(raw: string,): {
+  currentRevisionId: string;
+  revisions: WidgetRevisionRecord[];
+} | null {
+  try {
+    const parsed = JSON.parse(raw,) as {
+      currentRevisionId?: string;
+      revisions?: Array<Partial<WidgetRevisionRecord>>;
+    };
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const revisions = Array.isArray(parsed.revisions,)
+      ? parsed.revisions.flatMap((revision,) => {
+        if (!revision || typeof revision !== "object") return [];
+        if (typeof revision.id !== "string" || !revision.id.trim()) return [];
+        if (typeof revision.createdAt !== "string" || !revision.createdAt.trim()) return [];
+        if (typeof revision.prompt !== "string") return [];
+        if (typeof revision.spec !== "string") return [];
+        return [{
+          id: revision.id,
+          createdAt: revision.createdAt,
+          prompt: revision.prompt,
+          spec: revision.spec,
+        },];
+      },)
+      : [];
+
+    if (!revisions.length) return null;
+
+    const currentRevisionId = typeof parsed.currentRevisionId === "string"
+        && revisions.some((revision,) => revision.id === parsed.currentRevisionId)
+      ? parsed.currentRevisionId
+      : revisions[revisions.length - 1]?.id;
+
+    if (!currentRevisionId) return null;
+    return { currentRevisionId, revisions, };
+  } catch {
+    return null;
+  }
+}
+
+function ensureWidgetHistory(record: Pick<WidgetFileRecord, "prompt" | "spec" | "currentRevisionId" | "revisions">,): {
+  currentRevisionId: string;
+  revisions: WidgetRevisionRecord[];
+} {
+  if (!record.revisions.length) {
+    return buildLegacyHistory(record.prompt, record.spec,);
+  }
+
+  const currentRevisionId = record.revisions.some((revision,) => revision.id === record.currentRevisionId)
+    ? record.currentRevisionId
+    : record.revisions[record.revisions.length - 1]!.id;
+
+  return {
+    currentRevisionId,
+    revisions: record.revisions,
+  };
+}
+
+export function appendWidgetRevision(
+  record: Pick<WidgetFileRecord, "prompt" | "spec" | "currentRevisionId" | "revisions">,
+  nextPrompt: string,
+  nextSpec: string,
+): {
+  currentRevisionId: string;
+  revisions: WidgetRevisionRecord[];
+} {
+  const history = ensureWidgetHistory(record,);
+  const currentRevision = history.revisions.find((revision,) => revision.id === history.currentRevisionId)
+    ?? history.revisions[history.revisions.length - 1];
+
+  if (
+    currentRevision
+    && currentRevision.prompt === nextPrompt
+    && normalizeSpecForComparison(currentRevision.spec,) === normalizeSpecForComparison(nextSpec,)
+  ) {
+    return history;
+  }
+
+  const nextRevision = createWidgetRevision(nextPrompt, nextSpec,);
+  return {
+    currentRevisionId: nextRevision.id,
+    revisions: [...history.revisions, nextRevision,],
+  };
+}
+
 function isWidgetEmbed(target: string,): boolean {
   const [pathOnly,] = target.split("|", 1,);
   const normalized = pathOnly.trim().toLowerCase();
@@ -78,15 +205,35 @@ function parseWidgetMarkdown(raw: string, file: string, path: string,): WidgetFi
     meta[key] = frontmatterValue(line.slice(separator + 1,),);
   }
 
-  const specMatch = match[2].match(/```(?:json|jsonc|jsonui|json-render)?\n([\s\S]*?)```/,);
-  const spec = specMatch?.[1]?.trim();
+  let spec: string | null = null;
+  let historyBlock: { currentRevisionId: string; revisions: WidgetRevisionRecord[]; } | null = null;
+
+  for (const block of match[2].matchAll(CODE_BLOCK_RE,)) {
+    const info = block[1].trim().toLowerCase();
+    const content = block[2].trim();
+    if (!content) continue;
+
+    if (info === WIDGET_HISTORY_INFO) {
+      historyBlock = parseHistoryBlock(content,);
+      continue;
+    }
+
+    if (!spec) {
+      spec = content;
+    }
+  }
+
   if (!meta.id || !meta.prompt || !spec) return null;
+
+  const history = historyBlock ?? buildLegacyHistory(meta.prompt, spec,);
 
   return {
     id: meta.id,
     title: meta.title || "Widget",
     prompt: meta.prompt,
     saved: meta.saved === "true",
+    currentRevisionId: history.currentRevisionId,
+    revisions: history.revisions,
     libraryItemId: meta.libraryItemId || meta.componentId || null,
     spec,
     componentId: meta.componentId || null,
@@ -96,6 +243,7 @@ function parseWidgetMarkdown(raw: string, file: string, path: string,): WidgetFi
 }
 
 function serializeWidgetMarkdown(record: WidgetFileRecord,): string {
+  const history = ensureWidgetHistory(record,);
   return [
     "---",
     `id: ${JSON.stringify(record.id,)}`,
@@ -114,6 +262,10 @@ function serializeWidgetMarkdown(record: WidgetFileRecord,): string {
         return record.spec.trim();
       }
     })(),
+    "```",
+    "",
+    `\`\`\`${WIDGET_HISTORY_INFO}`,
+    JSON.stringify(history, null, 2,),
     "```",
     "",
   ].join("\n",);
@@ -236,11 +388,16 @@ export async function createWidgetFile(input: WidgetFileInput,): Promise<WidgetF
     prompt: input.prompt,
     saved: input.saved ?? false,
     spec: input.spec,
+    currentRevisionId: input.currentRevisionId ?? "",
+    revisions: input.revisions ?? [],
     libraryItemId: input.libraryItemId ?? null,
     componentId: input.componentId ?? null,
     file,
     path,
   };
+  const history = ensureWidgetHistory(record,);
+  record.currentRevisionId = history.currentRevisionId;
+  record.revisions = history.revisions;
   await writeTextFile(path, serializeWidgetMarkdown(record,),);
   return record;
 }
@@ -255,6 +412,9 @@ export async function updateWidgetFile(
     file,
     path,
   };
+  const history = ensureWidgetHistory(record,);
+  record.currentRevisionId = history.currentRevisionId;
+  record.revisions = history.revisions;
   await ensureParentDir(path,);
   await writeTextFile(path, serializeWidgetMarkdown(record,),);
   return record;

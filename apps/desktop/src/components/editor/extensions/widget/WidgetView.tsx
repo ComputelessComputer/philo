@@ -17,7 +17,12 @@ import {
   type SharedStorageSchema,
   updateSharedComponent,
 } from "../../../../services/library";
-import { createWidgetFile, updateWidgetFile, } from "../../../../services/widget-files";
+import {
+  appendWidgetRevision,
+  createWidgetFile,
+  readWidgetFile,
+  updateWidgetFile,
+} from "../../../../services/widget-files";
 import {
   WIDGET_BUILD_STATE_EVENT,
   WIDGET_EDIT_REQUEST_EVENT,
@@ -326,8 +331,19 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
     nextSaved: boolean,
     nextLibraryItemId?: string | null,
     nextComponentId?: string | null,
+    createRevision = false,
   ) => {
     const title = deriveTitle(nextPrompt,);
+    const existingRecord = path && file ? await readWidgetFile(path, file,) : null;
+    const nextHistory = existingRecord
+      ? createRevision
+        ? appendWidgetRevision(existingRecord, nextPrompt, nextSpec,)
+        : {
+          currentRevisionId: existingRecord.currentRevisionId,
+          revisions: existingRecord.revisions,
+        }
+      : undefined;
+
     if (path && file) {
       return await updateWidgetFile(path, file, {
         id,
@@ -335,6 +351,8 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
         prompt: nextPrompt,
         saved: nextSaved,
         spec: nextSpec,
+        currentRevisionId: nextHistory?.currentRevisionId ?? existingRecord?.currentRevisionId ?? "",
+        revisions: nextHistory?.revisions ?? existingRecord?.revisions ?? [],
         libraryItemId: nextLibraryItemId ?? null,
         componentId: nextComponentId ?? null,
       },);
@@ -345,6 +363,8 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
       prompt: nextPrompt,
       spec: nextSpec,
       saved: nextSaved,
+      currentRevisionId: nextHistory?.currentRevisionId,
+      revisions: nextHistory?.revisions,
       libraryItemId: nextLibraryItemId ?? null,
       componentId: nextComponentId ?? null,
     },);
@@ -371,6 +391,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
           true,
           effectiveLibraryItemId,
           manifest.id,
+          true,
         );
         updateAttributes({
           id: record.id,
@@ -393,6 +414,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
         saved,
         effectiveLibraryItemId,
         componentId,
+        true,
       );
       updateAttributes({
         id: record.id,
@@ -449,6 +471,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
         true,
         item.id,
         item.componentId,
+        true,
       );
 
       updateAttributes({
