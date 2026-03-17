@@ -467,10 +467,10 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 14px 18px;
+  padding: 18px 22px;
   border-bottom: 1px solid #f3f4f6;
   cursor: grab;
-  background: #ffffff;
+  background: #fafafa;
 }
 
 .widget-toolbar:active {
@@ -478,8 +478,8 @@
 }
 
 .widget-prompt {
-  font-size: 12px;
-  color: #374151;
+  font-size: 13px;
+  color: #1f2937;
   font-weight: 600;
   font-family: 'IBM Plex Sans', sans-serif;
   overflow: hidden;
@@ -559,7 +559,7 @@
 }
 
 .widget-iterate-form {
-  padding: 14px 18px 18px;
+  padding: 18px 22px 22px;
   border-bottom: 1px solid #f3f4f6;
   background: linear-gradient(180deg, rgba(249, 250, 251, 0.96), rgba(255, 255, 255, 0.96));
   display: flex;
@@ -601,7 +601,7 @@
 /* Widget rendered content */
 
 .widget-render {
-  padding: 22px 18px 18px;
+  padding: 30px 24px 24px;
   min-height: 80px;
 }
 
