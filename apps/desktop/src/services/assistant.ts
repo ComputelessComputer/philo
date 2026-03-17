@@ -1,8 +1,9 @@
 import { invoke, } from "@tauri-apps/api/core";
+import { stepCountIs, streamText, tool, } from "ai";
 import { z, } from "zod";
 import { json2md, parseJsonContent, } from "../lib/markdown";
 import type { DailyNote, } from "../types/note";
-import { type AiContentBlock, type AiMessage, runAiToolStep, } from "./ai";
+import { getAiSdkModel, } from "./ai-sdk";
 import { loadSettings, resolveActiveAiConfig, } from "./settings";
 
 export const AI_NOT_CONFIGURED = "AI_NOT_CONFIGURED";
@@ -19,6 +20,11 @@ interface AssistantRequest {
   selectedText?: string | null;
   scope: AssistantScope;
   context: AssistantContext;
+}
+
+interface RunAssistantOptions {
+  signal?: AbortSignal;
+  onUpdate?: (result: AssistantResult,) => void;
 }
 
 export interface AssistantCitation {
@@ -162,61 +168,136 @@ function getOpenNoteMarkdown(note: DailyNote,) {
   return trimToolText(json2md(parseJsonContent(note.content,),), 20000,);
 }
 
-function buildInitialUserMessage(
+function buildInitialPrompt(
   request: AssistantRequest,
   temporal: ReturnType<typeof getTemporalContext>,
-): AiMessage {
+): string {
+  return JSON.stringify(
+    {
+      prompt: request.prompt,
+      selectedText: request.selectedText?.trim() || null,
+      scope: request.scope,
+      temporalContext: temporal,
+      openNoteSnapshot: {
+        date: request.context.today.date,
+        city: request.context.today.city ?? null,
+        markdown: getOpenNoteMarkdown(request.context.today,),
+      },
+      recentNoteDates: request.context.recentNotes.map((note,) => note.date),
+    },
+    null,
+    2,
+  );
+}
+
+function toAssistantResult(
+  answer: string,
+  citations: Map<string, AssistantCitation>,
+  pendingChanges: Map<string, AssistantPendingChange>,
+): AssistantResult {
   return {
-    role: "user",
-    content: [{
-      type: "text",
-      text: JSON.stringify(
-        {
-          prompt: request.prompt,
-          selectedText: request.selectedText?.trim() || null,
-          scope: request.scope,
-          temporalContext: temporal,
-          openNoteSnapshot: {
-            date: request.context.today.date,
-            city: request.context.today.city ?? null,
-            markdown: getOpenNoteMarkdown(request.context.today,),
-          },
-          recentNoteDates: request.context.recentNotes.map((note,) => note.date),
-        },
-        null,
-        2,
-      ),
-    },],
+    answer,
+    citations: Array.from(citations.values(),),
+    pendingChanges: Array.from(pendingChanges.values(),),
   };
 }
 
-const tools = [
-  {
-    name: "run_philo",
-    description:
-      "Run the Philo daily-note CLI. argv represents `philo <argv>`. Use this for note search/read/create/update dry-runs.",
-    input_schema: {
-      type: "object",
-      properties: {
-        argv: { type: "array", items: { type: "string", }, },
-        stdin: { type: "string", },
-      },
-      required: ["argv",],
+function getFallbackAnswer(pendingChanges: Map<string, AssistantPendingChange>,) {
+  if (pendingChanges.size > 0) {
+    return `Prepared ${pendingChanges.size} note change${pendingChanges.size === 1 ? "" : "s"}.`;
+  }
+
+  return "Done.";
+}
+
+async function runToolWithErrorCapture(
+  action: () => Promise<ToolCommandOutput>,
+): Promise<ToolCommandOutput> {
+  try {
+    return await action();
+  } catch (error) {
+    return {
+      code: 1,
+      stdout: "",
+      stderr: error instanceof Error ? error.message : "Tool execution failed.",
+    };
+  }
+}
+
+async function runAssistantStream(
+  request: AssistantRequest,
+  signal: AbortSignal | undefined,
+  onUpdate: ((result: AssistantResult,) => void) | undefined,
+): Promise<AssistantResult> {
+  const settings = await loadSettings();
+  const config = resolveActiveAiConfig(settings,);
+  if (!config) {
+    throw new Error(`${AI_NOT_CONFIGURED}:${settings.aiProvider}`,);
+  }
+
+  const temporal = getTemporalContext();
+  const system = buildSystemPrompt(request.scope, temporal,);
+  const citations = new Map<string, AssistantCitation>();
+  const pendingChanges = new Map<string, AssistantPendingChange>();
+  let answer = "";
+  const emitUpdate = () => {
+    onUpdate?.(toAssistantResult(answer, citations, pendingChanges,),);
+  };
+
+  const result = streamText({
+    model: getAiSdkModel(config, "assistant",),
+    system,
+    prompt: buildInitialPrompt(request, temporal,),
+    tools: {
+      run_philo: tool({
+        description:
+          "Run the Philo daily-note CLI. argv represents `philo <argv>`. Use this for note search/read/create/update dry-runs.",
+        inputSchema: toolUseInputSchema,
+        execute: async (input,) => {
+          const output = await runToolWithErrorCapture(async () =>
+            await executePhiloTool(input, citations, pendingChanges,)
+          );
+          emitUpdate();
+          return {
+            code: output.code,
+            stdout: trimToolText(output.stdout,),
+            stderr: trimToolText(output.stderr,),
+          };
+        },
+      },),
+      run_safe_shell: tool({
+        description: "Run a read-only shell command inside the journal root. Allowed commands: ls, find, grep, cat.",
+        inputSchema: safeShellInputSchema,
+        execute: async (input,) => {
+          const output = await runToolWithErrorCapture(async () => await executeSafeShellTool(input,));
+          return {
+            code: output.code,
+            stdout: trimToolText(output.stdout,),
+            stderr: trimToolText(output.stderr,),
+          };
+        },
+      },),
     },
-  },
-  {
-    name: "run_safe_shell",
-    description: "Run a read-only shell command inside the journal root. Allowed commands: ls, find, grep, cat.",
-    input_schema: {
-      type: "object",
-      properties: {
-        command: { type: "string", enum: ["ls", "find", "grep", "cat",], },
-        args: { type: "array", items: { type: "string", }, },
-      },
-      required: ["command",],
+    stopWhen: stepCountIs(8,),
+    abortSignal: signal,
+    onStepFinish() {
+      emitUpdate();
     },
-  },
-] as const;
+  },);
+
+  for await (const delta of result.textStream) {
+    answer += delta;
+    emitUpdate();
+  }
+
+  const finalAnswer = answer.trim() || getFallbackAnswer(pendingChanges,);
+  if (finalAnswer !== answer) {
+    answer = finalAnswer;
+    emitUpdate();
+  }
+
+  return toAssistantResult(answer, citations, pendingChanges,);
+}
 
 function trimToolText(value: string, maxChars = 12000,) {
   if (value.length <= maxChars) return value;
@@ -315,96 +396,10 @@ export async function applyAssistantPendingChanges(
   return appliedDates;
 }
 
-export async function runAssistant(request: AssistantRequest, signal?: AbortSignal,): Promise<AssistantResult> {
-  throwIfAborted(signal,);
-  const settings = await loadSettings();
-  const config = resolveActiveAiConfig(settings,);
-  if (!config) {
-    throw new Error(`${AI_NOT_CONFIGURED}:${settings.aiProvider}`,);
-  }
-
-  const temporal = getTemporalContext();
-  const system = buildSystemPrompt(request.scope, temporal,);
-  const messages: AiMessage[] = [buildInitialUserMessage(request, temporal,),];
-  const citations = new Map<string, AssistantCitation>();
-  const pendingChanges = new Map<string, AssistantPendingChange>();
-
-  for (let step = 0; step < 8; step += 1) {
-    throwIfAborted(signal,);
-    const content = await runAiToolStep(config, system, messages, tools, signal,);
-    const textBlocks = content.filter((block,): block is Extract<AiContentBlock, { type: "text"; }> =>
-      block.type === "text" && Boolean(block.text.trim(),)
-    );
-    const toolUses = content.filter((block,) => block.type === "tool_use");
-
-    messages.push({
-      role: "assistant",
-      content,
-    },);
-
-    if (toolUses.length === 0) {
-      const answer = textBlocks.map((block,) => block.text.trim()).join("\n\n",).trim()
-        || (pendingChanges.size > 0
-          ? `Prepared ${pendingChanges.size} note change${pendingChanges.size === 1 ? "" : "s"}.`
-          : "Done.");
-      return {
-        answer,
-        citations: Array.from(citations.values(),),
-        pendingChanges: Array.from(pendingChanges.values(),),
-      };
-    }
-
-    const toolResults: AiMessage["content"] = [];
-    for (const toolUse of toolUses) {
-      try {
-        throwIfAborted(signal,);
-        let output: ToolCommandOutput;
-        if (toolUse.name === "run_philo") {
-          output = await executePhiloTool(toolUseInputSchema.parse(toolUse.input,), citations, pendingChanges,);
-        } else if (toolUse.name === "run_safe_shell") {
-          output = await executeSafeShellTool(safeShellInputSchema.parse(toolUse.input,),);
-        } else {
-          throw new Error(`Unsupported tool: ${toolUse.name}`,);
-        }
-        throwIfAborted(signal,);
-
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: toolUse.id,
-          content: JSON.stringify(
-            {
-              code: output.code,
-              stdout: trimToolText(output.stdout,),
-              stderr: trimToolText(output.stderr,),
-            },
-            null,
-            2,
-          ),
-          ...(output.code !== 0 ? { is_error: true, } : {}),
-        },);
-      } catch (error) {
-        toolResults.push({
-          type: "tool_result",
-          tool_use_id: toolUse.id,
-          content: JSON.stringify(
-            {
-              code: 1,
-              stdout: "",
-              stderr: error instanceof Error ? error.message : "Tool execution failed.",
-            },
-            null,
-            2,
-          ),
-          is_error: true,
-        },);
-      }
-    }
-
-    messages.push({
-      role: "user",
-      content: toolResults,
-    },);
-  }
-
-  throw new Error("Sophia exceeded the tool-call limit.",);
+export async function runAssistant(
+  request: AssistantRequest,
+  options: RunAssistantOptions = {},
+): Promise<AssistantResult> {
+  throwIfAborted(options.signal,);
+  return await runAssistantStream(request, options.signal, options.onUpdate,);
 }

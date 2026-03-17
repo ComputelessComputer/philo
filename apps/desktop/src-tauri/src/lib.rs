@@ -6,6 +6,7 @@ pub mod philo_tools;
 
 use keyring::{Entry as KeyringEntry, Error as KeyringError};
 use reqwest::blocking::{Client as HttpClient, Response as HttpResponse};
+use reqwest::{Client as AsyncHttpClient, Method};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
@@ -13,9 +14,11 @@ use std::collections::{HashMap, HashSet};
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
-use std::sync::{mpsc, Mutex};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use std::{env, fs};
+use tauri::ipc::Channel;
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_deep_link::DeepLinkExt;
@@ -35,6 +38,11 @@ const GOOGLE_OAUTH_KEYRING_ACCOUNT: &str = "session";
 #[derive(Default)]
 struct GoogleOAuthState {
     sessions: Mutex<HashMap<String, mpsc::Receiver<GoogleOAuthCallbackPayload>>>,
+}
+
+#[derive(Default)]
+struct HttpStreamState {
+    requests: Mutex<HashMap<String, Arc<AtomicBool>>>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -143,6 +151,33 @@ struct HttpJsonRequestInput {
     #[serde(default)]
     headers: HashMap<String, String>,
     body: Value,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct HttpStreamRequestInput {
+    request_id: String,
+    url: String,
+    method: String,
+    #[serde(default)]
+    headers: HashMap<String, String>,
+    body: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize)]
+#[serde(tag = "type", rename_all = "camelCase")]
+enum HttpStreamEvent {
+    Start {
+        status: u16,
+        headers: Vec<[String; 2]>,
+    },
+    Chunk {
+        data: Vec<u8>,
+    },
+    End,
+    Error {
+        message: String,
+    },
 }
 
 #[tauri::command]
@@ -813,6 +848,12 @@ fn http_json_client() -> Result<HttpClient, String> {
         .map_err(|e| format!("Could not start HTTP client: {e}"))
 }
 
+fn async_http_client() -> Result<AsyncHttpClient, String> {
+    AsyncHttpClient::builder()
+        .build()
+        .map_err(|e| format!("Could not start HTTP client: {e}"))
+}
+
 #[tauri::command]
 fn post_json(input: HttpJsonRequestInput) -> Result<HttpJsonResponse, String> {
     let url = input.url.trim();
@@ -835,6 +876,126 @@ fn post_json(input: HttpJsonRequestInput) -> Result<HttpJsonResponse, String> {
         .map_err(|e| format!("Could not read HTTP response: {e}"))?;
 
     Ok(HttpJsonResponse { status, body })
+}
+
+#[tauri::command]
+async fn stream_http(
+    input: HttpStreamRequestInput,
+    on_event: Channel<HttpStreamEvent>,
+    state: State<'_, HttpStreamState>,
+) -> Result<(), String> {
+    let request_id = input.request_id.trim().to_string();
+    if request_id.is_empty() {
+        return Err("Request ID is missing.".to_string());
+    }
+
+    let url = input.url.trim().to_string();
+    if url.is_empty() {
+        return Err("Request URL is missing.".to_string());
+    }
+
+    let cancel_flag = Arc::new(AtomicBool::new(false));
+    state
+        .requests
+        .lock()
+        .map_err(|_| "Could not access HTTP stream state.".to_string())?
+        .insert(request_id.clone(), cancel_flag.clone());
+
+    let result = async {
+        let method = Method::from_bytes(input.method.trim().as_bytes())
+            .map_err(|e| format!("Unsupported HTTP method: {e}"))?;
+
+        let mut request = async_http_client()?.request(method, url);
+        for (key, value) in input.headers {
+            request = request.header(key, value);
+        }
+        if let Some(body) = input.body {
+            request = request.body(body);
+        }
+
+        let mut response = request
+            .send()
+            .await
+            .map_err(|e| format!("HTTP request failed: {e}"))?;
+
+        let headers = response
+            .headers()
+            .iter()
+            .filter_map(|(key, value)| {
+                value
+                    .to_str()
+                    .ok()
+                    .map(|value| [key.to_string(), value.to_string()])
+            })
+            .collect::<Vec<_>>();
+
+        if on_event
+            .send(HttpStreamEvent::Start {
+                status: response.status().as_u16(),
+                headers,
+            })
+            .is_err()
+        {
+            return Ok(());
+        }
+
+        loop {
+            if cancel_flag.load(Ordering::Relaxed) {
+                return Ok(());
+            }
+
+            let Some(chunk) = response
+                .chunk()
+                .await
+                .map_err(|e| format!("Could not read HTTP response stream: {e}"))?
+            else {
+                let _ = on_event.send(HttpStreamEvent::End);
+                return Ok(());
+            };
+
+            if on_event
+                .send(HttpStreamEvent::Chunk {
+                    data: chunk.to_vec(),
+                })
+                .is_err()
+            {
+                return Ok(());
+            }
+        }
+    }
+    .await;
+
+    state
+        .requests
+        .lock()
+        .map_err(|_| "Could not access HTTP stream state.".to_string())?
+        .remove(&request_id);
+
+    if let Err(message) = result {
+        let _ = on_event.send(HttpStreamEvent::Error { message });
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn cancel_http_stream(request_id: String, state: State<'_, HttpStreamState>) -> Result<(), String> {
+    let request_id = request_id.trim();
+    if request_id.is_empty() {
+        return Ok(());
+    }
+
+    if let Some(cancel_flag) = state
+        .requests
+        .lock()
+        .map_err(|_| "Could not access HTTP stream state.".to_string())?
+        .get(request_id)
+        .cloned()
+    {
+        cancel_flag.store(true, Ordering::Relaxed);
+    }
+
+    Ok(())
 }
 
 fn parse_google_error(response: HttpResponse) -> String {
@@ -2811,12 +2972,15 @@ pub fn run() {
             focus_main_window(app);
         }))
         .manage(GoogleOAuthState::default())
+        .manage(HttpStreamState::default())
         .invoke_handler(tauri::generate_handler![
             extend_fs_scope,
             find_obsidian_vaults,
             detect_obsidian_settings,
             bootstrap_obsidian_vault,
             post_json,
+            stream_http,
+            cancel_http_stream,
             read_markdown_file,
             write_markdown_file,
             start_google_oauth_callback,
