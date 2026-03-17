@@ -11,7 +11,7 @@ use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
-use std::io::{Read, Write};
+use std::io::{ErrorKind, Read, Write};
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -1316,13 +1316,13 @@ fn open_in_apple_mail(message_id: String) -> Result<bool, String> {
             &[
                 "on run argv",
                 "set targetMessageId to item 1 of argv",
-                "tell application "Mail"",
+                "tell application \"Mail\"",
                 "set inboxMatches to (messages of inbox whose message id is targetMessageId)",
                 "if (count of inboxMatches) > 0 then",
                 "set targetMessage to item 1 of inboxMatches",
                 "open targetMessage",
                 "activate",
-                "return "opened"",
+                "return \"opened\"",
                 "end if",
                 "repeat with mailboxRef in mailboxes",
                 "set mailboxMatches to (messages of mailboxRef whose message id is targetMessageId)",
@@ -1330,11 +1330,11 @@ fn open_in_apple_mail(message_id: String) -> Result<bool, String> {
                 "set targetMessage to item 1 of mailboxMatches",
                 "open targetMessage",
                 "activate",
-                "return "opened"",
+                "return \"opened\"",
                 "end if",
                 "end repeat",
                 "end tell",
-                "return "missing"",
+                "return \"missing\"",
                 "end run",
             ],
             &[normalized.as_str()],
@@ -1362,18 +1362,18 @@ fn open_in_apple_calendar(event_uid: String) -> Result<bool, String> {
             &[
                 "on run argv",
                 "set targetEventUid to item 1 of argv",
-                "tell application "Calendar"",
+                "tell application \"Calendar\"",
                 "repeat with calendarRef in calendars",
                 "set eventMatches to (every event of calendarRef whose uid is targetEventUid)",
                 "if (count of eventMatches) > 0 then",
                 "set targetEvent to item 1 of eventMatches",
                 "show targetEvent",
                 "activate",
-                "return "opened"",
+                "return \"opened\"",
                 "end if",
                 "end repeat",
                 "end tell",
-                "return "missing"",
+                "return \"missing\"",
                 "end run",
             ],
             &[normalized.as_str()],
@@ -1461,6 +1461,8 @@ struct SharedComponentManifest {
     title: String,
     description: String,
     prompt: String,
+    #[serde(default)]
+    favorite: bool,
     created_at: String,
     updated_at: String,
     ui_spec: Value,
@@ -1556,6 +1558,8 @@ struct CreateSharedComponentInput {
     title: String,
     description: String,
     prompt: String,
+    #[serde(default)]
+    favorite: bool,
     ui_spec: Value,
     storage_schema: SharedStorageSchema,
 }
@@ -1571,6 +1575,8 @@ struct UpdateSharedComponentInput {
     description: Option<String>,
     #[serde(default)]
     prompt: Option<String>,
+    #[serde(default)]
+    favorite: Option<bool>,
     #[serde(default)]
     ui_spec: Option<Value>,
     #[serde(default)]
@@ -2766,6 +2772,7 @@ fn create_shared_component(
         title: input.title,
         description: input.description,
         prompt: input.prompt,
+        favorite: input.favorite,
         created_at: now.clone(),
         updated_at: now,
         ui_spec: input.ui_spec,
@@ -2845,6 +2852,7 @@ fn update_shared_component(
         title: input.title.unwrap_or(existing.title),
         description: input.description.unwrap_or(existing.description),
         prompt: input.prompt.unwrap_or(existing.prompt),
+        favorite: input.favorite.unwrap_or(existing.favorite),
         ui_spec: input.ui_spec.unwrap_or(existing.ui_spec),
         created_at: existing.created_at,
         updated_at: now_timestamp(),
@@ -2867,6 +2875,32 @@ fn delete_shared_component(library_dir: String, id: String) -> Result<(), String
         return Ok(());
     }
     fs::remove_dir_all(dir).map_err(|e| e.to_string())
+}
+
+fn legacy_library_json_paths() -> Vec<PathBuf> {
+    let home = match env::var("HOME") {
+        Ok(value) if !value.trim().is_empty() => value,
+        _ => return Vec::new(),
+    };
+    let app_support = PathBuf::from(home)
+        .join("Library")
+        .join("Application Support");
+    vec![
+        app_support.join("com.philo.dev").join("library.json"),
+        app_support.join("philo").join("library.json"),
+    ]
+}
+
+#[tauri::command]
+fn cleanup_legacy_library_state() -> Result<(), String> {
+    for path in legacy_library_json_paths() {
+        if let Err(error) = fs::remove_file(&path) {
+            if error.kind() != ErrorKind::NotFound {
+                return Err(error.to_string());
+            }
+        }
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -3356,6 +3390,7 @@ pub fn run() {
             get_shared_component,
             update_shared_component,
             delete_shared_component,
+            cleanup_legacy_library_state,
             run_shared_component_query,
             run_shared_component_mutation,
             ensure_widget_storage,
@@ -3588,6 +3623,7 @@ mod tests {
             title: "Shared Items".to_string(),
             description: "A shared item tracker".to_string(),
             prompt: "Build a shared item tracker".to_string(),
+            favorite: false,
             created_at: "2026-03-12T00:00:00.000Z".to_string(),
             updated_at: "2026-03-12T00:00:00.000Z".to_string(),
             ui_spec: json!({

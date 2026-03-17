@@ -80,6 +80,7 @@ export function EditorBubbleMenu({ editor, onChatSelection, }: EditorBubbleMenuP
         title: deriveTitle(selectedText,),
         prompt: selectedText,
         spec: specString,
+        favorite: false,
         storageSchema,
         saved: false,
       },);

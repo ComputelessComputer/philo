@@ -218,6 +218,7 @@ export const WidgetExtension = Node.create({
               title: deriveTitle(selectedText,),
               prompt: selectedText,
               spec: specString,
+              favorite: false,
               storageSchema,
               saved: false,
             },);

@@ -24,6 +24,7 @@ import {
 } from "../../services/chats";
 import { syncGoogleImports, } from "../../services/google-imports";
 import type { LibraryItem, } from "../../services/library";
+import { cleanupLegacyLibraryState, } from "../../services/library";
 import { getJournalDir, initJournalScope, parseDateFromNoteLinkTarget, } from "../../services/paths";
 import { getFilenamePattern, hasActiveAiProvider, loadSettings, } from "../../services/settings";
 import { getOrCreateDailyNote, loadDailyNote, loadPastNotes, saveDailyNote, } from "../../services/storage";
@@ -520,6 +521,7 @@ export default function AppLayout() {
 
   // Load configuration and extend FS scope on mount
   useEffect(() => {
+    void cleanupLegacyLibraryState();
     loadSettings()
       .then(async (settings,) => {
         setHasAiConfigured(hasActiveAiProvider(settings,),);
@@ -1032,7 +1034,9 @@ export default function AppLayout() {
     setAiError(null,);
     setAiSelectedLabel(null,);
     setAiSelectedText(selection?.text ?? null,);
-    setAiSelectionHighlight(selection ? { noteDate: selection.noteDate, from: selection.from, to: selection.to, } : null,);
+    setAiSelectionHighlight(
+      selection ? { noteDate: selection.noteDate, from: selection.from, to: selection.to, } : null,
+    );
     setAiScope("recent",);
     aiLastSubmittedPromptRef.current = "";
   }, [],);
@@ -1439,6 +1443,7 @@ export default function AppLayout() {
               title: item.title,
               prompt: item.prompt,
               spec,
+              favorite: item.favorite,
               saved: true,
               libraryItemId: item.id,
               componentId: isShared ? item.componentId : null,

@@ -1,7 +1,7 @@
-import { Trash2, } from "lucide-react";
+import { Star, Trash2, } from "lucide-react";
 import { useEffect, useRef, useState, } from "react";
 import type { LibraryItem, } from "../../services/library";
-import { loadLibrary, removeFromLibrary, } from "../../services/library";
+import { loadLibrary, removeFromLibrary, setLibraryItemFavorite, } from "../../services/library";
 
 interface LibraryDrawerProps {
   open: boolean;
@@ -19,9 +19,18 @@ export function LibraryDrawer({ open, onClose, onInsert, }: LibraryDrawerProps,)
     }
   }, [open,],);
 
+  const refreshItems = async () => {
+    setItems(await loadLibrary(),);
+  };
+
   const handleRemove = async (id: string,) => {
     await removeFromLibrary(id,);
     setItems((prev,) => prev.filter((item,) => item.id !== id));
+  };
+
+  const handleFavoriteToggle = async (id: string, favorite: boolean,) => {
+    await setLibraryItemFavorite(id, favorite,);
+    await refreshItems();
   };
 
   // Close on Escape
@@ -90,16 +99,35 @@ export function LibraryDrawer({ open, onClose, onInsert, }: LibraryDrawerProps,)
               items.map((item,) => (
                 <div
                   key={item.id}
-                  className="flex-shrink-0 w-56 rounded-xl border border-gray-200 bg-white hover:border-gray-300 hover:shadow-md transition-all cursor-pointer group"
+                  className="flex-shrink-0 w-56 rounded-none border border-gray-200 bg-white hover:border-gray-300 hover:shadow-md transition-all cursor-pointer group"
                   onClick={() => onInsert(item,)}
                 >
                   <div className="p-4">
-                    <h3
-                      className="text-sm font-medium text-gray-900 truncate"
-                      style={{ fontFamily: "'IBM Plex Mono', monospace", }}
-                    >
-                      {item.title}
-                    </h3>
+                    <div className="flex items-start justify-between gap-3">
+                      <h3
+                        className="text-sm font-medium text-gray-900 truncate"
+                        style={{ fontFamily: "'IBM Plex Mono', monospace", }}
+                      >
+                        {item.title}
+                      </h3>
+                      <button
+                        onClick={(e,) => {
+                          e.stopPropagation();
+                          void handleFavoriteToggle(item.id, !item.favorite,);
+                        }}
+                        className={`text-xs transition-colors cursor-pointer ${
+                          item.favorite ? "text-amber-500" : "text-gray-300 hover:text-amber-500"
+                        }`}
+                        title={item.favorite ? `Unfavorite ${item.title}` : `Favorite ${item.title}`}
+                        aria-label={item.favorite ? `Unfavorite ${item.title}` : `Favorite ${item.title}`}
+                      >
+                        <Star
+                          className="h-3.5 w-3.5"
+                          strokeWidth={2}
+                          fill={item.favorite ? "currentColor" : "none"}
+                        />
+                      </button>
+                    </div>
                     <p
                       className="mt-1 text-xs text-gray-500 line-clamp-2"
                       style={{

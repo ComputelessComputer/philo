@@ -3,7 +3,12 @@ import { join, } from "@tauri-apps/api/path";
 import { exists, mkdir, readDir, readTextFile, remove, writeTextFile, } from "@tauri-apps/plugin-fs";
 import { getBaseDir as getAppBaseDir, getJournalDir, } from "./paths";
 import { getVaultDirSetting, } from "./settings";
-import { markWidgetLibraryReferenceRemoved, } from "./widget-files";
+import {
+  getWidgetSavedAt,
+  listSavedWidgetFiles,
+  markWidgetLibraryReferenceRemoved,
+  setWidgetLibraryFavorite,
+} from "./widget-files";
 
 export interface SharedStorageColumn {
   name: string;
@@ -57,6 +62,7 @@ export interface SharedComponentManifest {
   title: string;
   description: string;
   prompt: string;
+  favorite: boolean;
   createdAt: string;
   updatedAt: string;
   uiSpec: unknown;
@@ -72,6 +78,7 @@ export interface LibraryItem {
   html: string;
   prompt: string;
   savedAt: string;
+  favorite: boolean;
   componentId?: string;
   storageKind?: "sqlite";
   storageSchema?: SharedStorageSchema;
@@ -146,6 +153,7 @@ function parseComponentMarkdown(raw: string,): LibraryItem | null {
     html: spec,
     prompt: meta.prompt,
     savedAt: meta.savedAt,
+    favorite: meta.favorite === "true",
   };
 }
 
@@ -157,6 +165,7 @@ function serializeComponentMarkdown(item: LibraryItem,): string {
     `description: ${JSON.stringify(item.description,)}`,
     `prompt: ${JSON.stringify(item.prompt,)}`,
     `savedAt: ${JSON.stringify(item.savedAt,)}`,
+    `favorite: ${item.favorite ? "true" : "false"}`,
     "---",
     "",
     "```json",
@@ -183,6 +192,7 @@ function toLibraryFromManifest(manifest: SharedComponentManifest,): LibraryItem 
     html: spec,
     prompt: manifest.prompt,
     savedAt: manifest.updatedAt,
+    favorite: manifest.favorite,
     componentId: manifest.id,
     storageKind: manifest.storageKind,
     storageSchema: manifest.storageSchema,
@@ -229,6 +239,13 @@ function normalizeStorageSchema(schema: SharedStorageSchema,): SharedStorageSche
       filters: mutation.filters ?? [],
     })),
   };
+}
+
+function sortLibraryItems(items: LibraryItem[],): LibraryItem[] {
+  return [...items,].sort((a, b,) => {
+    if (a.favorite !== b.favorite) return a.favorite ? -1 : 1;
+    return b.savedAt.localeCompare(a.savedAt,);
+  },);
 }
 
 async function getLibraryDir(): Promise<string> {
@@ -279,6 +296,7 @@ async function migrateLegacyLibraryJson(): Promise<LibraryItem[]> {
       prompt?: string;
       html?: string;
       savedAt?: string;
+      favorite?: boolean;
     }>;
     if (!Array.isArray(parsed,) || parsed.length === 0) return [];
 
@@ -299,6 +317,7 @@ async function migrateLegacyLibraryJson(): Promise<LibraryItem[]> {
           html,
           prompt,
           savedAt,
+          favorite: item.favorite === true,
         };
       },)
       .filter((item,): item is LibraryItem => item !== null);
@@ -354,6 +373,14 @@ async function removeLegacyLibraryItem(id: string,): Promise<void> {
     }
 
     await writeTextFile(path, `${JSON.stringify(filtered, null, 2,)}\n`,);
+  } catch {
+    return;
+  }
+}
+
+export async function cleanupLegacyLibraryState(): Promise<void> {
+  try {
+    await invoke("cleanup_legacy_library_state",);
   } catch {
     return;
   }
@@ -443,6 +470,7 @@ export async function updateSharedComponent(
   id: string,
   uiSpec: unknown,
   prompt: string,
+  favorite?: boolean,
 ): Promise<SharedComponentManifest> {
   const libraryDir = await getLibraryDir();
   const manifest = await invoke<SharedComponentManifest>(
@@ -452,6 +480,7 @@ export async function updateSharedComponent(
       uiSpec,
       ui_spec: uiSpec,
       prompt,
+      favorite,
     },),
   );
   emitSharedComponentsUpdated(id,);
@@ -459,32 +488,66 @@ export async function updateSharedComponent(
 }
 
 export async function loadLibrary(): Promise<LibraryItem[]> {
-  let shared: LibraryItem[] = [];
-  let items = await listLegacyItems();
-
+  let sharedItems: SharedComponentManifest[] = [];
   try {
-    const manifestItems = await listSharedComponents();
-    shared = manifestItems.map(toLibraryFromManifest,).sort((a, b,) => b.savedAt.localeCompare(a.savedAt,));
-    if (!items.length) {
-      const migrated = await migrateLegacyLibraryJson();
-      if (migrated.length > 0) {
-        items = migrated;
-      }
-    }
+    sharedItems = await listSharedComponents();
   } catch {
-    if (!items.length) {
-      items = await migrateLegacyLibraryJson();
-    }
   }
 
+  const manifestById = new Map(sharedItems.map((item,) => [item.id, item,]),);
+  const savedWidgets = await listSavedWidgetFiles();
+  const widgetItems = sortLibraryItems(
+    savedWidgets
+      .sort((a, b,) => getWidgetSavedAt(b,).localeCompare(getWidgetSavedAt(a,),))
+      .filter((record, index, records,) => {
+        const key = record.libraryItemId ?? record.componentId ?? record.id;
+        return records.findIndex((candidate,) =>
+          (candidate.libraryItemId ?? candidate.componentId ?? candidate.id) === key
+        ) === index;
+      },)
+      .map((record,) => {
+        const manifestId = record.componentId ?? record.libraryItemId ?? "";
+        const manifest = manifestById.get(manifestId,);
+        if (manifest) {
+          return {
+            ...toLibraryFromManifest(manifest,),
+            favorite: record.favorite,
+            savedAt: getWidgetSavedAt(record,),
+          };
+        }
+
+        return {
+          id: record.libraryItemId ?? record.componentId ?? record.id,
+          title: record.title,
+          description: record.prompt,
+          html: record.spec,
+          prompt: record.prompt,
+          savedAt: getWidgetSavedAt(record,),
+          favorite: record.favorite,
+          componentId: record.componentId ?? undefined,
+          storageSchema: record.storageSchema ?? undefined,
+        };
+      },),
+  );
+
+  if (widgetItems.length > 0) {
+    await cleanupLegacyLibraryState();
+    return widgetItems;
+  }
+
+  let items = await listLegacyItems();
+  if (!items.length) {
+    items = await migrateLegacyLibraryJson();
+  }
   const seen = new Set<string>();
-  const merged = [...shared, ...items,].filter((item,) => {
+  const merged = [...sharedItems.map(toLibraryFromManifest,), ...items,].filter((item,) => {
     const key = item.componentId ?? item.id;
     if (seen.has(key,)) return false;
     seen.add(key,);
     return true;
   },);
-  return merged.sort((a, b,) => b.savedAt.localeCompare(a.savedAt,));
+  await cleanupLegacyLibraryState();
+  return sortLibraryItems(merged,);
 }
 
 export async function addToLibrary(
@@ -504,6 +567,7 @@ export async function addToLibrary(
         title: item.title,
         description: item.description,
         prompt: item.prompt,
+        favorite: false,
         uiSpec: parsed,
         ui_spec: parsed,
         storageSchema: normalizeStorageSchema(item.storageSchema,),
@@ -524,6 +588,7 @@ export async function addToLibrary(
     html: item.html,
     prompt: item.prompt,
     savedAt: new Date().toISOString(),
+    favorite: false,
   };
   const filename = `${normalizeLegacyId(newItem.title,)}-${newItem.id}${COMPONENT_SUFFIX}`;
   const path = await join(libraryDir, filename,);
@@ -551,7 +616,12 @@ export async function removeFromLibrary(id: string,): Promise<void> {
       },),
   );
   await removeLegacyLibraryItem(id,);
+  await cleanupLegacyLibraryState();
   await markWidgetLibraryReferenceRemoved(id,);
+}
+
+export async function setLibraryItemFavorite(id: string, favorite: boolean,): Promise<void> {
+  await setWidgetLibraryFavorite(id, favorite,);
 }
 
 export async function addLegacyFallbackToLibrary(item: AddToLibraryInput,): Promise<LibraryItem> {

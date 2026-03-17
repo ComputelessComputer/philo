@@ -23,6 +23,7 @@ export interface WidgetFileRecord {
   id: string;
   title: string;
   prompt: string;
+  favorite: boolean;
   saved: boolean;
   spec: string;
   currentRevisionId: string;
@@ -38,6 +39,7 @@ interface WidgetFileInput {
   title: string;
   prompt: string;
   spec: string;
+  favorite?: boolean;
   saved?: boolean;
   currentRevisionId?: string;
   revisions?: WidgetRevisionRecord[];
@@ -246,6 +248,7 @@ function parseWidgetMarkdown(raw: string, file: string, path: string,): WidgetFi
     id: meta.id,
     title: meta.title || "Widget",
     prompt: meta.prompt,
+    favorite: meta.favorite === "true",
     saved: meta.saved === "true",
     currentRevisionId: history.currentRevisionId,
     revisions: history.revisions,
@@ -265,6 +268,7 @@ function serializeWidgetMarkdown(record: WidgetFileRecord,): string {
     `id: ${JSON.stringify(record.id,)}`,
     `title: ${JSON.stringify(record.title,)}`,
     `prompt: ${JSON.stringify(record.prompt,)}`,
+    `favorite: ${record.favorite ? "true" : "false"}`,
     `saved: ${record.saved ? "true" : "false"}`,
     ...(record.libraryItemId ? [`libraryItemId: ${JSON.stringify(record.libraryItemId,)}`,] : []),
     ...(record.componentId ? [`componentId: ${JSON.stringify(record.componentId,)}`,] : []),
@@ -413,6 +417,7 @@ export async function createWidgetFile(input: WidgetFileInput,): Promise<WidgetF
     id,
     title,
     prompt: input.prompt,
+    favorite: input.favorite ?? false,
     saved: input.saved ?? false,
     spec: input.spec,
     currentRevisionId: input.currentRevisionId ?? "",
@@ -469,6 +474,52 @@ async function listWidgetFilePaths(dir: string,): Promise<string[]> {
   return nested.flat();
 }
 
+function matchesLibraryReference(record: WidgetFileRecord, libraryItemId: string,) {
+  return record.libraryItemId === libraryItemId || record.componentId === libraryItemId;
+}
+
+export function getWidgetSavedAt(record: Pick<WidgetFileRecord, "currentRevisionId" | "revisions">,): string {
+  return record.revisions.find((revision,) => revision.id === record.currentRevisionId)?.createdAt
+    ?? record.revisions[record.revisions.length - 1]?.createdAt
+    ?? "";
+}
+
+export async function listSavedWidgetFiles(): Promise<WidgetFileRecord[]> {
+  const widgetsDir = await getWidgetsDir();
+  if (!(await exists(widgetsDir,))) {
+    return [];
+  }
+
+  const paths = await listWidgetFilePaths(widgetsDir,);
+  const records = await Promise.all(paths.map(async (path,) => {
+    const file = path.startsWith(`${widgetsDir}/`,) ? `widgets/${path.slice(widgetsDir.length + 1,)}` : path;
+    return await readWidgetFile(path, file,);
+  },),);
+
+  return records.filter((record,): record is WidgetFileRecord =>
+    record !== null && record.saved && !!(record.libraryItemId || record.componentId)
+  );
+}
+
+export async function setWidgetLibraryFavorite(libraryItemId: string, favorite: boolean,): Promise<void> {
+  const widgetsDir = await getWidgetsDir();
+  if (!(await exists(widgetsDir,))) {
+    return;
+  }
+
+  const paths = await listWidgetFilePaths(widgetsDir,);
+  await Promise.all(paths.map(async (path,) => {
+    const file = path.startsWith(`${widgetsDir}/`,) ? `widgets/${path.slice(widgetsDir.length + 1,)}` : path;
+    const record = await readWidgetFile(path, file,);
+    if (!record || !matchesLibraryReference(record, libraryItemId,)) return;
+
+    await updateWidgetFile(path, file, {
+      ...record,
+      favorite,
+    },);
+  },),);
+}
+
 export async function markWidgetLibraryReferenceRemoved(libraryItemId: string,): Promise<void> {
   const widgetsDir = await getWidgetsDir();
   if (!(await exists(widgetsDir,))) {
@@ -480,7 +531,7 @@ export async function markWidgetLibraryReferenceRemoved(libraryItemId: string,):
     const file = path.startsWith(`${widgetsDir}/`,) ? `widgets/${path.slice(widgetsDir.length + 1,)}` : path;
     const record = await readWidgetFile(path, file,);
     if (!record) return;
-    if (record.libraryItemId !== libraryItemId && record.componentId !== libraryItemId) {
+    if (!matchesLibraryReference(record, libraryItemId,)) {
       return;
     }
 
