@@ -24,8 +24,6 @@
     "@fontsource/instrument-serif": "^5.2.8",
     "@ibm/plex-mono": "^1.1.0",
     "@ibm/plex-sans": "^1.1.0",
-    "@json-render/core": "^0.6.1",
-    "@json-render/react": "^0.6.1",
     "@tailwindcss/typography": "^0.5.19",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.6.0",

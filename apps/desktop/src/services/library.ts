@@ -79,11 +79,12 @@ export interface LibraryItem {
   prompt: string;
   savedAt: string;
   favorite: boolean;
+  runtime?: "json" | "code";
+  source?: string;
   componentId?: string;
   storageKind?: "sqlite";
   storageSchema?: SharedStorageSchema;
   schemaVersion?: number;
-  uiSpec?: unknown;
 }
 
 export interface AddToLibraryInput {
@@ -94,7 +95,7 @@ export interface AddToLibraryInput {
 }
 
 export interface AddSharedComponentInput extends AddToLibraryInput {
-  uiSpec: string;
+  source: string;
   storageSchema: SharedStorageSchema;
 }
 
@@ -181,32 +182,27 @@ function serializeComponentMarkdown(item: LibraryItem,): string {
   ].join("\n",);
 }
 
+export function resolveStoredWidgetSource(value: unknown,): string {
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function toLibraryFromManifest(manifest: SharedComponentManifest,): LibraryItem {
-  const spec = typeof manifest.uiSpec === "string"
-    ? manifest.uiSpec
-    : JSON.stringify(manifest.uiSpec, null, 2,);
+  const source = resolveStoredWidgetSource(manifest.uiSpec,);
   return {
     id: manifest.id,
     title: manifest.title,
     description: manifest.description,
-    html: spec,
+    html: source || JSON.stringify(manifest.uiSpec, null, 2,),
     prompt: manifest.prompt,
     savedAt: manifest.updatedAt,
     favorite: manifest.favorite,
+    runtime: source ? "code" : "json",
+    source,
     componentId: manifest.id,
     storageKind: manifest.storageKind,
     storageSchema: manifest.storageSchema,
     schemaVersion: manifest.schemaVersion,
-    uiSpec: manifest.uiSpec,
   };
-}
-
-function parseJsonOrString(input: string, fallback: unknown = "",): unknown {
-  try {
-    return JSON.parse(input,);
-  } catch {
-    return fallback;
-  }
 }
 
 function normalizeStorageSchema(schema: SharedStorageSchema,): SharedStorageSchema {
@@ -468,7 +464,7 @@ export async function runSharedComponentMutation(
 
 export async function updateSharedComponent(
   id: string,
-  uiSpec: unknown,
+  source: string,
   prompt: string,
   favorite?: boolean,
 ): Promise<SharedComponentManifest> {
@@ -477,8 +473,8 @@ export async function updateSharedComponent(
     "update_shared_component",
     libraryInputArgs(libraryDir, {
       id,
-      uiSpec,
-      ui_spec: uiSpec,
+      uiSpec: source,
+      ui_spec: source,
       prompt,
       favorite,
     },),
@@ -509,10 +505,13 @@ export async function loadLibrary(): Promise<LibraryItem[]> {
         const manifestId = record.componentId ?? record.libraryItemId ?? "";
         const manifest = manifestById.get(manifestId,);
         if (manifest) {
+          const manifestItem = toLibraryFromManifest(manifest,);
           return {
-            ...toLibraryFromManifest(manifest,),
+            ...manifestItem,
             favorite: record.favorite,
             savedAt: getWidgetSavedAt(record,),
+            runtime: manifestItem.source ? "code" : record.runtime,
+            source: manifestItem.source || record.source,
           };
         }
 
@@ -524,11 +523,13 @@ export async function loadLibrary(): Promise<LibraryItem[]> {
           prompt: record.prompt,
           savedAt: getWidgetSavedAt(record,),
           favorite: record.favorite,
+          runtime: record.runtime,
+          source: record.source,
           componentId: record.componentId ?? undefined,
           storageSchema: record.storageSchema ?? undefined,
         };
       },),
-  );
+  ).filter((item,) => Boolean(item.source?.trim(),));
 
   if (widgetItems.length > 0) {
     await cleanupLegacyLibraryState();
@@ -545,7 +546,7 @@ export async function loadLibrary(): Promise<LibraryItem[]> {
     if (seen.has(key,)) return false;
     seen.add(key,);
     return true;
-  },);
+  },).filter((item,) => Boolean(item.source?.trim(),));
   await cleanupLegacyLibraryState();
   return sortLibraryItems(merged,);
 }
@@ -553,12 +554,12 @@ export async function loadLibrary(): Promise<LibraryItem[]> {
 export async function addToLibrary(
   item: AddToLibraryInput | AddSharedComponentInput,
 ): Promise<LibraryItem> {
-  if ("uiSpec" in item && "storageSchema" in item) {
+  if ("source" in item && "storageSchema" in item) {
     const libraryDir = await getLibraryDir();
     const id = crypto.randomUUID();
-    const parsed = parseJsonOrString(item.uiSpec, null,);
-    if (!parsed) {
-      throw new Error("Invalid shared component spec. Must be valid JSON.",);
+    const source = item.source.trim();
+    if (!source) {
+      throw new Error("Shared component source is required.",);
     }
     const manifest = await invoke<SharedComponentManifest>(
       "create_shared_component",
@@ -568,8 +569,8 @@ export async function addToLibrary(
         description: item.description,
         prompt: item.prompt,
         favorite: false,
-        uiSpec: parsed,
-        ui_spec: parsed,
+        uiSpec: source,
+        ui_spec: source,
         storageSchema: normalizeStorageSchema(item.storageSchema,),
         storage_schema: normalizeStorageSchema(item.storageSchema,),
       },),

@@ -1433,16 +1433,17 @@ export default function AppLayout() {
           const editor = todayEditorRef.current?.editor;
           if (!editor) return;
           try {
+            const source = item.source?.trim() ?? "";
+            if (!source) {
+              throw new Error("This saved widget still uses the retired JSON runtime. Rebuild it first.",);
+            }
             const isShared = !!item.componentId && !!item.storageKind;
-            const spec = typeof item.uiSpec === "string"
-              ? item.uiSpec
-              : item.uiSpec
-              ? JSON.stringify(item.uiSpec,)
-              : item.html;
             const record = await createWidgetFile({
               title: item.title,
               prompt: item.prompt,
-              spec,
+              runtime: "code",
+              spec: "",
+              source,
               favorite: item.favorite,
               saved: true,
               libraryItemId: item.id,
@@ -1453,7 +1454,9 @@ export default function AppLayout() {
               type: "widget",
               attrs: {
                 id: record.id,
+                runtime: record.runtime,
                 spec: record.spec,
+                source: record.source,
                 file: record.file,
                 path: record.path,
                 libraryItemId: item.id,

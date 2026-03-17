@@ -1,15 +1,13 @@
-import type { Spec, } from "@json-render/core";
-import { JSONUIProvider, Renderer, } from "@json-render/react";
 import { NodeViewWrapper, } from "@tiptap/react";
 import type { NodeViewProps, } from "@tiptap/react";
 import { Archive, PencilLine, RefreshCw, Trash2, } from "lucide-react";
-import { Component, useCallback, useEffect, useMemo, useState, } from "react";
-import type { ErrorInfo, ReactNode, } from "react";
+import { useCallback, useEffect, useMemo, useState, } from "react";
 import { getAiConfigurationMessage, isAiKeyMissingError, } from "../../../../services/ai";
 import { generateWidgetWithStorage, } from "../../../../services/generate";
 import {
   addToLibrary,
   getSharedComponent,
+  resolveStoredWidgetSource,
   runSharedComponentMutation,
   runSharedComponentQuery,
   SHARED_COMPONENTS_UPDATED_EVENT,
@@ -41,15 +39,14 @@ import {
   type WidgetEditStateDetail,
   type WidgetEditSubmitDetail,
 } from "./events";
-import { buildLoadingWidgetSpec, waitForNextPaint, } from "./loading";
-import {
-  type SharedWidgetRuntimeApi,
-  WidgetCardDepthProvider,
-  WidgetRuntimeProvider,
-  WidgetStateProvider,
-  WidgetTemporalProvider,
-} from "./registry";
-import { registry, } from "./registry";
+import { waitForNextPaint, } from "./loading";
+import type { SharedWidgetRuntimeApi, } from "./runtime";
+
+const EMPTY_STORAGE_SCHEMA: SharedStorageSchema = {
+  tables: [],
+  namedQueries: [],
+  namedMutations: [],
+};
 
 function cloneSchema(value: SharedStorageSchema,): SharedStorageSchema {
   return {
@@ -94,78 +91,57 @@ function storageSchemaMatch(a: SharedStorageSchema, b: SharedStorageSchema,): bo
   return JSON.stringify(cloneSchema(a,),) === JSON.stringify(cloneSchema(b,),);
 }
 
-function parseSpec(candidate: unknown,): Spec | null {
-  if (!candidate) return null;
-  if (typeof candidate === "object") return candidate as Spec;
+function prettyPrintLegacyContent(candidate: unknown,): string {
+  if (!candidate) return "";
   if (typeof candidate === "string") {
     try {
-      const parsed = JSON.parse(candidate,);
-      return typeof parsed === "object" ? parsed as Spec : null;
+      return JSON.stringify(JSON.parse(candidate,), null, 2,);
     } catch {
-      return null;
+      return candidate.trim();
     }
   }
-  return null;
-}
 
-function stringifySpec(candidate: unknown, fallback = "",): string {
-  if (typeof candidate === "string") return candidate;
-  if (!candidate) return fallback;
-  return JSON.stringify(candidate,);
+  try {
+    return JSON.stringify(candidate, null, 2,);
+  } catch {
+    return "";
+  }
 }
 
 function buildWidgetGenerationPrompt(
   prompt: string,
-  spec: Spec | null,
+  current: { runtime: WidgetRuntimeKind; content: string; } | null,
   instruction?: string,
 ): string {
   const basePrompt = prompt.trim();
-
-  if (!spec) {
+  if (!current?.content.trim()) {
     return instruction ? `${basePrompt}\n\nChange request: ${instruction}` : basePrompt;
   }
 
   const parts = [
     basePrompt,
     "",
-    "Current widget JSON:",
-    JSON.stringify(spec, null, 2,),
+    current.runtime === "code"
+      ? "Current widget TSX:"
+      : "Legacy widget JSON to preserve while rewriting it as a TSX widget:",
+    current.content,
   ];
 
   if (instruction) {
     parts.push("", `Apply this change to the current widget: ${instruction}`,);
+  } else if (current.runtime === "code") {
+    parts.push(
+      "",
+      "Rebuild this widget from the current TSX. Preserve its behavior and storage contract unless a small fix is clearly needed.",
+    );
   } else {
     parts.push(
       "",
-      "Rebuild this widget from the current JSON. Preserve its current behavior and layout unless a small fix is clearly needed.",
+      "Rewrite this legacy JSON widget as a TSX code widget. Preserve its behavior and storage contract unless a small fix is clearly needed.",
     );
   }
 
   return parts.join("\n",);
-}
-
-class RendererBoundary extends Component<{ children: ReactNode; }, { error: string | null; }> {
-  state = { error: null as string | null, };
-
-  static getDerivedStateFromError(err: Error,) {
-    return { error: err.message, };
-  }
-
-  componentDidCatch(err: Error, info: ErrorInfo,) {
-    console.error("Widget render error:", err, info,);
-  }
-
-  render() {
-    if (this.state.error) {
-      return (
-        <div className="widget-error">
-          <p className="widget-error-title">Sophia couldn't render this</p>
-          <p className="widget-error-message">{this.state.error}</p>
-        </div>
-      );
-    }
-    return this.props.children;
-  }
 }
 
 function deriveTitle(prompt: string,): string {
@@ -181,32 +157,9 @@ function formatToolbarTitle(prompt: string,): string {
   return title.charAt(0,).toUpperCase() + title.slice(1,);
 }
 
-function specNeedsInlineRepair(spec: Spec | null,): boolean {
-  if (!spec || typeof spec !== "object") return false;
-
-  const elements = "elements" in spec && spec.elements && typeof spec.elements === "object"
-    ? Object.values(spec.elements as Record<string, { type?: string; props?: Record<string, unknown>; }>,)
-    : [];
-
-  return elements.some((element,) => {
-    if (!element || typeof element !== "object") return false;
-    if (element.type === "Button") {
-      return !element.props?.mutation && !element.props?.action;
-    }
-    if (element.type === "TextInput") {
-      return !element.props?.query && !element.props?.binding;
-    }
-    if (element.type === "Checkbox") {
-      return !element.props?.query && !element.props?.binding;
-    }
-    return false;
-  },);
-}
-
 export function WidgetView({ node, updateAttributes, deleteNode, selected, }: NodeViewProps,) {
   const {
     id,
-    runtime,
     spec: specStr,
     source: sourceStr,
     saved,
@@ -239,24 +192,28 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
   const [sharedLoadError, setSharedLoadError,] = useState<string | null>(null,);
   const [runtimeRefreshToken, setRuntimeRefreshToken,] = useState(0,);
   const [isEditingInChat, setIsEditingInChat,] = useState(false,);
-  const [autoRepairAttempted, setAutoRepairAttempted,] = useState(false,);
   const effectiveLibraryItemId = libraryItemId ?? componentId ?? null;
-  const widgetRuntime = runtime === "code" ? "code" : "json";
-  const isCodeWidget = widgetRuntime === "code";
-
-  const inlineSpec = useMemo(() => isCodeWidget ? null : parseSpec(specStr,), [isCodeWidget, specStr,],);
   const storageSchema = useMemo(() => parseStorageSchema(storageSchemaStr,), [storageSchemaStr,],);
   const isShared = Boolean(componentId,);
-  const sharedSpec = !isCodeWidget && manifest?.uiSpec ? parseSpec(manifest.uiSpec,) : null;
-  const currentSpec = useMemo(
-    () => (isShared ? sharedSpec ?? inlineSpec : inlineSpec),
-    [inlineSpec, isShared, sharedSpec,],
+  const localSource = (sourceStr ?? "").trim();
+  const sharedSource = useMemo(() => resolveStoredWidgetSource(manifest?.uiSpec,), [manifest?.uiSpec,],);
+  const currentSource = useMemo(
+    () => (isShared ? sharedSource || localSource : localSource),
+    [isShared, localSource, sharedSource,],
   );
-  const renderSpec = useMemo(() => {
-    if (currentSpec) return currentSpec;
-    if (!loading && !sharedLoading) return null;
-    return buildLoadingWidgetSpec(prompt, "building",);
-  }, [currentSpec, loading, prompt, sharedLoading,],);
+  const legacyContent = useMemo(
+    () => prettyPrintLegacyContent(isShared ? manifest?.uiSpec ?? specStr : specStr,),
+    [isShared, manifest?.uiSpec, specStr,],
+  );
+  const generationContext = useMemo(
+    () =>
+      currentSource
+        ? { runtime: "code" as const, content: currentSource, }
+        : legacyContent
+        ? { runtime: "json" as const, content: legacyContent, }
+        : null,
+    [currentSource, legacyContent,],
+  );
 
   const loadManifest = useCallback(async () => {
     if (!componentId) {
@@ -287,7 +244,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
   }, [componentId,],);
 
   useEffect(() => {
-    loadManifest();
+    void loadManifest();
   }, [loadManifest,],);
 
   useEffect(() => {
@@ -306,10 +263,6 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
   }, [componentId, loadManifest,],);
 
   useEffect(() => {
-    setAutoRepairAttempted(false,);
-  }, [id,],);
-
-  useEffect(() => {
     const handleWidgetEditState = (event: Event,) => {
       const detail = (event as CustomEvent<WidgetEditStateDetail>).detail;
       if (detail?.widgetId !== id) return;
@@ -321,7 +274,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
       if (detail?.widgetId !== id) return;
       const instruction = detail.instruction.trim();
       if (!instruction) return;
-      void runGeneration(buildWidgetGenerationPrompt(prompt, currentSpec, instruction,), prompt,);
+      void runGeneration(buildWidgetGenerationPrompt(prompt, generationContext, instruction,), prompt,);
     };
 
     window.addEventListener(WIDGET_EDIT_STATE_EVENT, handleWidgetEditState,);
@@ -330,7 +283,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
       window.removeEventListener(WIDGET_EDIT_STATE_EVENT, handleWidgetEditState,);
       window.removeEventListener(WIDGET_EDIT_SUBMIT_EVENT, handleWidgetEditSubmit,);
     };
-  }, [currentSpec, id, prompt,],);
+  }, [generationContext, id, prompt,],);
 
   const runtimeApi: SharedWidgetRuntimeApi = useMemo(() => {
     if (path && storageSchema && hasPersistentStorage(storageSchema,)) {
@@ -377,32 +330,47 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
     };
   }, [componentId, id, isShared, manifest, missingComponent, path, runtimeRefreshToken, storageSchema,],);
 
-  const persistWidgetRecord = useCallback(async (
-    nextPrompt: string,
-    nextSpec: string,
-    nextSaved: boolean,
-    nextLibraryItemId?: string | null,
-    nextComponentId?: string | null,
-    nextStorageSchema?: SharedStorageSchema | null,
-    nextSource?: string,
+  const persistWidgetRecord = useCallback(async ({
+    nextPrompt,
+    nextRuntime,
+    nextSource,
+    nextSpec = "",
+    nextSaved,
+    nextLibraryItemId,
+    nextComponentId,
+    nextStorageSchema,
     createRevision = false,
-  ) => {
+  }: {
+    nextPrompt: string;
+    nextRuntime: WidgetRuntimeKind;
+    nextSource?: string;
+    nextSpec?: string;
+    nextSaved: boolean;
+    nextLibraryItemId?: string | null;
+    nextComponentId?: string | null;
+    nextStorageSchema?: SharedStorageSchema | null;
+    createRevision?: boolean;
+  },) => {
     const title = deriveTitle(nextPrompt,);
     const existingRecord = path && file ? await readWidgetFile(path, file,) : null;
-    const effectiveRuntime = existingRecord?.runtime ?? widgetRuntime;
-    const effectiveSource = nextSource ?? existingRecord?.source ?? sourceStr ?? "";
-    const effectiveSpec = effectiveRuntime === "code" ? "" : nextSpec;
+    const effectiveSource = nextRuntime === "code"
+      ? (nextSource ?? existingRecord?.source ?? sourceStr ?? "").trim()
+      : (existingRecord?.source ?? "").trim();
+    const effectiveSpec = nextRuntime === "json"
+      ? (nextSpec ?? existingRecord?.spec ?? "").trim()
+      : "";
+    const nextPrimaryContent = nextRuntime === "code" ? effectiveSource : effectiveSpec;
     const nextHistory = existingRecord
       ? createRevision
         ? appendWidgetRevision(
           {
             ...existingRecord,
-            runtime: effectiveRuntime,
+            runtime: nextRuntime,
             spec: effectiveSpec,
             source: effectiveSource,
           },
           nextPrompt,
-          effectiveRuntime === "code" ? effectiveSource : effectiveSpec,
+          nextPrimaryContent,
         )
         : {
           currentRevisionId: existingRecord.currentRevisionId,
@@ -415,7 +383,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
         id,
         title,
         prompt: nextPrompt,
-        runtime: effectiveRuntime,
+        runtime: nextRuntime,
         favorite: existingRecord?.favorite ?? false,
         saved: nextSaved,
         spec: effectiveSpec,
@@ -431,7 +399,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
     return await createWidgetFile({
       title,
       prompt: nextPrompt,
-      runtime: effectiveRuntime,
+      runtime: nextRuntime,
       spec: effectiveSpec,
       source: effectiveSource,
       favorite: existingRecord?.favorite ?? false,
@@ -442,7 +410,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
       componentId: nextComponentId ?? null,
       storageSchema: nextStorageSchema ?? existingRecord?.storageSchema ?? null,
     },);
-  }, [file, id, path,],);
+  }, [file, id, path, sourceStr,],);
 
   const runGeneration = async (generationPrompt: string, persistedPrompt = prompt,) => {
     window.dispatchEvent(
@@ -458,24 +426,25 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
         if (!storageSchemaMatch(generated.storageSchema, manifest.storageSchema,)) {
           throw new Error("Storage schema changed. Save as a new component to rebuild with a new DB schema.",);
         }
-        const next = await updateSharedComponent(manifest.id, generated.uiSpec, persistedPrompt,);
+        const next = await updateSharedComponent(manifest.id, generated.source, persistedPrompt,);
         setManifest(next,);
-        const record = await persistWidgetRecord(
-          persistedPrompt,
-          stringifySpec(next.uiSpec,),
-          true,
-          effectiveLibraryItemId,
-          manifest.id,
-          generated.storageSchema,
-          undefined,
-          true,
-        );
+        const record = await persistWidgetRecord({
+          nextPrompt: persistedPrompt,
+          nextRuntime: "code",
+          nextSource: resolveStoredWidgetSource(next.uiSpec,) || generated.source,
+          nextSaved: true,
+          nextLibraryItemId: effectiveLibraryItemId,
+          nextComponentId: manifest.id,
+          nextStorageSchema: generated.storageSchema,
+          createRevision: true,
+        },);
         updateAttributes({
           id: record.id,
           runtime: record.runtime,
           file: record.file,
           path: record.path,
           libraryItemId: record.libraryItemId,
+          componentId: manifest.id,
           prompt: persistedPrompt,
           loading: false,
           spec: record.spec,
@@ -491,22 +460,23 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
       if (storageSchema && !storageSchemaMatch(generated.storageSchema, storageSchema,)) {
         throw new Error("Storage schema changed. Build a new widget to use a new DB schema.",);
       }
-      const record = await persistWidgetRecord(
-        persistedPrompt,
-        JSON.stringify(generated.uiSpec,),
-        saved,
-        effectiveLibraryItemId,
-        componentId,
-        generated.storageSchema,
-        undefined,
-        true,
-      );
+      const record = await persistWidgetRecord({
+        nextPrompt: persistedPrompt,
+        nextRuntime: "code",
+        nextSource: generated.source,
+        nextSaved: saved,
+        nextLibraryItemId: effectiveLibraryItemId,
+        nextComponentId: componentId,
+        nextStorageSchema: generated.storageSchema,
+        createRevision: true,
+      },);
       updateAttributes({
         id: record.id,
         runtime: record.runtime,
         file: record.file,
         path: record.path,
         libraryItemId: record.libraryItemId,
+        componentId: record.componentId,
         prompt: persistedPrompt,
         spec: record.spec,
         source: record.source,
@@ -531,42 +501,34 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
   };
 
   const handleRebuild = async () => {
-    await runGeneration(buildWidgetGenerationPrompt(prompt, currentSpec,), prompt,);
+    await runGeneration(buildWidgetGenerationPrompt(prompt, generationContext,), prompt,);
   };
 
   const handleSave = async () => {
-    if (isShared || !specStr || !inlineSpec || !prompt) return;
+    if (isShared || !prompt || !currentSource) return;
 
-    updateAttributes({ loading: true, },);
+    updateAttributes({ loading: true, error: "", },);
     await waitForNextPaint();
     try {
-      const uiSpec = inlineSpec;
-      const generated = await generateWidgetWithStorage(prompt, storageSchema ?? undefined,);
-      if (!generated.uiSpec || !generated.storageSchema) {
-        throw new Error("Missing shared component generation data.",);
-      }
-      if (storageSchema && !storageSchemaMatch(generated.storageSchema, storageSchema,)) {
-        throw new Error("Storage schema changed. Build a new widget to archive with a new DB schema.",);
-      }
-
+      const nextStorageSchema = storageSchema ?? EMPTY_STORAGE_SCHEMA;
       const item = await addToLibrary({
         title: deriveTitle(prompt,),
         description: prompt,
         prompt,
-        html: JSON.stringify(uiSpec,),
-        uiSpec: JSON.stringify(generated.uiSpec,),
-        storageSchema: generated.storageSchema,
+        html: currentSource,
+        source: currentSource,
+        storageSchema: nextStorageSchema,
       },);
-      const record = await persistWidgetRecord(
-        prompt,
-        stringifySpec(item.uiSpec, JSON.stringify(generated.uiSpec,),),
-        true,
-        item.id,
-        item.componentId,
-        generated.storageSchema,
-        undefined,
-        true,
-      );
+      const record = await persistWidgetRecord({
+        nextPrompt: prompt,
+        nextRuntime: "code",
+        nextSource: currentSource,
+        nextSaved: true,
+        nextLibraryItemId: item.id,
+        nextComponentId: item.componentId,
+        nextStorageSchema,
+        createRevision: true,
+      },);
 
       updateAttributes({
         id: record.id,
@@ -594,31 +556,15 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
     }
   };
 
-  useEffect(() => {
-    if (isCodeWidget) {
-      return;
-    }
-
-    if (isShared || loading || sharedLoading || autoRepairAttempted || !currentSpec) {
-      return;
-    }
-
-    if (!specNeedsInlineRepair(currentSpec,)) {
-      return;
-    }
-
-    setAutoRepairAttempted(true,);
-    void runGeneration(prompt,);
-  }, [autoRepairAttempted, currentSpec, isCodeWidget, isShared, loading, prompt, sharedLoading,],);
-
   const renderError = error || sharedLoadError;
   const toolbarTitle = formatToolbarTitle(prompt,);
   const saveTitle = isShared || saved ? "Archived in library" : "Archive in library";
   const rebuildTitle = loading || sharedLoading ? "Refreshing widget" : "Refresh widget";
-  const showSaveAction = !isCodeWidget && !isShared && !saved;
-  const showRenderOverlay = !isCodeWidget && (loading || sharedLoading) && Boolean(currentSpec,);
+  const showSaveAction = !isShared && !saved && Boolean(currentSource,);
+  const showRenderOverlay = (loading || sharedLoading) && Boolean(currentSource,);
   const overlayText = isEditingInChat ? "Building new version..." : "Refreshing widget...";
   const overlayPrompt = isEditingInChat ? "Updating this widget with your latest edit." : prompt;
+  const showLegacyWarning = !currentSource && !loading && !sharedLoading && generationContext?.runtime === "json";
 
   return (
     <NodeViewWrapper className={`widget-node ${selected || isEditingInChat ? "widget-selected" : ""}`}>
@@ -631,7 +577,6 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
             <button
               className={`widget-btn widget-btn-icon widget-btn-iterate ${isEditingInChat ? "widget-btn-active" : ""}`}
               onClick={() => {
-                if (isCodeWidget) return;
                 setIsEditingInChat(true,);
                 window.dispatchEvent(
                   new CustomEvent(WIDGET_EDIT_REQUEST_EVENT, {
@@ -642,7 +587,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
                   },),
                 );
               }}
-              disabled={isCodeWidget || loading || sharedLoading}
+              disabled={loading || sharedLoading}
               title="Edit widget in chat"
               aria-label="Edit widget in chat"
             >
@@ -651,10 +596,9 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
             <button
               className="widget-btn widget-btn-icon widget-btn-rebuild"
               onClick={() => {
-                if (isCodeWidget) return;
                 void handleRebuild();
               }}
-              disabled={isCodeWidget || loading || sharedLoading}
+              disabled={loading || sharedLoading}
               title={rebuildTitle}
               aria-label={rebuildTitle}
             >
@@ -698,28 +642,14 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
               <p className="widget-error-message">{renderError}</p>
             </div>
           )
-          : isCodeWidget
-          ? <CodeWidgetRenderer id={id} runtime={runtimeApi} source={sourceStr ?? ""} />
-          : renderSpec
+          : currentSource
           ? (
             <div
               className="widget-render"
-              onMouseDown={(e,) => e.stopPropagation()}
-              onClick={(e,) => e.stopPropagation()}
+              onMouseDown={(event,) => event.stopPropagation()}
+              onClick={(event,) => event.stopPropagation()}
             >
-              <RendererBoundary>
-                <JSONUIProvider registry={registry}>
-                  <WidgetRuntimeProvider runtime={runtimeApi}>
-                    <WidgetStateProvider key={componentId ?? specStr ?? id}>
-                      <WidgetCardDepthProvider>
-                        <WidgetTemporalProvider>
-                          <Renderer spec={renderSpec} registry={registry} />
-                        </WidgetTemporalProvider>
-                      </WidgetCardDepthProvider>
-                    </WidgetStateProvider>
-                  </WidgetRuntimeProvider>
-                </JSONUIProvider>
-              </RendererBoundary>
+              <CodeWidgetRenderer id={id} runtime={runtimeApi} source={currentSource} />
               {showRenderOverlay && (
                 <div className="widget-build-overlay">
                   <div className="widget-build-overlay-inner">
@@ -729,6 +659,23 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
                   </div>
                 </div>
               )}
+            </div>
+          )
+          : loading || sharedLoading
+          ? (
+            <div className="widget-loading">
+              <div className="widget-loading-inner">
+                <div className="widget-spinner" />
+                <span className="widget-loading-text">Building widget</span>
+                <span className="widget-loading-prompt">{prompt}</span>
+              </div>
+            </div>
+          )
+          : showLegacyWarning
+          ? (
+            <div className="widget-error">
+              <p className="widget-error-title">Legacy JSON widget</p>
+              <p className="widget-error-message">Rebuild this widget to convert it to the TSX runtime.</p>
             </div>
           )
           : (

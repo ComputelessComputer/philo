@@ -1,22 +1,12 @@
-import type { Spec, } from "@json-render/core";
 import { API_KEY_MISSING, generateAiText, } from "./ai";
 import type { SharedStorageSchema, } from "./library";
 import { loadSettings, resolveActiveAiConfig, } from "./settings";
 
-const SYSTEM_PROMPT = `You are Sophia, an AI that generates Philo widgets with storage metadata.
+const SYSTEM_PROMPT = `You are Sophia, an AI that generates Philo widgets as TSX source plus storage metadata.
 
 Return ONLY a single JSON object with this exact shape:
 {
-  "uiSpec": {
-    "root": "<root-element-id>",
-    "elements": {
-      "<element-id>": {
-        "type": "<ComponentName>",
-        "props": { ... },
-        "children": ["<child-id-1>", "<child-id-2>"]
-      }
-    }
-  },
+  "source": "export default function Widget() { ... }",
   "storageSchema": {
     "tables": [],
     "namedQueries": [],
@@ -24,59 +14,66 @@ Return ONLY a single JSON object with this exact shape:
   }
 }
 
-- Every element needs a unique string ID.
-- "children" is an array of element ID strings. Use [] for leaf nodes.
-- "root" is the ID of the top-level element.
+Code runtime rules:
+- "source" must be valid TSX source code for the Philo code-widget runtime.
+- Do not wrap the source in markdown fences.
+- Do not use import statements, require, dynamic import, eval, fetch, localStorage, window.parent, postMessage, or direct Tauri APIs.
+- The source must export exactly one default component named Widget.
+- JSX runs with React available globally as PhiloReact.
+- The Philo widget SDK is available globally as Philo.
+- You may render normal JSX elements like div, span, button, input, table, ul, li, etc.
+- Keep the widget self-contained. Prefer inline styles over external dependencies.
 
-Supported UI components:
-- Card { title?: string, padding?: "none"|"sm"|"md"|"lg" }
-- Stack { direction?: "vertical"|"horizontal", gap?: "none"|"xs"|"sm"|"md"|"lg", align?: "start"|"center"|"end"|"stretch", justify?: "start"|"center"|"end"|"between"|"around", wrap?: boolean }
-- Grid { columns?: number, gap?: "none"|"xs"|"sm"|"md"|"lg" }
-- Divider {}
-- Spacer { size?: "xs"|"sm"|"md"|"lg"|"xl" }
-- Text { content: string, size?: "xs"|"sm"|"md"|"lg"|"xl", weight?: "normal"|"medium"|"semibold"|"bold", color?: "default"|"muted"|"accent"|"success"|"warning"|"error", align?: "left"|"center"|"right" }
-- Heading { content: string, level?: "h1"|"h2"|"h3" }
-- Metric { label: string, value: string, unit?: string, trend?: "up"|"down"|"flat" }
-- Badge { text: string, variant?: "default"|"success"|"warning"|"error"|"info" }
-- Image { src: string, alt?: string, rounded?: boolean }
-- ProgressBar { value: number, max?: number, color?: "default"|"success"|"warning"|"error"|"accent", showLabel?: boolean }
-- Button { label: string, variant?: "primary"|"secondary"|"ghost", size?: "sm"|"md"|"lg", action?: "append"|"clear"|"pickRandom"|"set"|"startTimer", source?: string, target?: string, value?: string, mutation?: string }
-- TextInput { placeholder?: string, label?: string, binding?: string, value?: string, query?: string, bindColumn?: string, mutation?: string }
-- Checkbox { label: string, binding?: string, checked?: boolean, query?: string, bindColumn?: string, mutation?: string }
-- List { items?: [{ label: string, description?: string, trailing?: string }], binding?: string, query?: string, labelColumn?: string, descriptionColumn?: string, trailingColumn?: string }
-- Table { headers?: string[], rows?: string[][], query?: string, columns?: [{ header, field }] }
+Available Philo SDK APIs:
+- Philo.useWidgetState(key, initialValue)
+- Philo.useNow(intervalMs?)
+- Philo.useQuery(name, params?)
+- Philo.useMutation(name)
+- Philo.Card
+- Philo.Stack
+- Philo.Text
+- Philo.Heading
+- Philo.Button
+- Philo.TextInput
 
-Live bindings available in any string prop:
-- {{local.time}}, {{local.shortTime}}, {{local.date}}, {{local.hour}}, {{local.minute}}, {{local.second}}, {{local.period}}, {{local.city}}, {{local.timezone}}, {{local.abbr}}, {{local.offset}}
-- {{zone:America/New_York.time}}, {{zone:America/New_York.shortTime}}, {{zone:America/New_York.date}}, {{zone:America/New_York.hour}}, {{zone:America/New_York.minute}}, {{zone:America/New_York.second}}, {{zone:America/New_York.period}}, {{zone:America/New_York.city}}, {{zone:America/New_York.timezone}}, {{zone:America/New_York.abbr}}, {{zone:America/New_York.offset}}
-- {{state.someKey}} or {{someKey}}
-- {{countdown:endKey}} or {{countdown:endKey|fallbackKey}} to show a live hh:mm:ss countdown from a stored end timestamp, with an optional fallback duration display before the timer starts
+Available React APIs:
+- const { useEffect, useMemo, useRef, useState } = PhiloReact;
 
 Storage rules:
-- If the widget needs durable user data, use query-backed or mutation-backed components and generate a matching storageSchema.
+- If the widget needs durable user data, generate a matching storageSchema and use Philo.useQuery / Philo.useMutation.
 - If the widget is display-only or only needs lightweight local state, return an empty storageSchema with tables/namedQueries/namedMutations as [].
 - Use SQLite-friendly identifiers only: letters, numbers, underscores, hyphens.
 - Support only single-table CRUD patterns.
 - Do not emit SQL.
-- For rebuilds, if an existing storage schema is provided, return it exactly unchanged.
+- If an existing storage schema is provided, return it exactly unchanged.
 
 Design rules:
-- Always use Card as the root element.
 - Design widgets like compact utility panels: functional first, minimal chrome, clear hierarchy.
-- Prefer query-backed lists/tables, editable fields, and buttons that perform clear mutations when persistence matters.
-- For lightweight inline interactions, use TextInput.binding / Checkbox.binding / Button.action.
-- Use Button.action="append" with source/target for add-to-list flows, Button.action="pickRandom" to choose from a bound array, and Button.action="clear" to reset bound state.
-- For timers/countdowns, bind the duration input to a key, use Button.action="startTimer" with source="<duration-key>" and target="<end-timestamp-key>", and display the timer with {{countdown:<end-timestamp-key>|<duration-key>}}.
-- When showing local user-added collections, use List.binding instead of hardcoded placeholders.
-- Never hardcode the current time, date, timezone abbreviation, or UTC offset when a live binding fits.`;
+- Default to a single Card wrapper.
+- Use real interactive logic in code instead of inventing pseudo-DSL props.
+- Prefer clear button labels and obvious state transitions.
+- For timers/countdowns, use Philo.useWidgetState for the target timestamp and Philo.useNow(1000) for ticking updates.
+- Never hardcode the current time or date if a live clock is intended.`;
 
 export interface GeneratedWidgetResult {
-  uiSpec: Spec;
+  source: string;
   storageSchema: SharedStorageSchema;
 }
 
 function cleanJsonResponse(raw: string,): string {
   return raw.replace(/^```(?:json)?\n?/m, "",).replace(/\n?```$/m, "",).trim();
+}
+
+function stripCodeFence(raw: string,): string {
+  return raw.replace(/^```(?:tsx|ts|jsx|js)?\n?/m, "",).replace(/\n?```$/m, "",).trim();
+}
+
+function normalizeGeneratedSource(source: string,): string {
+  const cleaned = stripCodeFence(source,).trim();
+  if (!cleaned) {
+    throw new Error("Widget response must include source.",);
+  }
+  return cleaned;
 }
 
 function normalizeSharedStorageSchema(schema: SharedStorageSchema,): SharedStorageSchema {
@@ -119,9 +116,9 @@ function buildStoragePrompt(prompt: string, existingStorageSchema?: SharedStorag
   ].join("\n",);
 }
 
-export async function generateWidget(prompt: string,): Promise<Spec> {
+export async function generateWidget(prompt: string,): Promise<string> {
   const generated = await generateWidgetWithStorage(prompt,);
-  return generated.uiSpec;
+  return generated.source;
 }
 
 export async function generateWidgetWithStorage(
@@ -143,11 +140,11 @@ export async function generateWidgetWithStorage(
 
   try {
     const parsed = JSON.parse(cleaned,) as Partial<GeneratedWidgetResult>;
-    if (!parsed.uiSpec || !parsed.storageSchema) {
-      throw new Error("Widget response must include uiSpec and storageSchema.",);
+    if (!parsed.source || !parsed.storageSchema) {
+      throw new Error("Widget response must include source and storageSchema.",);
     }
     return {
-      uiSpec: parsed.uiSpec,
+      source: normalizeGeneratedSource(parsed.source,),
       storageSchema: normalizeSharedStorageSchema(parsed.storageSchema,),
     };
   } catch (error) {

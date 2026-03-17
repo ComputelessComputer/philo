@@ -25,7 +25,6 @@ function deriveTitle(prompt: string,): string {
 export interface WidgetAttributes {
   id: string;
   runtime: WidgetRuntimeKind;
-  /** JSON-stringified Spec from json-render, or empty string */
   spec: string;
   source?: string;
   file?: string;
@@ -107,7 +106,7 @@ export const WidgetExtension = Node.create({
         parseHTML: (el: HTMLElement,) => el.getAttribute("data-id",),
       },
       runtime: {
-        default: "json",
+        default: "code",
         parseHTML: (el: HTMLElement,) => el.getAttribute("data-runtime",) === "code" ? "code" : "json",
       },
       spec: {
@@ -167,7 +166,7 @@ export const WidgetExtension = Node.create({
       mergeAttributes(HTMLAttributes, {
         "data-widget": "",
         "data-id": String(HTMLAttributes.id ?? "",),
-        "data-runtime": String(HTMLAttributes.runtime ?? "json",),
+        "data-runtime": String(HTMLAttributes.runtime ?? "code",),
         ...(HTMLAttributes.runtime === "code"
           ? { "data-source": encodeWidgetDataAttr(String(HTMLAttributes.source ?? "",),), }
           : { "data-spec": encodeWidgetDataAttr(compactWidgetSpec(String(HTMLAttributes.spec ?? "",),),), }),
@@ -197,7 +196,7 @@ export const WidgetExtension = Node.create({
           type: this.name,
           attrs: {
             id: crypto.randomUUID(),
-            runtime: "json",
+            runtime: "code",
             spec: "",
             source: "",
             file: "",
@@ -228,7 +227,7 @@ export const WidgetExtension = Node.create({
             type: "widget",
             attrs: {
               id: widgetId,
-              runtime: "json",
+              runtime: "code",
               prompt: selectedText,
               spec: "",
               source: "",
@@ -240,14 +239,13 @@ export const WidgetExtension = Node.create({
           .run();
 
         generateWidgetWithStorage(selectedText,)
-          .then(async ({ uiSpec, storageSchema, },) => {
-            const specString = JSON.stringify(uiSpec,);
+          .then(async ({ source, storageSchema, },) => {
             const record = await createWidgetFile({
               title: deriveTitle(selectedText,),
               prompt: selectedText,
-              runtime: "json",
-              spec: specString,
-              source: "",
+              runtime: "code",
+              spec: "",
+              source,
               favorite: false,
               storageSchema,
               saved: false,

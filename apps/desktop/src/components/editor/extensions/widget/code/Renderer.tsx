@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, } from "react";
-import type { SharedWidgetRuntimeApi, } from "../registry";
+import type { SharedWidgetRuntimeApi, } from "../runtime";
 import { buildCodeWidgetSandboxUrl, compileCodeWidgetSource, } from "./compiler";
 import {
   CODE_WIDGET_LOAD,

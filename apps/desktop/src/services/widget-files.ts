@@ -455,7 +455,7 @@ export async function createWidgetFile(input: WidgetFileInput,): Promise<WidgetF
     id,
     title,
     prompt: input.prompt,
-    runtime: input.runtime ?? "json",
+    runtime: input.runtime ?? "code",
     favorite: input.favorite ?? false,
     saved: input.saved ?? false,
     spec: input.spec,

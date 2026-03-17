@@ -44,12 +44,6 @@ importers:
       '@ibm/plex-sans':
         specifier: ^1.1.0
         version: 1.1.0
-      '@json-render/core':
-        specifier: ^0.6.1
-        version: 0.6.1(zod@4.3.6)
-      '@json-render/react':
-        specifier: ^0.6.1
-        version: 0.6.1(react@19.2.4)(zod@4.3.6)
       '@tailwindcss/typography':
         specifier: ^0.5.19
         version: 0.5.19(tailwindcss@4.2.1)
@@ -986,16 +980,6 @@ packages:
 
   '@jridgewell/trace-mapping@0.3.31':
     resolution: {integrity: sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw==}
-
-  '@json-render/core@0.6.1':
-    resolution: {integrity: sha512-YDDld32kcyUxviFe+uR5dpM7dbbCtlDaC/HBRffbdq70jfuy0bMLK6xP9WCFjOZ3caX+c1E53Yq/lHRnNGEjZQ==}
-    peerDependencies:
-      zod: ^4.0.0
-
-  '@json-render/react@0.6.1':
-    resolution: {integrity: sha512-Lwkb4ijTnKGD+dNPNzAIfCyV0HKqUe98kaUVrEVSja8hKElRl/jkQdCK9/GZMaziaNRNgxuLAhk48s/CTXs8tA==}
-    peerDependencies:
-      react: ^19.2.3
 
   '@mdx-js/mdx@3.1.1':
     resolution: {integrity: sha512-f6ZO2ifpwAQIpzGWaBQT2TXxPv6z3RBzQKpVftEWN78Vl/YweF1uwussDx8ECAXVtr3Rs89fKyG9YlzUs9DyGQ==}
@@ -4992,17 +4976,6 @@ snapshots:
     dependencies:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
-
-  '@json-render/core@0.6.1(zod@4.3.6)':
-    dependencies:
-      zod: 4.3.6
-
-  '@json-render/react@0.6.1(react@19.2.4)(zod@4.3.6)':
-    dependencies:
-      '@json-render/core': 0.6.1(zod@4.3.6)
-      react: 19.2.4
-    transitivePeerDependencies:
-      - zod
 
   '@mdx-js/mdx@3.1.1':
     dependencies:

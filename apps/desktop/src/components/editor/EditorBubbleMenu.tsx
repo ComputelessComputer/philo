@@ -61,7 +61,7 @@ export function EditorBubbleMenu({ editor, onChatSelection, }: EditorBubbleMenuP
         type: "widget",
         attrs: {
           id: widgetId,
-          runtime: "json",
+          runtime: "code",
           prompt: selectedText,
           spec: "",
           source: "",
@@ -76,12 +76,13 @@ export function EditorBubbleMenu({ editor, onChatSelection, }: EditorBubbleMenuP
     await waitForNextPaint();
 
     try {
-      const { uiSpec, storageSchema, } = await generateWidgetWithStorage(selectedText,);
-      const specString = JSON.stringify(uiSpec,);
+      const { source, storageSchema, } = await generateWidgetWithStorage(selectedText,);
       const record = await createWidgetFile({
         title: deriveTitle(selectedText,),
         prompt: selectedText,
-        spec: specString,
+        runtime: "code",
+        spec: "",
+        source,
         favorite: false,
         storageSchema,
         saved: false,
