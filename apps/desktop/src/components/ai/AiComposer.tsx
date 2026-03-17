@@ -78,7 +78,7 @@ export function AiComposer({
       <div className="relative mx-auto w-full max-w-2xl px-4 pb-3">
         {!hasAiConfigured
           ? (
-            <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-white px-5 py-5 shadow-[0_-20px_60px_rgba(15,23,42,0.12)]">
+            <div className="overflow-hidden rounded-none border border-gray-200 bg-white px-5 py-5 shadow-[0_-20px_60px_rgba(15,23,42,0.12)]">
               <div className="space-y-4">
                 <p className="text-sm leading-6 text-gray-600">
                   AI isn&apos;t configured yet. Add an API key for your selected provider to start using note commands.
@@ -94,7 +94,7 @@ export function AiComposer({
             </div>
           )
           : (
-            <div className="overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-[0_-18px_52px_rgba(15,23,42,0.12)]">
+            <div className="overflow-hidden rounded-none border border-gray-200 bg-white shadow-[0_-18px_52px_rgba(15,23,42,0.12)]">
               {hasPanel && (
                 <>
                   <AiResultPanel
