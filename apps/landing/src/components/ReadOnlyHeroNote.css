@@ -1,16 +1,142 @@
 .hero-note-shell {
-  border: 1px solid color-mix(in srgb, #d8d7cf 82%, #bfc2ce);
-  background: rgba(255, 255, 255, 0.82);
+  min-height: 540px;
+  border: 1px solid color-mix(in srgb, #d8d7cf 82%, #c8ccd8);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at bottom right, rgba(201, 211, 255, 0.38), transparent 30%),
+    linear-gradient(180deg, rgba(252, 252, 250, 0.98) 0%, rgba(243, 243, 238, 0.96) 100%);
   overflow: hidden;
-  box-shadow: 0 24px 60px rgba(44, 49, 63, 0.08);
-  backdrop-filter: blur(10px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.94) inset,
+    0 28px 80px rgba(44, 49, 63, 0.14);
+}
+
+.hero-note-titlebar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-bottom: 1px solid color-mix(in srgb, #d8d7cf 86%, #d3d8e5);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 244, 240, 0.94) 100%);
+}
+
+.hero-note-window-controls {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.hero-note-window-controls span {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.hero-note-window-controls span:nth-child(1) {
+  background: #ff5f57;
+}
+
+.hero-note-window-controls span:nth-child(2) {
+  background: #febc2e;
+}
+
+.hero-note-window-controls span:nth-child(3) {
+  background: #28c840;
+}
+
+.hero-note-titlebar-meta {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hero-note-titlebar-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px 3px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, #5f70d8 28%, #d8d7cf);
+  background: color-mix(in srgb, #5f70d8 10%, #ffffff);
+  color: #5f70d8;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.hero-note-titlebar-label {
+  color: #73747b;
+  font-size: 12px;
+  font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+}
+
+.hero-note-body {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  min-height: 484px;
+}
+
+.hero-note-sidebar {
+  padding: 18px 10px 20px;
+  border-right: 1px solid color-mix(in srgb, #d8d7cf 84%, #d3d8e5);
+  background:
+    linear-gradient(180deg, rgba(246, 246, 243, 0.94) 0%, rgba(239, 239, 234, 0.9) 100%);
+}
+
+.hero-note-sidebar-brand {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 18px;
+}
+
+.hero-note-sidebar-logo {
+  color: #252525;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.hero-note-sidebar-beta {
+  width: fit-content;
+  padding: 3px 6px 2px;
+  border: 1px solid color-mix(in srgb, #5f70d8 28%, #d8d7cf);
+  background: color-mix(in srgb, #5f70d8 10%, #ffffff);
+  color: #5f70d8;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.hero-note-sidebar-list {
+  display: grid;
+  gap: 8px;
+}
+
+.hero-note-sidebar-list span {
+  display: block;
+  padding: 7px 8px;
+  color: #7a7b80;
+  font-size: 11px;
+  font-family: "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif;
+  border-radius: 12px;
+}
+
+.hero-note-sidebar-list .is-active {
+  background: rgba(255, 255, 255, 0.92);
+  color: #1f2937;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.94) inset;
 }
 
 .hero-note-surface {
-  padding: 24px 24px 28px;
+  padding: 26px 28px 30px;
   background:
-    radial-gradient(circle at bottom right, rgba(201, 211, 255, 0.35), transparent 26%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.94) 0%, rgba(249, 249, 245, 0.96) 100%);
+    radial-gradient(circle at bottom right, rgba(201, 211, 255, 0.24), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(251, 251, 248, 0.96) 100%);
 }
 
 .hero-note-header {
@@ -131,11 +257,22 @@
 
 @media (max-width: 980px) {
   .hero-note-shell {
-    box-shadow: 0 20px 48px rgba(44, 49, 63, 0.08);
+    min-height: 0;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.94) inset,
+      0 20px 48px rgba(44, 49, 63, 0.12);
   }
 }
 
 @media (max-width: 720px) {
+  .hero-note-body {
+    grid-template-columns: 1fr;
+  }
+
+  .hero-note-sidebar {
+    display: none;
+  }
+
   .hero-note-surface {
     padding: 18px;
   }
@@ -143,5 +280,13 @@
   .hero-note-editor {
     --editor-line-height: 24px;
     font-size: 14px;
+  }
+
+  .hero-note-titlebar {
+    padding: 12px 14px;
+  }
+
+  .hero-note-titlebar-label {
+    font-size: 11px;
   }
 }

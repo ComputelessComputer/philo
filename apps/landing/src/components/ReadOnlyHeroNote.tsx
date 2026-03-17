@@ -243,15 +243,42 @@ export default function ReadOnlyHeroNote() {
   },);
 
   return (
-    <section className="hero-note-shell" aria-label="Read-only Philo note demo">
-      <div className="hero-note-surface">
-        <div className="hero-note-header">
-          <p className="hero-note-date">{formatDate(today,)}</p>
-          <span className="hero-note-pill">Today</span>
-          <span className="hero-note-city">Seoul</span>
+    <section className="hero-note-shell" aria-label="Read-only Philo macOS app demo">
+      <div className="hero-note-titlebar" aria-hidden="true">
+        <div className="hero-note-window-controls">
+          <span />
+          <span />
+          <span />
         </div>
+        <div className="hero-note-titlebar-meta">
+          <span className="hero-note-titlebar-chip">Daily notes</span>
+          <span className="hero-note-titlebar-label">Philo for macOS</span>
+        </div>
+      </div>
 
-        <EditorContent editor={editor} />
+      <div className="hero-note-body">
+        <aside className="hero-note-sidebar" aria-hidden="true">
+          <div className="hero-note-sidebar-brand">
+            <span className="hero-note-sidebar-logo">Philo</span>
+            <span className="hero-note-sidebar-beta">beta</span>
+          </div>
+          <div className="hero-note-sidebar-list">
+            <span className="is-active">Mar 17</span>
+            <span>Mar 16</span>
+            <span>Mar 15</span>
+            <span>Mar 14</span>
+          </div>
+        </aside>
+
+        <div className="hero-note-surface">
+          <div className="hero-note-header">
+            <p className="hero-note-date">{formatDate(today,)}</p>
+            <span className="hero-note-pill">Today</span>
+            <span className="hero-note-city">Seoul</span>
+          </div>
+
+          <EditorContent editor={editor} />
+        </div>
       </div>
     </section>
   );
