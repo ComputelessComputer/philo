@@ -62,6 +62,7 @@ export function AiComposer({
   const hasResult = Boolean(answer,) || citations.length > 0 || pendingChanges.length > 0;
   const hasPanel = hasResult || Boolean(title,) || chatHistory.length > 0;
   const visibleSelectedLabel = selectedLabel ?? (selectedText ? formatSelectedLabel(selectedText,) : null);
+  const widgetEditLabel = parseWidgetEditLabel(visibleSelectedLabel,);
 
   useEffect(() => {
     if (!open || !hasAiConfigured) return;
@@ -115,7 +116,18 @@ export function AiComposer({
               )}
 
               <div className="space-y-2 px-4 py-3">
-                {visibleSelectedLabel && <div className="px-1 text-sm text-slate-500">{visibleSelectedLabel}</div>}
+                {widgetEditLabel
+                  ? (
+                    <div className="flex items-center gap-2 px-1 text-sm text-slate-600">
+                      <span className="inline-flex items-center border border-blue-200 bg-blue-50 px-2 py-0.5 text-[11px] font-medium uppercase tracking-[0.08em] text-blue-700">
+                        Edit
+                      </span>
+                      <span className="truncate text-slate-600">{widgetEditLabel}</span>
+                    </div>
+                  )
+                  : visibleSelectedLabel
+                  ? <div className="px-1 text-sm text-slate-500">{visibleSelectedLabel}</div>
+                  : null}
                 <form
                   className="flex items-center gap-3"
                   onSubmit={(event,) => {
@@ -173,4 +185,9 @@ function formatSelectedLabel(selectedText: string,) {
   if (!normalized) return null;
   const preview = normalized.length > 72 ? `${normalized.slice(0, 69,)}...` : normalized;
   return `"${preview}" selected`;
+}
+
+function parseWidgetEditLabel(label: string | null,) {
+  if (!label?.startsWith("[Edit widget] ",)) return null;
+  return label.slice("[Edit widget] ".length,).trim() || "Widget";
 }
