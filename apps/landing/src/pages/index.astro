@@ -19,7 +19,7 @@ const capabilities = [
   },
   {
     title: "Markdown, not lock-in",
-    description: "Keep your journal as plain files on disk and use your existing Obsidian vault if you want.",
+    description: "Keep your journal as plain markdown on disk and keep using tools like Obsidian or Logseq if you want.",
     visual: "markdown",
   },
   {
@@ -138,78 +138,128 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
                   <div class={`detail-visual detail-visual-${item.visual}`} aria-hidden="true">
                     {
                       item.visual === "timeline" && (
-                        <div class="mini-stack">
-                          <span class="mini-sidebar"></span>
-                          <div class="mini-stack-cards">
-                            <span class="mini-card-line mini-card-line-short"></span>
-                            <span class="mini-card-line"></span>
-                            <span class="mini-card-line mini-card-line-accent"></span>
+                        <div class="mini-timeline">
+                          <div class="mini-timeline-track">
+                            <div class="mini-timeline-day">
+                              <p>Mar 13</p>
+                              <span class="mini-skeleton mini-skeleton-short"></span>
+                              <span class="mini-skeleton"></span>
+                              <span class="mini-skeleton mini-skeleton-fade"></span>
+                            </div>
+                            <div class="mini-timeline-day">
+                              <p>Mar 12</p>
+                              <span class="mini-skeleton mini-skeleton-short"></span>
+                              <span class="mini-skeleton"></span>
+                              <span class="mini-skeleton mini-skeleton-fade"></span>
+                            </div>
+                            <div class="mini-timeline-day">
+                              <p>Mar 11</p>
+                              <span class="mini-skeleton mini-skeleton-short"></span>
+                              <span class="mini-skeleton"></span>
+                              <span class="mini-skeleton mini-skeleton-fade"></span>
+                            </div>
+                            <div class="mini-timeline-day">
+                              <p>Mar 10</p>
+                              <span class="mini-skeleton mini-skeleton-short"></span>
+                              <span class="mini-skeleton"></span>
+                              <span class="mini-skeleton mini-skeleton-fade"></span>
+                            </div>
+                            <div class="mini-timeline-day">
+                              <p>Mar 9</p>
+                              <span class="mini-skeleton mini-skeleton-short"></span>
+                              <span class="mini-skeleton"></span>
+                              <span class="mini-skeleton mini-skeleton-fade"></span>
+                            </div>
                           </div>
                         </div>
                       )
                     }
                     {
                       item.visual === "rollover" && (
-                        <div class="mini-transfer">
-                          <div class="mini-column">
-                            <span class="mini-label"></span>
-                            <span class="mini-chip mini-chip-muted"></span>
-                            <span class="mini-chip"></span>
+                        <div class="mini-rollover">
+                          <span class="mini-today-pill">Today</span>
+                          <div class="mini-rollover-columns">
+                            <div class="mini-rollover-column mini-rollover-source">
+                              <p>Mar 16</p>
+                              <div class="mini-task-row">
+                                <span class="mini-checkbox is-checked"></span>
+                                <span class="mini-task-bar mini-task-bar-wide"></span>
+                              </div>
+                              <div class="mini-task-row mini-task-row-fading">
+                                <span class="mini-checkbox"></span>
+                                <span class="mini-task-bar"></span>
+                              </div>
+                              <div class="mini-task-row mini-task-row-fading mini-task-row-fading-delay">
+                                <span class="mini-checkbox"></span>
+                                <span class="mini-task-bar mini-task-bar-short"></span>
+                              </div>
+                            </div>
+                            <div class="mini-rollover-column mini-rollover-target">
+                              <p>Mar 17</p>
+                              <div class="mini-task-row">
+                                <span class="mini-checkbox"></span>
+                                <span class="mini-task-bar"></span>
+                              </div>
+                              <div class="mini-task-row">
+                                <span class="mini-checkbox"></span>
+                                <span class="mini-task-bar mini-task-bar-short"></span>
+                              </div>
+                            </div>
                           </div>
-                          <span class="mini-arrow"></span>
-                          <div class="mini-column mini-column-target">
-                            <span class="mini-label"></span>
-                            <span class="mini-chip mini-chip-accent"></span>
-                            <span class="mini-chip"></span>
-                          </div>
+                          <span class="mini-moving-task mini-moving-task-first"></span>
+                          <span class="mini-moving-task mini-moving-task-second"></span>
                         </div>
                       )
                     }
                     {
                       item.visual === "recurring" && (
-                        <div class="mini-repeat">
-                          <div class="mini-repeat-row">
-                            <span class="mini-tag"></span>
-                            <span class="mini-chip mini-chip-accent"></span>
-                          </div>
-                          <div class="mini-repeat-row">
-                            <span class="mini-tag"></span>
-                            <span class="mini-chip"></span>
-                          </div>
-                          <div class="mini-repeat-row">
-                            <span class="mini-tag"></span>
-                            <span class="mini-chip"></span>
+                        <div class="mini-recurring">
+                          <div class="mini-recurring-task">
+                            <span class="mini-checkbox"></span>
+                            <span class="mini-task-bar mini-task-bar-wide"></span>
+                            <span class="mini-frequency-chip">Daily</span>
                           </div>
                         </div>
                       )
                     }
                     {
                       item.visual === "markdown" && (
-                        <div class="mini-files">
-                          <div class="mini-tree">
-                            <span></span>
-                            <span></span>
-                            <span class="is-current"></span>
+                        <div class="mini-markdown-apps">
+                          <div class="mini-app-icon mini-app-icon-obsidian">
+                            <svg viewBox="0 0 32 32" aria-hidden="true">
+                              <path d="M17 3 8 9v12l8 8 8-8V9Z" fill="#6F6AF8"></path>
+                              <path d="M17 3 13 14l3 15 8-8V9Z" fill="#5146E6"></path>
+                            </svg>
                           </div>
-                          <div class="mini-doc">
-                            <span class="mini-doc-line mini-card-line-short"></span>
-                            <span class="mini-doc-line"></span>
-                            <span class="mini-doc-line"></span>
+                          <div class="mini-app-icon mini-app-icon-logseq">
+                            <svg viewBox="0 0 32 32" aria-hidden="true">
+                              <circle cx="16" cy="7" r="4" fill="#EAB308"></circle>
+                              <circle cx="9" cy="18" r="4" fill="#10B981"></circle>
+                              <circle cx="23" cy="18" r="4" fill="#3B82F6"></circle>
+                              <circle cx="16" cy="26" r="4" fill="#F97316"></circle>
+                            </svg>
+                          </div>
+                          <div class="mini-app-icon mini-app-icon-markdown">
+                            <svg viewBox="0 0 32 32" aria-hidden="true">
+                              <rect x="3" y="6" width="26" height="20" rx="4" fill="none" stroke="currentColor" stroke-width="2"></rect>
+                              <path d="M8 21v-9l4 5 4-5v9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                              <path d="m22 12 3 4h-2v5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                            </svg>
                           </div>
                         </div>
                       )
                     }
                     {
                       item.visual === "open-source" && (
-                        <div class="mini-repo">
-                          <span class="mini-repo-title"></span>
-                          <div class="mini-repo-row">
-                            <span class="mini-pill"></span>
-                            <span class="mini-pill"></span>
+                        <div class="mini-open-source">
+                          <div class="mini-github-icon">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                              <path fill="currentColor" d="M12 .5a12 12 0 0 0-3.79 23.39c.6.11.82-.26.82-.58v-2.03c-3.34.72-4.04-1.41-4.04-1.41-.55-1.38-1.33-1.75-1.33-1.75-1.09-.73.08-.71.08-.71 1.2.09 1.84 1.24 1.84 1.24 1.08 1.83 2.82 1.3 3.5.99.11-.78.42-1.3.76-1.59-2.67-.3-5.47-1.33-5.47-5.92 0-1.31.47-2.38 1.24-3.22-.13-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23a11.4 11.4 0 0 1 6 0c2.29-1.55 3.29-1.23 3.29-1.23.67 1.66.26 2.88.13 3.18.77.84 1.23 1.91 1.23 3.22 0 4.6-2.81 5.61-5.49 5.91.43.38.81 1.1.81 2.23v3.3c0 .32.21.7.82.58A12 12 0 0 0 12 .5Z"></path>
+                            </svg>
                           </div>
-                          <div class="mini-repo-row">
-                            <span class="mini-pill mini-pill-wide"></span>
-                            <span class="mini-pill"></span>
+                          <div class="mini-stars">
+                            <span class="mini-stars-label">GitHub</span>
+                            <span class="mini-stars-value"><span data-github-stars>20</span> stars</span>
                           </div>
                         </div>
                       )
@@ -328,6 +378,7 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
     const macLink = document.querySelector("[data-download-macos]",);
     const winLink = document.querySelector("[data-download-windows]",);
     const linuxLink = document.querySelector("[data-download-linux]",);
+    const starEls = Array.from(document.querySelectorAll("[data-github-stars]",),);
 
     toggle?.addEventListener("click", (e,) => {
       e.stopPropagation();
@@ -371,6 +422,18 @@ primary.firstChild.textContent = labels[os];
       if (currentLink) currentLink.classList.add("is-current",);
     } catch {
       // keep fallback links
+    }
+
+    try {
+      const repoRes = await fetch(`https://api.github.com/repos/${REPO}`,);
+      if (!repoRes.ok) throw new Error();
+      const repoData = await repoRes.json();
+      const stars = new Intl.NumberFormat().format(repoData.stargazers_count ?? 0,);
+      for (const el of starEls) {
+        el.textContent = stars;
+      }
+    } catch {
+      // keep fallback star count
     }
   })();
 
@@ -700,177 +763,367 @@ primary.firstChild.textContent = labels[os];
     background:
       radial-gradient(circle at top left, rgba(255, 255, 255, 0.9) 0%, transparent 42%),
       color-mix(in srgb, var(--bg-soft) 90%, #ffffff);
-    min-height: 92px;
-    padding: 10px;
+    min-height: 78px;
+    padding: 8px;
     overflow: hidden;
   }
 
-  .mini-stack,
-  .mini-transfer,
-  .mini-repeat,
-  .mini-files,
-  .mini-repo {
+  .mini-timeline,
+  .mini-rollover,
+  .mini-recurring,
+  .mini-markdown-apps,
+  .mini-open-source {
     width: 100%;
     height: 100%;
   }
 
-  .mini-stack {
-    display: grid;
-    grid-template-columns: 14px minmax(0, 1fr);
-    gap: 8px;
-    align-items: stretch;
-  }
-
-  .mini-sidebar {
-    display: block;
-    border-right: 1px solid color-mix(in srgb, var(--line) 84%, #c7cad5);
-    background:
-      linear-gradient(
-        180deg,
-        transparent 0 10%,
-        color-mix(in srgb, var(--accent) 14%, #ffffff) 10% 28%,
-        transparent 28% 42%,
-        rgba(95, 95, 90, 0.08) 42% 58%,
-        transparent 58% 72%,
-        rgba(95, 95, 90, 0.08) 72% 88%,
-        transparent 88% 100%
-      );
-  }
-
-  .mini-stack-cards,
-  .mini-column,
-  .mini-doc,
-  .mini-repo {
-    display: grid;
-    gap: 6px;
-  }
-
-  .mini-card-line,
-  .mini-doc-line,
-  .mini-pill,
-  .mini-label,
-  .mini-tag {
-    display: block;
-    height: 8px;
-    border: 1px solid color-mix(in srgb, var(--line) 80%, #d1d4de);
-    background: rgba(255, 255, 255, 0.92);
-  }
-
-  .mini-card-line-short {
-    width: 54%;
-  }
-
-  .mini-card-line-accent,
-  .mini-chip-accent,
-  .mini-tree .is-current {
-    border-color: color-mix(in srgb, var(--accent) 34%, var(--line));
-    background: color-mix(in srgb, var(--accent) 12%, #ffffff);
-  }
-
-  .mini-transfer {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr);
-    gap: 8px;
-    align-items: center;
-  }
-
-  .mini-column {
-    border: 1px solid color-mix(in srgb, var(--line) 80%, #d3d6df);
-    background: rgba(255, 255, 255, 0.86);
-    padding: 6px;
-  }
-
-  .mini-column-target {
-    border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
-  }
-
-  .mini-chip {
-    display: block;
-    height: 12px;
-    border: 1px solid color-mix(in srgb, var(--line) 80%, #d1d4de);
-    background: #f6f6f3;
-  }
-
-  .mini-chip-muted {
-    opacity: 0.55;
-  }
-
-  .mini-arrow {
-    display: block;
-    width: 100%;
-    height: 2px;
-    background: var(--accent);
+  .mini-timeline {
     position: relative;
+    overflow: hidden;
   }
 
-  .mini-arrow::after {
-    content: "";
-    position: absolute;
-    right: -1px;
-    top: -3px;
-    border-top: 4px solid transparent;
-    border-bottom: 4px solid transparent;
-    border-left: 6px solid var(--accent);
-  }
-
-  .mini-repeat {
-    display: grid;
-    gap: 8px;
-  }
-
-  .mini-repeat-row {
-    display: grid;
-    grid-template-columns: 34px minmax(0, 1fr);
-    gap: 8px;
-    align-items: center;
-  }
-
-  .mini-files {
-    display: grid;
-    grid-template-columns: 46px minmax(0, 1fr);
-    gap: 8px;
-  }
-
-  .mini-tree {
+  .mini-timeline-track {
     display: grid;
     gap: 6px;
+    animation: mini-timeline-scroll 6s ease-in-out infinite;
   }
 
-  .mini-tree span {
+  .mini-timeline-day,
+  .mini-rollover-column {
+    border: 1px solid color-mix(in srgb, var(--line) 80%, #d3d6df);
+    background: rgba(255, 255, 255, 0.9);
+    padding: 4px;
+    display: grid;
+    gap: 4px;
+  }
+
+  .mini-timeline-day {
+    min-height: 28px;
+  }
+
+  .mini-timeline-day p,
+  .mini-rollover-column p,
+  .mini-stars-label,
+  .mini-stars-value {
+    margin: 0;
+  }
+
+  .mini-timeline-day p,
+  .mini-rollover-column p {
+    color: #454540;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .mini-skeleton {
     display: block;
-    height: 10px;
+    height: 5px;
     border: 1px solid color-mix(in srgb, var(--line) 80%, #d1d4de);
     background: rgba(95, 95, 90, 0.08);
   }
 
-  .mini-doc {
-    border: 1px solid color-mix(in srgb, var(--line) 80%, #d3d6df);
-    background: rgba(255, 255, 255, 0.9);
-    padding: 6px;
+  .mini-skeleton-short {
+    width: 56%;
   }
 
-  .mini-repo {
-    border: 1px solid color-mix(in srgb, var(--line) 80%, #d3d6df);
-    background: rgba(255, 255, 255, 0.88);
-    padding: 6px;
+  .mini-skeleton-fade {
+    display: none;
   }
 
-  .mini-repo-title {
-    display: block;
-    width: 68%;
-    height: 10px;
-    border: 1px solid color-mix(in srgb, var(--line) 80%, #d1d4de);
-    background: color-mix(in srgb, var(--accent) 10%, #ffffff);
+  .mini-rollover {
+    position: relative;
   }
 
-  .mini-repo-row {
+  .mini-rollover-columns {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 6px;
   }
 
-  .mini-pill-wide {
+  .mini-rollover-source {
+    animation: mini-rollover-source-focus 5s ease-in-out infinite;
+  }
+
+  .mini-rollover-target {
+    border-color: color-mix(in srgb, var(--accent) 28%, var(--line));
+    animation: mini-rollover-target-focus 5s ease-in-out infinite;
+  }
+
+  .mini-task-row,
+  .mini-recurring-task {
+    display: grid;
+    grid-template-columns: 8px minmax(0, 1fr);
+    gap: 5px;
+    align-items: center;
+  }
+
+  .mini-task-row-fading {
+    animation: mini-source-task-fade 5s ease-in-out infinite;
+  }
+
+  .mini-task-row-fading-delay {
+    animation-delay: 0.25s;
+  }
+
+  .mini-checkbox {
+    display: block;
+    width: 8px;
+    height: 8px;
+    border: 1px solid color-mix(in srgb, var(--line) 80%, #bfc2ce);
+    background: #ffffff;
+    position: relative;
+  }
+
+  .mini-checkbox.is-checked {
+    background: color-mix(in srgb, var(--accent) 16%, #ffffff);
+    border-color: color-mix(in srgb, var(--accent) 34%, var(--line));
+  }
+
+  .mini-checkbox.is-checked::after {
+    content: "";
+    position: absolute;
+    left: 1px;
+    top: -1px;
+    width: 3px;
+    height: 6px;
+    border-right: 1.5px solid var(--accent);
+    border-bottom: 1.5px solid var(--accent);
+    transform: rotate(40deg);
+  }
+
+  .mini-task-bar {
+    display: block;
+    height: 6px;
+    border: 1px solid color-mix(in srgb, var(--line) 80%, #d1d4de);
+    background: #f6f6f3;
+  }
+
+  .mini-task-bar-wide {
+    width: 86%;
+  }
+
+  .mini-task-bar-short {
+    width: 62%;
+  }
+
+  .mini-today-pill {
+    position: absolute;
+    top: 0;
+    left: 4px;
+    padding: 0 4px;
+    border: 1px solid color-mix(in srgb, var(--accent) 32%, var(--line));
+    background: color-mix(in srgb, var(--accent) 10%, #ffffff);
+    color: var(--accent);
+    font-size: 8px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    animation: mini-today-shift 5s ease-in-out infinite;
+  }
+
+  .mini-moving-task {
+    position: absolute;
+    left: 40%;
+    width: 34px;
+    height: 6px;
+    border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line));
+    background: color-mix(in srgb, var(--accent) 12%, #ffffff);
+    opacity: 0;
+  }
+
+  .mini-moving-task-first {
+    top: 28px;
+    animation: mini-rollover-move 5s ease-in-out infinite;
+  }
+
+  .mini-moving-task-second {
+    top: 44px;
+    width: 26px;
+    animation: mini-rollover-move 5s ease-in-out infinite 0.25s;
+  }
+
+  .mini-recurring {
+    display: flex;
+    align-items: center;
+  }
+
+  .mini-recurring-task {
     width: 100%;
+    grid-template-columns: 8px minmax(0, 1fr) auto;
+    border: 1px solid color-mix(in srgb, var(--line) 80%, #d3d6df);
+    background: rgba(255, 255, 255, 0.9);
+    padding: 6px;
+  }
+
+  .mini-frequency-chip {
+    padding: 1px 5px;
+    border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line));
+    background: color-mix(in srgb, var(--accent) 10%, #ffffff);
+    color: var(--accent);
+    font-size: 8px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .mini-markdown-apps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .mini-app-icon {
+    width: 30px;
+    height: 30px;
+    border: 1px solid color-mix(in srgb, var(--line) 80%, #d3d6df);
+    background: rgba(255, 255, 255, 0.9);
+    display: grid;
+    place-items: center;
+  }
+
+  .mini-app-icon svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+  }
+
+  .mini-app-icon-markdown {
+    color: #3f3f3d;
+  }
+
+  .mini-open-source {
+    display: grid;
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    height: 100%;
+  }
+
+  .mini-github-icon {
+    width: 30px;
+    height: 30px;
+    border: 1px solid color-mix(in srgb, var(--line) 80%, #d3d6df);
+    background: rgba(255, 255, 255, 0.92);
+    color: #252525;
+    display: grid;
+    place-items: center;
+  }
+
+  .mini-github-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .mini-stars {
+    display: grid;
+    gap: 4px;
+  }
+
+  .mini-stars-label {
+    color: #676762;
+    font-size: 8px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .mini-stars-value {
+    color: #3f3f3d;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  @keyframes mini-timeline-scroll {
+    0%,
+    18% {
+      transform: translateY(0);
+    }
+
+    28%,
+    46% {
+      transform: translateY(-34px);
+    }
+
+    56%,
+    74% {
+      transform: translateY(-68px);
+    }
+
+    84%,
+    100% {
+      transform: translateY(-68px);
+    }
+  }
+
+  @keyframes mini-rollover-source-focus {
+    0%,
+    48% {
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 34%, var(--line));
+    }
+
+    55%,
+    100% {
+      box-shadow: inset 0 0 0 1px transparent;
+    }
+  }
+
+  @keyframes mini-rollover-target-focus {
+    0%,
+    48% {
+      box-shadow: inset 0 0 0 1px transparent;
+    }
+
+    55%,
+    100% {
+      box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 34%, var(--line));
+    }
+  }
+
+  @keyframes mini-today-shift {
+    0%,
+    45% {
+      transform: translateX(0);
+    }
+
+    55%,
+    100% {
+      transform: translateX(72px);
+    }
+  }
+
+  @keyframes mini-rollover-move {
+    0%,
+    38% {
+      opacity: 0;
+      transform: translateX(-40px);
+    }
+
+    45%,
+    72% {
+      opacity: 1;
+      transform: translateX(10px);
+    }
+
+    80%,
+    100% {
+      opacity: 0;
+      transform: translateX(34px);
+    }
+  }
+
+  @keyframes mini-source-task-fade {
+    0%,
+    40% {
+      opacity: 1;
+    }
+
+    55%,
+    100% {
+      opacity: 0.28;
+    }
   }
 
   .item-title {
