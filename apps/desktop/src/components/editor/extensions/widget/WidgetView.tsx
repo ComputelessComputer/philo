@@ -19,9 +19,11 @@ import {
 } from "../../../../services/library";
 import { createWidgetFile, updateWidgetFile, } from "../../../../services/widget-files";
 import {
+  WIDGET_BUILD_STATE_EVENT,
   WIDGET_EDIT_REQUEST_EVENT,
   WIDGET_EDIT_STATE_EVENT,
   WIDGET_EDIT_SUBMIT_EVENT,
+  type WidgetBuildStateDetail,
   type WidgetEditStateDetail,
   type WidgetEditSubmitDetail,
 } from "./events";
@@ -242,7 +244,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
       const instruction = detail.instruction.trim();
       if (!instruction) return;
       const nextPrompt = `${prompt.trim()}\n\nChange request: ${instruction}`;
-      void runGeneration(nextPrompt,).finally(() => setIsEditingInChat(false,));
+      void runGeneration(nextPrompt,);
     };
 
     window.addEventListener(WIDGET_EDIT_STATE_EVENT, handleWidgetEditState,);
@@ -316,6 +318,11 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
   }, [file, id, path,],);
 
   const runGeneration = async (nextPrompt: string,) => {
+    window.dispatchEvent(
+      new CustomEvent<WidgetBuildStateDetail>(WIDGET_BUILD_STATE_EVENT, {
+        detail: { widgetId: id, isBuilding: true, },
+      },),
+    );
     updateAttributes({ prompt: nextPrompt, loading: true, error: "", },);
     try {
       if (isShared && manifest) {
@@ -357,6 +364,12 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
         loading: false,
         error: isAiKeyMissingError(errMsg,) ? getAiConfigurationMessage(errMsg,) : errMsg,
       },);
+    } finally {
+      window.dispatchEvent(
+        new CustomEvent<WidgetBuildStateDetail>(WIDGET_BUILD_STATE_EVENT, {
+          detail: { widgetId: id, isBuilding: false, },
+        },),
+      );
     }
   };
 
@@ -430,6 +443,10 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
   const saveTitle = isShared || saved ? "Archived in library" : "Archive in library";
   const rebuildTitle = loading || sharedLoading ? "Refreshing widget" : "Refresh widget";
   const showSaveAction = !isShared && !saved;
+  const showRenderOverlay = (loading || sharedLoading) && Boolean(currentSpec,);
+  const showLoadingScreen = (loading || sharedLoading) && !currentSpec;
+  const overlayText = isEditingInChat ? "Building new version..." : "Refreshing widget...";
+  const overlayPrompt = isEditingInChat ? "Updating this widget with your latest edit." : prompt;
 
   return (
     <NodeViewWrapper className={`widget-node ${selected || isEditingInChat ? "widget-selected" : ""}`}>
@@ -493,7 +510,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
           </div>
         </div>
 
-        {loading || sharedLoading
+        {showLoadingScreen
           ? (
             <div className="widget-loading">
               <div className="widget-loading-inner">
@@ -537,6 +554,15 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
                   </WidgetRuntimeProvider>
                 </JSONUIProvider>
               </RendererBoundary>
+              {showRenderOverlay && (
+                <div className="widget-build-overlay">
+                  <div className="widget-build-overlay-inner">
+                    <div className="widget-spinner" />
+                    <span className="widget-loading-text">{overlayText}</span>
+                    <span className="widget-loading-prompt">{overlayPrompt}</span>
+                  </div>
+                </div>
+              )}
             </div>
           )
           : (

@@ -37,9 +37,11 @@ import { createWidgetFile, } from "../../services/widget-files";
 import { DailyNote, formatDate, getDaysAgo, isToday, } from "../../types/note";
 import { AiComposer, } from "../ai/AiComposer";
 import {
+  WIDGET_BUILD_STATE_EVENT,
   WIDGET_EDIT_REQUEST_EVENT,
   WIDGET_EDIT_STATE_EVENT,
   WIDGET_EDIT_SUBMIT_EVENT,
+  type WidgetBuildStateDetail,
   type WidgetEditRequestDetail,
 } from "../editor/extensions/widget/events";
 import EditableNote, { type EditableNoteHandle, type EditableNoteSelection, } from "../journal/EditableNote";
@@ -293,6 +295,7 @@ export default function AppLayout() {
   const [aiLatestChatId, setAiLatestChatId,] = useState<string | null>(null,);
   const [aiApplyingDates, setAiApplyingDates,] = useState<string[]>([],);
   const [widgetEditSession, setWidgetEditSession,] = useState<WidgetEditRequestDetail | null>(null,);
+  const [widgetEditSubmitting, setWidgetEditSubmitting,] = useState(false,);
   const aiAbortControllerRef = useRef<AbortController | null>(null,);
   const currentSelectionRef = useRef<EditableNoteSelection | null>(null,);
   const aiLastSubmittedPromptRef = useRef("",);
@@ -374,6 +377,7 @@ export default function AppLayout() {
     }
     widgetEditSessionRef.current = null;
     setWidgetEditSession(null,);
+    setWidgetEditSubmitting(false,);
     setAiSelectedLabel(null,);
   }, [],);
 
@@ -909,13 +913,12 @@ export default function AppLayout() {
     if (widgetEditSession) {
       const instruction = aiPrompt.trim();
       if (!instruction) return;
+      setWidgetEditSubmitting(true,);
       window.dispatchEvent(
         new CustomEvent(WIDGET_EDIT_SUBMIT_EVENT, {
           detail: { widgetId: widgetEditSession.widgetId, instruction, },
         },),
       );
-      closeAiComposer();
-      setAiPrompt("",);
       return;
     }
 
@@ -1014,6 +1017,29 @@ export default function AppLayout() {
     window.addEventListener(WIDGET_EDIT_REQUEST_EVENT, handleWidgetEditRequest,);
     return () => window.removeEventListener(WIDGET_EDIT_REQUEST_EVENT, handleWidgetEditRequest,);
   }, [clearWidgetEditSession, refreshAiAvailability,],);
+
+  useEffect(() => {
+    const handleWidgetBuildState = (event: Event,) => {
+      const detail = (event as CustomEvent<WidgetBuildStateDetail>).detail;
+      if (!detail?.widgetId) return;
+      if (detail.widgetId !== widgetEditSessionRef.current?.widgetId) return;
+
+      setWidgetEditSubmitting(detail.isBuilding,);
+      if (detail.isBuilding) {
+        return;
+      }
+
+      setAiPrompt("",);
+      setAiComposerOpen(false,);
+      setAiError(null,);
+      setAiSelectedText(null,);
+      setAiSelectionHighlight(null,);
+      clearWidgetEditSession();
+    };
+
+    window.addEventListener(WIDGET_BUILD_STATE_EVENT, handleWidgetBuildState,);
+    return () => window.removeEventListener(WIDGET_BUILD_STATE_EVENT, handleWidgetBuildState,);
+  }, [clearWidgetEditSession,],);
 
   const todayEditorRef = useRef<EditableNoteHandle>(null,);
   const todayRef = useRef<HTMLDivElement>(null,);
@@ -1324,7 +1350,9 @@ export default function AppLayout() {
         applyingDates={aiApplyingDates}
         canApplyPendingChanges={canApplyPendingChanges}
         hasAiConfigured={hasAiConfigured}
-        isSubmitting={aiRunning}
+        isSubmitting={widgetEditSession ? widgetEditSubmitting : aiRunning}
+        canStopSubmitting={!widgetEditSession}
+        submittingLabel={widgetEditSession ? "Building new widget version..." : undefined}
         error={aiError}
         onPromptChange={setAiPrompt}
         onClose={closeAiComposer}

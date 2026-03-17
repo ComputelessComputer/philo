@@ -562,6 +562,7 @@
 
 .widget-render {
   min-height: 80px;
+  position: relative;
 }
 
 /* Widget error state */
@@ -634,6 +635,24 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.widget-build-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(1px);
+}
+
+.widget-build-overlay-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px;
 }
 /* ---- Excalidraw embed ---- */
 
