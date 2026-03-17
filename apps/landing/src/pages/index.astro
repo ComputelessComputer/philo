@@ -30,39 +30,6 @@ const capabilities = [
   },
 ];
 
-const examples = [
-  {
-    title: "Habit tracker",
-    summary: "Track streaks and daily completion without leaving your note.",
-    imagePath: "/examples/habit-tracker.png",
-  },
-  {
-    title: "World clock",
-    summary: "See your team time zones while planning tomorrow.",
-    imagePath: "/examples/world-clock.png",
-  },
-  {
-    title: "Calorie counter",
-    summary: "Quick meal log with totals inline in the journal.",
-    imagePath: "/examples/calorie-counter.png",
-  },
-  {
-    title: "Countdown board",
-    summary: "Keep launches and deadlines visible at a glance.",
-    imagePath: "/examples/countdown-board.png",
-  },
-  {
-    title: "Mood chart",
-    summary: "Simple emotional trendline over the week.",
-    imagePath: "/examples/mood-chart.png",
-  },
-  {
-    title: "Meeting prep checklist",
-    summary: "Turn rough notes into ready talking points.",
-    imagePath: "/examples/meeting-prep-checklist.png",
-  },
-];
-
 const posts = await getCollection("blog");
 posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime());
 
@@ -265,48 +232,6 @@ const heroMetaDescription =
           </ul>
         </section>
 
-        <section class="panel enter" style="--delay: 210ms;">
-          <h2>Build small tools as you work</h2>
-          <p class="item-copy">
-            Philo can generate widgets inline from a note, then keep the good ones around when they
-            earn a permanent place in your workflow.
-          </p>
-          <div class="carousel" data-carousel>
-            <div class="carousel-controls">
-              <button type="button" class="carousel-button" data-carousel-prev aria-label="Previous example">←</button>
-              <button type="button" class="carousel-button" data-carousel-next aria-label="Next example">→</button>
-            </div>
-            <div class="carousel-track" data-carousel-track>
-              {
-                examples.map((item,) => (
-                  <article class="example-card">
-                    <p class="example-title">{item.title}</p>
-                    <p class="example-summary">{item.summary}</p>
-                    <div class="example-preview" role="img" aria-label={`${item.title} image placeholder`}>
-                      <p class="example-image-placeholder">Add image later</p>
-                      <p class="example-image-path">{item.imagePath}</p>
-                    </div>
-                  </article>
-                ))
-              }
-            </div>
-            <div class="carousel-dots">
-              {
-                examples.map((item, index,) => (
-                  <button
-                    type="button"
-                    class={`carousel-dot ${index === 0 ? "is-active" : ""}`}
-                    data-carousel-dot
-                    data-index={index}
-                    aria-label={`Go to ${item.title}`}
-                    aria-current={index === 0 ? "true" : "false"}
-                  ><span class="carousel-dot-fill"></span></button>
-                ))
-              }
-            </div>
-          </div>
-        </section>
-
         <section class="panel enter" style="--delay: 280ms;">
           <h2>Notes from the team</h2>
           <ul class="link-list">
@@ -421,91 +346,6 @@ const heroMetaDescription =
     }
 
   })();
-
-  const carousel = document.querySelector("[data-carousel]",);
-  if (carousel) {
-    const track = carousel.querySelector("[data-carousel-track]",);
-    const prev = carousel.querySelector("[data-carousel-prev]",);
-    const next = carousel.querySelector("[data-carousel-next]",);
-    const dots = Array.from(carousel.querySelectorAll("[data-carousel-dot]",),);
-    const total = track?.children.length ?? 0;
-    const DURATION = 5000;
-    let ticking = false;
-    let timer = null;
-
-    const getIndex = () => {
-      if (!track) {
-        return 0;
-      }
-      return Math.round(track.scrollLeft / track.clientWidth,);
-    };
-
-    const goTo = (index,) => {
-      if (!track || total === 0) {
-        return;
-      }
-      const nextIndex = (index + total) % total;
-      track.scrollTo({
-        left: nextIndex * track.clientWidth,
-        behavior: "smooth",
-      },);
-    };
-
-    const restartTimer = () => {
-      clearTimeout(timer,);
-      for (const dot of dots) {
-        const fill = dot.querySelector(".carousel-dot-fill",);
-        if (!fill) continue;
-        fill.style.animation = "none";
-        void fill.offsetWidth;
-        fill.style.animation = "";
-      }
-      setActiveDot();
-      timer = setTimeout(() => {
-        goTo(getIndex() + 1,);
-      }, DURATION,);
-    };
-
-    const setActiveDot = () => {
-      const index = getIndex();
-      for (const [dotIndex, dot] of dots.entries()) {
-        const active = dotIndex === index;
-        dot.classList.toggle("is-active", active,);
-        dot.setAttribute("aria-current", active ? "true" : "false",);
-        const fill = dot.querySelector(".carousel-dot-fill",);
-        if (fill) {
-          fill.style.animationDuration = `${DURATION}ms`;
-        }
-      }
-    };
-
-    prev?.addEventListener("click", () => { goTo(getIndex() - 1,); restartTimer(); },);
-    next?.addEventListener("click", () => { goTo(getIndex() + 1,); restartTimer(); },);
-
-    for (const dot of dots) {
-      dot.addEventListener("click", () => {
-        const index = Number(dot.getAttribute("data-index",) ?? "0",);
-        goTo(index,);
-        restartTimer();
-      },);
-    }
-
-    track?.addEventListener("scroll", () => {
-      if (ticking) {
-        return;
-      }
-      ticking = true;
-      window.requestAnimationFrame(() => {
-        setActiveDot();
-        ticking = false;
-      },);
-    },);
-
-    setActiveDot();
-    restartTimer();
-    window.addEventListener("resize", setActiveDot,);
-  }
-
 </script>
 
 <style>
@@ -1254,130 +1094,6 @@ const heroMetaDescription =
     color: color-mix(in srgb, var(--text) 82%, var(--accent));
   }
 
-  .carousel {
-    margin-top: 16px;
-  }
-
-  .carousel-controls {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-bottom: 10px;
-  }
-
-  .carousel-button {
-    border: 1px solid var(--line);
-    background: var(--bg-soft);
-    color: #60605c;
-    width: 30px;
-    height: 24px;
-    line-height: 1;
-    font: inherit;
-    font-size: var(--fs-md);
-    cursor: pointer;
-  }
-
-  .carousel-button:hover {
-    color: var(--accent);
-    border-color: color-mix(in srgb, var(--line) 65%, var(--accent));
-  }
-
-  .carousel-track {
-    display: flex;
-    gap: 10px;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    scroll-behavior: smooth;
-    scrollbar-width: none;
-  }
-
-  .carousel-track::-webkit-scrollbar {
-    display: none;
-  }
-
-  .example-card {
-    min-width: 100%;
-    scroll-snap-align: start;
-    border: 1px solid var(--line);
-    background: color-mix(in srgb, var(--bg-soft) 84%, #ffffff);
-    padding: 14px;
-  }
-
-  .example-title {
-    margin: 0;
-    font-size: var(--fs-lg);
-    font-weight: 500;
-  }
-
-  .example-summary {
-    margin: 6px 0 0;
-    color: #555550;
-    font-size: var(--fs-md);
-  }
-
-  .example-preview {
-    margin-top: 10px;
-    border: 1px dashed color-mix(in srgb, var(--line) 82%, #c2c4ce);
-    background: color-mix(in srgb, #ffffff 60%, var(--bg-soft));
-    padding: 10px;
-    min-height: 138px;
-    display: grid;
-    align-content: center;
-    justify-items: center;
-    gap: 8px;
-  }
-
-  .example-image-placeholder {
-    margin: 0;
-    color: #5d5d58;
-    font-size: var(--fs-sm);
-    font-weight: 500;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
-
-  .example-image-path {
-    margin: 0;
-    color: #6c6c67;
-    font-size: var(--fs-xs);
-  }
-
-  .carousel-dots {
-    display: flex;
-    justify-content: center;
-    gap: 6px;
-    margin-top: 10px;
-  }
-
-  .carousel-dot {
-    width: 16px;
-    height: 5px;
-    border: 0;
-    padding: 0;
-    background: #d5d5ce;
-    cursor: pointer;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .carousel-dot-fill {
-    position: absolute;
-    inset: 0;
-    background: var(--accent);
-    transform: scaleX(0);
-    transform-origin: left;
-  }
-
-  .carousel-dot.is-active .carousel-dot-fill {
-    animation: dot-fill 5000ms linear forwards;
-  }
-
-  @keyframes dot-fill {
-    to {
-      transform: scaleX(1);
-    }
-  }
-
   .video-column {
     position: sticky;
     top: 68px;
@@ -1498,7 +1214,6 @@ const heroMetaDescription =
 
   @media (prefers-reduced-motion: reduce) {
     .enter,
-    .carousel-dot.is-active .carousel-dot-fill,
     .mini-markdown-arrow {
       animation: none;
       transition: none;
