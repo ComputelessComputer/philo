@@ -114,19 +114,13 @@ posts.sort((a, b) => b.data.publishedAt.getTime() - a.data.publishedAt.getTime()
               <a data-download-linux href="https://github.com/ComputelessComputer/philo/releases/latest">Linux</a>
             </div>
           </div>
-          <div class="video-mobile">
+          <div class="hero-media-mobile">
             <div class="video-frame">
-              <video
-                class="product-video"
-                controls
-                muted
-                loop
-                playsinline
-                preload="metadata"
-                poster="/philo-video-poster.svg"
-              >
-                <source src="/philo-demo.mp4" type="video/mp4" />
-              </video>
+              <img
+                class="hero-screenshot"
+                src="/philo-hero-screenshot.svg"
+                alt="Philo showing daily notes in a timeline with unfinished tasks carried into today"
+              />
             </div>
           </div>
         </section>
@@ -661,7 +655,7 @@ primary.firstChild.textContent = labels[os];
     display: none;
   }
 
-  .video-mobile {
+  .hero-media-mobile {
     display: none;
     margin-top: 18px;
   }
@@ -1069,6 +1063,15 @@ primary.firstChild.textContent = labels[os];
     aspect-ratio: 9 / 16;
   }
 
+  .hero-screenshot {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    border: 1px dashed color-mix(in srgb, var(--line) 82%, #bfc2ce);
+    background: #efefe9;
+  }
+
   .video-note {
     margin: 10px 0 0;
     color: #676762;
@@ -1133,12 +1136,8 @@ primary.firstChild.textContent = labels[os];
       display: none;
     }
 
-    .video-mobile {
+    .hero-media-mobile {
       display: block;
-    }
-
-    .video-mobile .product-video {
-      aspect-ratio: auto;
     }
   }
 
