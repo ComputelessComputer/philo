@@ -1,5 +1,4 @@
 ---
-import ReadOnlyHeroNote from "../components/ReadOnlyHeroNote";
 import { getCollection, } from "astro:content";
 
 const capabilities = [
@@ -100,7 +99,13 @@ const heroMetaDescription =
             </div>
           </div>
           <div class="hero-media-mobile">
-            <ReadOnlyHeroNote client:load />
+            <div class="video-frame">
+              <img
+                class="hero-screenshot"
+                src="/philo-hero-screenshot.svg"
+                alt="Philo showing daily notes in a timeline with unfinished tasks carried into today"
+              />
+            </div>
           </div>
         </section>
 
@@ -268,7 +273,19 @@ const heroMetaDescription =
       </main>
 
       <aside class="video-column enter" style="--delay: 120ms;">
-        <ReadOnlyHeroNote client:load />
+        <div class="video-frame">
+          <video
+            class="product-video"
+            controls
+            muted
+            loop
+            playsinline
+            preload="metadata"
+            poster="/philo-video-poster.svg"
+          >
+            <source src="/philo-demo.mp4" type="video/mp4" />
+          </video>
+        </div>
       </aside>
     </div>
   </body>
@@ -1101,6 +1118,26 @@ const heroMetaDescription =
     flex: 0 0 320px;
     width: 320px;
     padding-top: 0;
+  }
+
+  .video-frame {
+    border: 1px solid var(--line);
+    background: color-mix(in srgb, var(--bg-soft) 90%, #ffffff);
+    padding: 8px;
+  }
+
+  .product-video {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    border: 1px dashed color-mix(in srgb, var(--line) 82%, #bfc2ce);
+    background: #efefe9;
+  }
+
+  .video-column .product-video {
+    aspect-ratio: 9 / 16;
   }
 
   .hero-screenshot {
