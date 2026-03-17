@@ -31,6 +31,7 @@ import {
   runWidgetStorageQuery,
   stringifyStorageSchema,
 } from "../../../../services/widget-storage";
+import { CodeWidgetRenderer, } from "./code/Renderer";
 import {
   WIDGET_BUILD_STATE_EVENT,
   WIDGET_EDIT_REQUEST_EVENT,
@@ -698,14 +699,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
             </div>
           )
           : isCodeWidget
-          ? (
-            <div className="widget-error">
-              <p className="widget-error-title">Code widget detected</p>
-              <p className="widget-error-message">
-                This widget uses the new code runtime. Rendering support is loading next.
-              </p>
-            </div>
-          )
+          ? <CodeWidgetRenderer id={id} runtime={runtimeApi} source={sourceStr ?? ""} />
           : renderSpec
           ? (
             <div
