@@ -253,6 +253,8 @@ There is also legacy support for:
 
 If that legacy file exists and the new library directory is empty, Philo migrates the entries into `.component.md` files.
 
+For the full widget lifecycle, including `.widget.md` files, editor placeholders, save/update procedures, and revision tracking, see [Widget persistence and lifecycle](widget-persistence-and-lifecycle.md).
+
 ## Obsidian Detection And Bootstrap
 
 When the user points Philo at a vault, `services/obsidian.ts` and the Tauri backend inspect `.obsidian` files to detect:

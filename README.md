@@ -78,6 +78,7 @@ If your OAuth consent screen is still in testing and your audience is external, 
 - [Data storage and configuration](docs/data-storage-and-configuration.md)
 - [Markdown sync and editor rendering](docs/markdown-sync.md)
 - [File and folder organization](docs/repo-structure.md)
+- [Widget persistence and lifecycle](docs/widget-persistence-and-lifecycle.md)
 
 ## License
 
