@@ -583,7 +583,8 @@ const heroMetaDescription =
 
   .hero-media-mobile {
     display: none;
-    margin-top: 18px;
+    width: min(100%, 500px);
+    margin: 18px auto 0;
   }
 
   .panel {
@@ -1229,6 +1230,10 @@ const heroMetaDescription =
   }
 
   @media (max-width: 720px) {
+    .hero-media-mobile {
+      width: 100%;
+    }
+
     .shell {
       width: 100%;
     }
