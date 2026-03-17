@@ -29,6 +29,23 @@ const RECURRENCE_TAG = /(?:#|@)(daily|weekly|monthly|(\d+)(days?|weeks?|months?)
 const RECURRENCE_WIKILINK = /\[\[(?:recurring_)?(daily|weekly|monthly|(\d+)(days?|weeks?|months?))(?:\|[^\]]+)?\]\]/i;
 const CANONICAL_RECURRING_WIKILINK = /\[\[(\d{4}-\d{2}-\d{2})\(start date\),\s*(\d+)\((day|days)\)\]\]/i;
 const DUE_DATE_WIKILINK = /\[\[\d{4}-\d{2}-\d{2}\(due date\)(?:\|[^\]]+)?\]\]/i;
+const GOOGLE_BLOCK_HEADING = "# Google";
+
+function stripManagedGoogleBlock(content: string,) {
+  const lines = content.split("\n",);
+  const start = lines.findIndex((line,) => line.trim() === GOOGLE_BLOCK_HEADING);
+  if (start === -1) return content;
+
+  let end = lines.length;
+  for (let index = start + 1; index < lines.length; index += 1) {
+    if (/^#\s+/.test(lines[index],)) {
+      end = index;
+      break;
+    }
+  }
+
+  return [...lines.slice(0, start,), ...lines.slice(end,),].join("\n",).trim();
+}
 
 interface Recurrence {
   intervalDays: number;
@@ -100,7 +117,8 @@ function sortTaskBlocks(taskBlocks: TaskBlock[],): TaskBlock[] {
  * Parent tasks keep their nested unchecked descendants so rollover preserves task structure.
  */
 function extractUncheckedTaskBlocks(content: string,): { taskBlocks: TaskBlock[]; cleaned: string; } {
-  const lines = content.split("\n",);
+  const strippedContent = stripManagedGoogleBlock(content,);
+  const lines = strippedContent.split("\n",);
   const taskBlocks: TaskBlock[] = [];
   const movedLineIndexes = new Set<number>();
   const stack: Array<{ indentWidth: number; rootBlockIndex: number | null; isUnchecked: boolean; }> = [];
@@ -152,7 +170,7 @@ function extractUncheckedTaskBlocks(content: string,): { taskBlocks: TaskBlock[]
  * These stay in the source note (history) — we only read them.
  */
 function extractCheckedRecurringTasks(content: string,): string[] {
-  const lines = content.split("\n",);
+  const lines = stripManagedGoogleBlock(content,).split("\n",);
   const tasks: string[] = [];
 
   for (const line of lines) {
@@ -170,7 +188,7 @@ function extractCheckedRecurringTasks(content: string,): string[] {
  * Used for deduplication.
  */
 function extractAllTaskTexts(content: string,): Set<string> {
-  const lines = content.split("\n",);
+  const lines = stripManagedGoogleBlock(content,).split("\n",);
   const texts = new Set<string>();
 
   for (const line of lines) {

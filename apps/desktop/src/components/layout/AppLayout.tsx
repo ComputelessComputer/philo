@@ -22,6 +22,7 @@ import {
   loadChatHistory,
   saveChatHistoryEntry,
 } from "../../services/chats";
+import { syncGoogleImports, } from "../../services/google-imports";
 import type { LibraryItem, } from "../../services/library";
 import { getJournalDir, initJournalScope, parseDateFromNoteLinkTarget, } from "../../services/paths";
 import { getFilenamePattern, hasActiveAiProvider, loadSettings, } from "../../services/settings";
@@ -302,6 +303,7 @@ export default function AppLayout() {
   const aiLastSubmittedPromptRef = useRef("",);
   const widgetEditSessionRef = useRef<WidgetEditRequestDetail | null>(null,);
   const todayNoteRef = useRef<DailyNote | null>(null,);
+  const googleSyncRef = useRef<Promise<boolean> | null>(null,);
   const suppressWatcherUntilRef = useRef(0,);
   const searchInputRef = useRef<HTMLInputElement>(null,);
   const searchResultRefs = useRef<(HTMLButtonElement | null)[]>([],);
@@ -392,6 +394,24 @@ export default function AppLayout() {
       },)
       .catch(console.error,);
   }, [today,],);
+
+  const runGoogleSync = useCallback(async () => {
+    if (googleSyncRef.current) {
+      return await googleSyncRef.current;
+    }
+
+    const active = syncGoogleImports()
+      .catch((error,) => {
+        console.error(error,);
+        return false;
+      },)
+      .finally(() => {
+        googleSyncRef.current = null;
+      },);
+
+    googleSyncRef.current = active;
+    return await active;
+  }, [],);
 
   const openGlobalSearch = useCallback(() => {
     clearWidgetEditSession();
@@ -743,21 +763,38 @@ export default function AppLayout() {
   // Re-read today's note from disk when the window regains focus (handles external edits)
   useEffect(() => {
     if (!isConfigured) return;
-    const handleFocus = () => syncTodayNoteFromDisk();
+    const handleFocus = () => {
+      runGoogleSync().finally(() => {
+        syncTodayNoteFromDisk();
+      },);
+    };
     window.addEventListener("focus", handleFocus,);
     return () => window.removeEventListener("focus", handleFocus,);
-  }, [isConfigured, syncTodayNoteFromDisk,],);
+  }, [isConfigured, runGoogleSync, syncTodayNoteFromDisk,],);
 
   // Roll over unchecked tasks from past days, then load today's note
   useEffect(() => {
     if (!isConfigured) return;
     async function load() {
       await rolloverTasks(30,);
+      await runGoogleSync();
       const note = await getOrCreateDailyNote(today,);
       setTodayNote(note,);
     }
-    load();
-  }, [isConfigured, storageRevision, today,],);
+    load().catch(console.error,);
+  }, [isConfigured, runGoogleSync, storageRevision, today,],);
+
+  useEffect(() => {
+    if (!isConfigured) return;
+    const id = window.setInterval(() => {
+      runGoogleSync().then((changed,) => {
+        if (changed) {
+          syncTodayNoteFromDisk();
+        }
+      },).catch(console.error,);
+    }, 5 * 60 * 1000,);
+    return () => window.clearInterval(id,);
+  }, [isConfigured, runGoogleSync, syncTodayNoteFromDisk,],);
 
   useEffect(() => {
     const note = todayNoteRef.current;
