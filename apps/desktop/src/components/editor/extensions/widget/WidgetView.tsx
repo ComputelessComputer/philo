@@ -649,7 +649,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
               onMouseDown={(event,) => event.stopPropagation()}
               onClick={(event,) => event.stopPropagation()}
             >
-              <CodeWidgetRenderer id={id} runtime={runtimeApi} source={currentSource} />
+              <CodeWidgetRenderer runtime={runtimeApi} source={currentSource} />
               {showRenderOverlay && (
                 <div className="widget-build-overlay">
                   <div className="widget-build-overlay-inner">

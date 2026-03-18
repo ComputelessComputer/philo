@@ -1,17 +1,17 @@
-import { useCallback, useEffect, useMemo, useRef, useState, } from "react";
+import * as React from "react";
+import { Component, useEffect, useMemo, useState, } from "react";
+import type { ErrorInfo, ReactNode, } from "react";
 import type { SharedWidgetRuntimeApi, } from "../runtime";
-import { buildCodeWidgetSandboxUrl, compileCodeWidgetSource, } from "./compiler";
-import {
-  CODE_WIDGET_LOAD,
-  CODE_WIDGET_READY,
-  CODE_WIDGET_RESIZE,
-  CODE_WIDGET_STORAGE_REQUEST,
-  CODE_WIDGET_STORAGE_RESPONSE,
-  type CodeWidgetReadyMessage,
-  type CodeWidgetResizeMessage,
-  type CodeWidgetStorageRequestMessage,
-  isCodeWidgetMessage,
-} from "./messages";
+import { compileCodeWidgetSource, } from "./compiler";
+import { WidgetSdkProvider, } from "./sdk";
+import * as PhiloSdk from "./sdk";
+
+type WidgetComponent = React.ComponentType;
+
+type WidgetBridge = {
+  runQuery: (name: string, params?: Record<string, unknown>,) => Promise<Array<Record<string, unknown>>>;
+  runMutation: (name: string, params?: Record<string, unknown>,) => Promise<number>;
+};
 
 function WidgetError({ title, message, }: { title: string; message: string; },) {
   return (
@@ -22,36 +22,70 @@ function WidgetError({ title, message, }: { title: string; message: string; },) 
   );
 }
 
+class WidgetRenderBoundary extends Component<
+  { onError: (message: string,) => void; children: ReactNode; },
+  { error: string | null; }
+> {
+  state = { error: null as string | null, };
+
+  static getDerivedStateFromError(error: Error,) {
+    return { error: error.message, };
+  }
+
+  componentDidCatch(error: Error, _info: ErrorInfo,) {
+    this.props.onError(error.message,);
+  }
+
+  render() {
+    if (this.state.error) {
+      return <WidgetError title="Code widget failed" message={this.state.error} />;
+    }
+
+    return this.props.children;
+  }
+}
+
+function evaluateWidgetModule(code: string,): WidgetComponent {
+  const run = new Function(
+    "Philo",
+    "PhiloReact",
+    `${code}
+const moduleValue = typeof __PHILO_WIDGET_MODULE__ !== "undefined"
+  ? __PHILO_WIDGET_MODULE__
+  : globalThis.__PHILO_WIDGET_MODULE__;
+return moduleValue?.default ?? moduleValue;`,
+  );
+  const component = run(PhiloSdk, React,) as WidgetComponent | undefined;
+  if (typeof component !== "function") {
+    throw new Error("Compiled widget did not export a default component.",);
+  }
+  return component;
+}
+
 export function CodeWidgetRenderer({
-  id,
   runtime,
   source,
 }: {
-  id: string;
   runtime: SharedWidgetRuntimeApi;
   source: string;
 },) {
-  const iframeRef = useRef<HTMLIFrameElement | null>(null,);
-  const frameId = useMemo(() => crypto.randomUUID(), [],);
-  const sandboxUrl = useMemo(() => buildCodeWidgetSandboxUrl(frameId,), [frameId,],);
   const [compiledCode, setCompiledCode,] = useState<string | null>(null,);
+  const [Widget, setWidget,] = useState<WidgetComponent | null>(null,);
   const [compileError, setCompileError,] = useState<string | null>(null,);
-  const [frameReady, setFrameReady,] = useState(false,);
-  const [height, setHeight,] = useState(220,);
+  const [runtimeError, setRuntimeError,] = useState<string | null>(null,);
 
-  const postLoadMessage = useCallback(() => {
-    if (!compiledCode) return;
-    iframeRef.current?.contentWindow?.postMessage({
-      type: CODE_WIDGET_LOAD,
-      frameId,
-      code: compiledCode,
-    }, "*",);
-  }, [compiledCode, frameId,],);
+  const bridge = useMemo<WidgetBridge>(() => ({
+    runQuery: async (name: string, params: Record<string, unknown> = {},) => await runtime.runQuery(name, params,),
+    runMutation: async (name: string, params: Record<string, unknown> = {},) =>
+      await runtime.runMutation(name, params,),
+  }), [runtime,],);
 
   useEffect(() => {
     let active = true;
     setCompiledCode(null,);
+    setWidget(null,);
     setCompileError(null,);
+    setRuntimeError(null,);
     void compileCodeWidgetSource(source,)
       .then(({ code, },) => {
         if (!active) return;
@@ -67,83 +101,40 @@ export function CodeWidgetRenderer({
   }, [source,],);
 
   useEffect(() => {
-    const handleMessage = async (event: MessageEvent<unknown>,) => {
-      if (event.source !== iframeRef.current?.contentWindow) return;
-      if (!isCodeWidgetMessage(event.data,)) return;
-      if (event.data.frameId !== frameId) return;
+    if (!compiledCode) return;
 
-      if (event.data.type === CODE_WIDGET_READY) {
-        const message = event.data as CodeWidgetReadyMessage;
-        if (message.frameId !== frameId) return;
-        setFrameReady(true,);
-        postLoadMessage();
-        return;
-      }
-
-      if (event.data.type === CODE_WIDGET_RESIZE) {
-        const message = event.data as CodeWidgetResizeMessage;
-        setHeight(Math.max(120, message.height,),);
-        return;
-      }
-
-      if (event.data.type !== CODE_WIDGET_STORAGE_REQUEST) {
-        return;
-      }
-
-      const message = event.data as CodeWidgetStorageRequestMessage;
-
-      try {
-        const result = message.action === "query"
-          ? await runtime.runQuery(message.name, message.params,)
-          : await runtime.runMutation(message.name, message.params,);
-        iframeRef.current?.contentWindow?.postMessage({
-          type: CODE_WIDGET_STORAGE_RESPONSE,
-          frameId,
-          requestId: message.requestId,
-          ok: true,
-          result,
-        }, "*",);
-      } catch (error) {
-        iframeRef.current?.contentWindow?.postMessage({
-          type: CODE_WIDGET_STORAGE_RESPONSE,
-          frameId,
-          requestId: message.requestId,
-          ok: false,
-          error: error instanceof Error ? error.message : "Request failed.",
-        }, "*",);
-      }
-    };
-
-    window.addEventListener("message", handleMessage,);
-    return () => window.removeEventListener("message", handleMessage,);
-  }, [frameId, postLoadMessage, runtime,],);
-
-  useEffect(() => {
-    if (!compiledCode || !frameReady) return;
-    postLoadMessage();
-  }, [compiledCode, frameReady, postLoadMessage,],);
+    try {
+      setRuntimeError(null,);
+      setWidget(() => evaluateWidgetModule(compiledCode,));
+    } catch (error) {
+      setWidget(null,);
+      setRuntimeError(error instanceof Error ? error.message : "Widget evaluation failed.",);
+    }
+  }, [compiledCode,],);
 
   if (compileError) {
     return <WidgetError title="Code widget failed" message={compileError} />;
   }
 
+  if (runtimeError) {
+    return <WidgetError title="Code widget failed" message={runtimeError} />;
+  }
+
+  if (!Widget) {
+    return (
+      <div className="widget-render">
+        <WidgetError title="Loading widget" message="Preparing the code runtime." />
+      </div>
+    );
+  }
+
   return (
     <div className="widget-render">
-      <iframe
-        ref={iframeRef}
-        title={`code-widget-${id}`}
-        src={sandboxUrl}
-        sandbox="allow-scripts"
-        onLoad={() => setFrameReady(true,)}
-        style={{
-          width: "100%",
-          height: `${height}px`,
-          border: "none",
-          display: "block",
-          background: "#fff",
-        }}
-      />
-      {!compiledCode && <WidgetError title="Compiling widget" message="Preparing the code runtime." />}
+      <WidgetSdkProvider bridge={bridge}>
+        <WidgetRenderBoundary onError={setRuntimeError}>
+          <Widget />
+        </WidgetRenderBoundary>
+      </WidgetSdkProvider>
     </div>
   );
 }
