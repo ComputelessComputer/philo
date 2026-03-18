@@ -23,6 +23,7 @@ export interface Settings {
   dailyLogsFolder: string;
   excalidrawFolder: string;
   assetsFolder: string;
+  widgetGitHistoryEnabled: boolean;
   hasCompletedOnboarding: boolean;
 }
 
@@ -75,6 +76,7 @@ const DEFAULT_SETTINGS: Settings = {
   dailyLogsFolder: "",
   excalidrawFolder: "",
   assetsFolder: "",
+  widgetGitHistoryEnabled: true,
   hasCompletedOnboarding: false,
 };
 
@@ -290,4 +292,9 @@ export async function getExcalidrawFolderSetting(): Promise<string> {
 export async function getAssetsFolderSetting(): Promise<string> {
   const settings = await loadSettings();
   return settings.assetsFolder;
+}
+
+export async function getWidgetGitHistoryEnabledSetting(): Promise<boolean> {
+  const settings = await loadSettings();
+  return settings.widgetGitHistoryEnabled !== false;
 }

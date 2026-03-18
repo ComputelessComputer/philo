@@ -11,6 +11,7 @@ import {
 } from "../../../../services/widget-attrs";
 import type { WidgetRuntimeKind, } from "../../../../services/widget-files";
 import { createWidgetFile, } from "../../../../services/widget-files";
+import { recordWidgetGitRevision, } from "../../../../services/widget-git-history";
 import { stringifyStorageSchema, } from "../../../../services/widget-storage";
 import { getEditorSelectionText, } from "../../selectionText";
 import { WidgetView, } from "./WidgetView";
@@ -261,6 +262,7 @@ export const WidgetExtension = Node.create({
               storageSchema,
               saved: false,
             },);
+            await recordWidgetGitRevision(record, "create", null,);
             updateWidgetById(this.editor, widgetId, {
               storageId: record.id,
               runtime: record.runtime,

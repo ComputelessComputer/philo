@@ -22,6 +22,7 @@ import {
   updateWidgetFile,
   type WidgetRuntimeKind,
 } from "../../../../services/widget-files";
+import { recordWidgetGitRevision, type WidgetGitReason, } from "../../../../services/widget-git-history";
 import {
   hasPersistentStorage,
   parseStorageSchema,
@@ -277,7 +278,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
       if (detail?.widgetId !== id) return;
       const instruction = detail.instruction.trim();
       if (!instruction) return;
-      void runGeneration(buildWidgetGenerationPrompt(prompt, generationContext, instruction,), prompt,);
+      void runGeneration(buildWidgetGenerationPrompt(prompt, generationContext, instruction,), prompt, "edit",);
     };
 
     window.addEventListener(WIDGET_EDIT_STATE_EVENT, handleWidgetEditState,);
@@ -343,6 +344,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
     nextComponentId,
     nextStorageSchema,
     createRevision = false,
+    historyReason = null,
   }: {
     nextPrompt: string;
     nextRuntime: WidgetRuntimeKind;
@@ -353,6 +355,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
     nextComponentId?: string | null;
     nextStorageSchema?: SharedStorageSchema | null;
     createRevision?: boolean;
+    historyReason?: Exclude<WidgetGitReason, "import"> | null;
   },) => {
     const title = deriveTitle(nextPrompt,);
     const existingRecord = path && file ? await readWidgetFile(path, file,) : null;
@@ -383,7 +386,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
       : undefined;
 
     if (path && file) {
-      return await updateWidgetFile(path, file, {
+      const record = await updateWidgetFile(path, file, {
         id: persistedStorageId,
         title,
         prompt: nextPrompt,
@@ -398,9 +401,13 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
         componentId: nextComponentId ?? null,
         storageSchema: nextStorageSchema ?? existingRecord?.storageSchema ?? null,
       },);
+      if (historyReason) {
+        await recordWidgetGitRevision(record, historyReason, existingRecord,);
+      }
+      return record;
     }
 
-    return await createWidgetFile({
+    const record = await createWidgetFile({
       title,
       prompt: nextPrompt,
       runtime: nextRuntime,
@@ -414,9 +421,17 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
       componentId: nextComponentId ?? null,
       storageSchema: nextStorageSchema ?? existingRecord?.storageSchema ?? null,
     },);
+    if (historyReason) {
+      await recordWidgetGitRevision(record, historyReason, existingRecord,);
+    }
+    return record;
   }, [file, path, sourceStr, storageId,],);
 
-  const runGeneration = async (generationPrompt: string, persistedPrompt = prompt,) => {
+  const runGeneration = async (
+    generationPrompt: string,
+    persistedPrompt = prompt,
+    historyReason: Extract<WidgetGitReason, "rebuild" | "edit"> = "rebuild",
+  ) => {
     window.dispatchEvent(
       new CustomEvent<WidgetBuildStateDetail>(WIDGET_BUILD_STATE_EVENT, {
         detail: { widgetId: id, isBuilding: true, },
@@ -441,6 +456,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
           nextComponentId: manifest.id,
           nextStorageSchema: generated.storageSchema,
           createRevision: true,
+          historyReason,
         },);
         updateAttributes({
           storageId: record.id,
@@ -473,6 +489,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
         nextComponentId: componentId,
         nextStorageSchema: generated.storageSchema,
         createRevision: true,
+        historyReason,
       },);
       updateAttributes({
         storageId: record.id,
@@ -505,7 +522,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
   };
 
   const handleRebuild = async () => {
-    await runGeneration(buildWidgetGenerationPrompt(prompt, generationContext,), prompt,);
+    await runGeneration(buildWidgetGenerationPrompt(prompt, generationContext,), prompt, "rebuild",);
   };
 
   const handleSave = async () => {
@@ -532,6 +549,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
         nextComponentId: item.componentId,
         nextStorageSchema,
         createRevision: true,
+        historyReason: "archive",
       },);
 
       updateAttributes({

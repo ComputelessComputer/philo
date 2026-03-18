@@ -931,6 +931,35 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
             className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
             style={mono}
           />
+          <div className="space-y-2 pt-2">
+            <label className="block text-sm text-gray-600" style={mono}>
+              Widget Git history
+            </label>
+            <button
+              type="button"
+              onClick={() => update({ widgetGitHistoryEnabled: !settings.widgetGitHistoryEnabled, },)}
+              className={`flex w-full items-center justify-between rounded-none border px-3 py-2 text-left text-sm transition-colors cursor-pointer ${
+                settings.widgetGitHistoryEnabled
+                  ? "border-violet-300 bg-violet-50/40 text-violet-700"
+                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+              style={mono}
+            >
+              <span>{settings.widgetGitHistoryEnabled ? "Enabled by default" : "Disabled"}</span>
+              <span
+                className={`inline-flex h-5 w-9 items-center border ${
+                  settings.widgetGitHistoryEnabled
+                    ? "border-violet-400 bg-violet-600 justify-end"
+                    : "border-gray-300 bg-gray-200 justify-start"
+                }`}
+              >
+                <span className="mx-0.5 h-3.5 w-3.5 bg-white" />
+              </span>
+            </button>
+            <p className="text-xs text-gray-400" style={mono}>
+              Keeps an app-managed Git history for widget snapshots. Widget databases are not versioned.
+            </p>
+          </div>
         </div>
 
         {/* Divider */}

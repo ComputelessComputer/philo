@@ -40,6 +40,19 @@ export interface WidgetFileRecord {
   path: string;
 }
 
+export interface WidgetGitSnapshotRecord {
+  id: string;
+  title: string;
+  prompt: string;
+  runtime: WidgetRuntimeKind;
+  saved: boolean;
+  spec: string;
+  source: string;
+  libraryItemId?: string | null;
+  componentId?: string | null;
+  storageSchema?: SharedStorageSchema | null;
+}
+
 interface WidgetFileInput {
   title: string;
   prompt: string;
@@ -283,6 +296,12 @@ function parseWidgetMarkdown(raw: string, file: string, path: string,): WidgetFi
   };
 }
 
+export function parseWidgetGitSnapshot(raw: string,): WidgetGitSnapshotRecord | null {
+  const record = parseWidgetMarkdown(raw, "", "",);
+  if (!record) return null;
+  return toWidgetGitSnapshot(record,);
+}
+
 function serializeWidgetMarkdown(record: WidgetFileRecord,): string {
   const history = ensureWidgetHistory(record,);
   return [
@@ -328,6 +347,91 @@ function serializeWidgetMarkdown(record: WidgetFileRecord,): string {
     JSON.stringify(history, null, 2,),
     "```",
     "",
+  ].join("\n",);
+}
+
+export function toWidgetGitSnapshot(
+  record: Pick<
+    WidgetFileRecord,
+    | "id"
+    | "title"
+    | "prompt"
+    | "runtime"
+    | "saved"
+    | "spec"
+    | "source"
+    | "libraryItemId"
+    | "componentId"
+    | "storageSchema"
+  >,
+): WidgetGitSnapshotRecord {
+  return {
+    id: record.id,
+    title: record.title,
+    prompt: record.prompt,
+    runtime: record.runtime,
+    saved: record.saved,
+    spec: record.spec,
+    source: record.source,
+    libraryItemId: record.libraryItemId ?? null,
+    componentId: record.componentId ?? null,
+    storageSchema: record.storageSchema ?? null,
+  };
+}
+
+export function serializeWidgetGitSnapshot(
+  record: Pick<
+    WidgetGitSnapshotRecord,
+    | "id"
+    | "title"
+    | "prompt"
+    | "runtime"
+    | "saved"
+    | "spec"
+    | "source"
+    | "libraryItemId"
+    | "componentId"
+    | "storageSchema"
+  >,
+): string {
+  return [
+    "---",
+    `id: ${JSON.stringify(record.id,)}`,
+    `title: ${JSON.stringify(record.title,)}`,
+    `prompt: ${JSON.stringify(record.prompt,)}`,
+    `runtime: ${JSON.stringify(record.runtime,)}`,
+    `saved: ${record.saved ? "true" : "false"}`,
+    ...(record.libraryItemId ? [`libraryItemId: ${JSON.stringify(record.libraryItemId,)}`,] : []),
+    ...(record.componentId ? [`componentId: ${JSON.stringify(record.componentId,)}`,] : []),
+    "---",
+    "",
+    ...(record.runtime === "code"
+      ? [
+        `\`\`\`${WIDGET_SOURCE_INFO}`,
+        record.source.trim(),
+        "```",
+        "",
+      ]
+      : [
+        "```json",
+        (() => {
+          try {
+            return JSON.stringify(JSON.parse(record.spec,), null, 2,);
+          } catch {
+            return record.spec.trim();
+          }
+        })(),
+        "```",
+        "",
+      ]),
+    ...(record.storageSchema
+      ? [
+        `\`\`\`${WIDGET_STORAGE_INFO}`,
+        JSON.stringify(record.storageSchema, null, 2,),
+        "```",
+        "",
+      ]
+      : []),
   ].join("\n",);
 }
 

@@ -4,6 +4,7 @@ import { useState, } from "react";
 import { getAiConfigurationMessage, isAiKeyMissingError, } from "../../services/ai";
 import { generateWidgetWithStorage, } from "../../services/generate";
 import { createWidgetFile, } from "../../services/widget-files";
+import { recordWidgetGitRevision, } from "../../services/widget-git-history";
 import { stringifyStorageSchema, } from "../../services/widget-storage";
 import { waitForNextPaint, } from "./extensions/widget/loading";
 import { getEditorSelectionText, } from "./selectionText";
@@ -88,6 +89,7 @@ export function EditorBubbleMenu({ editor, onChatSelection, }: EditorBubbleMenuP
         storageSchema,
         saved: false,
       },);
+      await recordWidgetGitRevision(record, "create", null,);
       updateWidgetById(editor, widgetId, {
         storageId: record.id,
         runtime: record.runtime,

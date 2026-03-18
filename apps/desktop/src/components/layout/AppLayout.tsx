@@ -36,6 +36,7 @@ import {
   type UpdateInfo,
 } from "../../services/updater";
 import { createWidgetFile, } from "../../services/widget-files";
+import { recordWidgetGitRevision, } from "../../services/widget-git-history";
 import { stringifyStorageSchema, } from "../../services/widget-storage";
 import { DailyNote, formatDate, getDaysAgo, isToday, } from "../../types/note";
 import { AiComposer, } from "../ai/AiComposer";
@@ -1450,18 +1451,22 @@ export default function AppLayout() {
                 componentId: isShared ? item.componentId : null,
                 storageSchema: item.storageSchema ?? null,
               }
-              : await createWidgetFile({
-                title: item.title,
-                prompt: item.prompt,
-                runtime: "code",
-                spec: "",
-                source,
-                favorite: item.favorite,
-                saved: true,
-                libraryItemId: item.id,
-                componentId: isShared ? item.componentId : null,
-                storageSchema: item.storageSchema,
-              },);
+              : await (async () => {
+                const nextRecord = await createWidgetFile({
+                  title: item.title,
+                  prompt: item.prompt,
+                  runtime: "code",
+                  spec: "",
+                  source,
+                  favorite: item.favorite,
+                  saved: true,
+                  libraryItemId: item.id,
+                  componentId: isShared ? item.componentId : null,
+                  storageSchema: item.storageSchema,
+                },);
+                await recordWidgetGitRevision(nextRecord, "insert", null,);
+                return nextRecord;
+              })();
             editor.chain().focus().insertContent({
               type: "widget",
               attrs: {
