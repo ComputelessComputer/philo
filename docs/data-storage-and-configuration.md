@@ -12,6 +12,7 @@ Philo persists data in two places:
 The important distinction is:
 
 - Configuration always lives under the app data directory.
+- App-managed widget Git history also lives under the app data directory.
 - Notes, images, Excalidraw files, widget files, widget-library files, and chat-history files live under the resolved content directory.
 - Google OAuth secrets and tokens live in the OS credential store for new sessions.
 
@@ -22,7 +23,7 @@ The important distinction is:
 - In development it uses `~/Library/Application Support/com.philo.dev/`.
 - In production it uses Tauri's `appDataDir()`.
 
-This base directory is where Philo stores app-managed files like `settings.json`.
+This base directory is where Philo stores app-managed files like `settings.json` and widget-history repos.
 
 ## Configuration: `settings.json`
 
@@ -54,6 +55,7 @@ The shape comes from `apps/desktop/src/services/settings.ts`:
   "dailyLogsFolder": "",
   "excalidrawFolder": "",
   "assetsFolder": "",
+  "widgetGitHistoryEnabled": true,
   "hasCompletedOnboarding": false
 }
 ```
@@ -100,6 +102,9 @@ What each field means:
   - Folder used to resolve `![[*.excalidraw]]` embeds.
 - `assetsFolder`
   - Folder used for pasted/dropped image files.
+- `widgetGitHistoryEnabled`
+  - Enables the app-managed Git mirror used for widget snapshot history.
+  - Default: `true`.
 - `hasCompletedOnboarding`
   - Used to decide whether first-run setup should appear.
 
@@ -249,6 +254,25 @@ If the widget has generated persistent storage, it also gets a sidecar SQLite da
 The markdown file remains the canonical source of truth for widget identity, prompt, runtime payload, and storage metadata. The SQLite sidecar stores the widget instance's queryable/mutable data rows. Daily notes do not inline the full widget payload. They store widget embeds that point back to the widget file.
 
 For the full file schema and update lifecycle, see [Widget persistence and lifecycle](widget-persistence-and-lifecycle.md).
+
+## Widget Git History
+
+When `widgetGitHistoryEnabled` is on, Philo also stores widget Git history under the app data directory.
+
+Current location:
+
+```text
+<baseDir>/widget-history/<widgets-root-hash>/
+```
+
+Behavior:
+
+- each resolved `widgets/` directory gets its own app-managed Git repo
+- the repo stores normalized widget markdown snapshots, not the raw live `.widget.md` files
+- the repo never stores `.widget.sqlite3` sidecars
+- switching vaults or journal roots creates a different history repo lazily; Philo does not migrate history between roots
+
+The Git mirror is an app-owned developer-history layer. The live widget file under `widgets/` remains the canonical source of truth.
 
 ## Widget Library
 

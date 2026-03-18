@@ -9,15 +9,18 @@ If you are changing widget behavior, start here before editing the code. The goa
 This covers the desktop app widget flow implemented in:
 
 - `apps/desktop/src/services/widget-files.ts`
+- `apps/desktop/src/services/widget-git-history.ts`
 - `apps/desktop/src/services/library.ts`
 - `apps/desktop/src/components/editor/extensions/widget/WidgetExtension.ts`
 - `apps/desktop/src/components/editor/extensions/widget/WidgetView.tsx`
+- `apps/desktop/src/components/editor/extensions/widget/WidgetHistoryPanel.tsx`
 - `apps/desktop/src/components/editor/EditorBubbleMenu.tsx`
 - `apps/desktop/src/components/layout/AppLayout.tsx`
+- `apps/desktop/src/services/settings.ts`
 
 ## Storage Layers
 
-Philo widgets exist in four related layers:
+Philo widgets exist in five related layers:
 
 1. Note content
    The note stores a widget embed like `![[widgets/<slug>-<id>.widget.md]]`.
@@ -27,10 +30,13 @@ Philo widgets exist in four related layers:
    If the widget has generated persistent storage, it also gets a sidecar SQLite database next to the widget file.
 4. Library entry
    If the widget is archived to the library, it also gets a stable library entry and may get a shared component record.
+5. Git history mirror
+   If widget Git history is enabled, Philo also writes normalized widget snapshots into an app-owned Git repo under the app data directory.
 
 The important rule is:
 
 - The widget file is the source of truth for the current widget prompt, runtime payload, saved state, and revision history.
+- The widget file remains the source of truth for live widget state even when Git history is enabled.
 - Unsaved widgets use file-scoped state and, when needed, a sibling SQLite sidecar.
 - Archived library widgets reuse the archived widget file when that canonical file is known, so repeated library inserts share that file's state.
 
@@ -209,6 +215,31 @@ Notes:
 - The `json widget-history` block is the internal checkpoint log.
 - Older widget files without a history block are migrated lazily when rewritten.
 
+## Git Snapshot Format
+
+When widget Git history is enabled, Philo also serializes a normalized snapshot of the widget into an app-owned Git mirror. That snapshot includes:
+
+- `id`
+- `title`
+- `prompt`
+- `runtime`
+- `saved`
+- `spec` for legacy JSON widgets
+- `source` for code widgets
+- `libraryItemId`
+- `componentId`
+- `storageSchema`
+
+The Git snapshot intentionally excludes:
+
+- `currentRevisionId`
+- `revisions`
+- `favorite`
+- `file`
+- `path`
+
+This keeps Git diffs focused on material widget changes instead of checkpoint churn or local-only metadata.
+
 ## Note Serialization Format
 
 When a note is saved, the widget node prefers writing an embed:
@@ -253,6 +284,7 @@ For a new AI-generated widget:
 4. If the storage schema is non-empty, create the widget's sidecar SQLite file.
 5. Persist the first revision automatically.
 6. Replace the temporary node attrs with the real file-backed widget record.
+7. Record a Git snapshot with reason `create` when widget Git history is enabled.
 
 ### 2. Rebuild an existing widget
 
@@ -269,6 +301,7 @@ Flow:
 5. Existing widgets with a storage schema must keep that schema unchanged.
 6. `persistWidgetRecord()` rewrites the widget file.
 7. A new revision is appended if the prompt/source changed.
+8. A Git snapshot with reason `rebuild` is recorded when the normalized widget snapshot changed.
 
 ### 3. Edit a widget through chat
 
@@ -287,6 +320,7 @@ Flow:
    - the requested change
 5. The widget rebuilds in place.
 6. The resulting prompt/source pair is persisted and appended as a new revision.
+7. A Git snapshot with reason `edit` is recorded when the normalized widget snapshot changed.
 
 The important distinction is:
 
@@ -309,6 +343,7 @@ Flow:
    - `componentId`
    - the widget instance's `storageSchema`
 4. The editor node is updated to match the rewritten widget file.
+5. A Git snapshot with reason `archive` is recorded when the normalized widget snapshot changed.
 
 ### 5. Insert a widget from the library
 
@@ -322,6 +357,7 @@ Flow:
 2. If the chosen library item already has canonical widget file metadata (`file`, `path`, `storageId`), `AppLayout` inserts a new widget node that points at that existing widget file.
 3. The inserted node gets a fresh editor `id`, but keeps the archived widget's `storageId`, `file`, `path`, `libraryItemId`, and `componentId`.
 4. If the library item does not have canonical widget file metadata, `AppLayout` falls back to creating a new widget file from the library item.
+5. That fallback path records a Git snapshot with reason `insert`.
 
 The normal archived-widget path now reuses the archived widget file, so repeated inserts share the same file-backed state and the same widget-sidecar SQLite database.
 
@@ -344,18 +380,48 @@ This keeps note widgets and library state from drifting.
 
 ## Revision Tracking Rules
 
-Philo uses internal widget revisions, not Git, for widget checkpoints.
+Philo now tracks widget history in two parallel ways:
 
-Current rules:
+1. Internal widget revisions in the `.widget.md` file
+2. Optional Git-backed widget snapshots in an app-owned mirror repo
 
-- Every new widget starts with one revision.
-- Every rebuild or chat edit that changes prompt/source appends one new revision.
-- Saving to library also appends a revision if it changes the persisted widget record.
-- If a rewrite does not materially change the prompt/source pair, no duplicate revision is appended.
+Internal revision rules:
 
-Current limitation:
+- Every new widget starts with one internal revision.
+- Every rebuild or chat edit that changes prompt/source appends one new internal revision.
+- Saving to library also appends an internal revision if it changes the persisted widget record.
+- If a rewrite does not materially change the prompt/source pair, no duplicate internal revision is appended.
 
-- The persistence layer supports checkpoints, but there is not yet a UI for browsing or restoring older revisions.
+Git snapshot rules:
+
+- Widget Git history is controlled by `settings.widgetGitHistoryEnabled` and defaults to `true`.
+- Git commits are only recorded for material widget flows: `create`, `rebuild`, `edit`, `insert`, `archive`, and `restore`.
+- Favorite toggles, internal-history-only rewrites, and library-reference cleanup do not create Git commits.
+- Existing widgets are lazily baselined into Git history with reason `import` the first time the history panel is opened or the first time a tracked material save runs.
+- The Git mirror stores normalized widget snapshots, not raw live widget files and not widget SQLite sidecars.
+
+## History Browser And Restore
+
+The widget toolbar now includes a Git history action when widget Git history is enabled.
+
+History panel behavior:
+
+- Loads Git history lazily for the current widget file.
+- Lists revisions newest-first with reason, title, and timestamp.
+- Shows a unified diff for the selected revision.
+- Uses the same diff renderer as the AI diff preview UI.
+
+Restore behavior:
+
+- Restore rewrites the live widget file in place from the selected Git snapshot.
+- Restore appends a new internal widget revision for the restored prompt/source pair.
+- Restore then records a new Git snapshot with reason `restore`.
+
+Restore guardrails:
+
+- Restore is blocked if the selected snapshot's `storageSchema` differs from the current widget's schema.
+- If the selected snapshot points at a missing library item or missing shared component, Philo clears `saved`, `libraryItemId`, and `componentId` before rewriting the live widget file.
+- Deleted-widget recovery is still out of scope. The history panel only works for existing widget files.
 
 ## Operational Invariants
 
@@ -366,6 +432,7 @@ When changing widget code, preserve these invariants:
 - `componentId` identifies the reusable template, while `storageId` identifies the concrete widget file used for file-backed state.
 - Editor node ids and widget storage ids are intentionally different.
 - Revisions are append-only snapshots of prompt/source state.
+- Git snapshots are append-only snapshots of normalized widget state.
 - Removing a library entry must clear saved/library references from widget files.
 - Note markdown should keep storing widget embeds, not inline giant payloads.
 
@@ -376,6 +443,10 @@ If you touch widget persistence, verify:
 - widget create still writes a `.widget.md` file
 - note save/load still round-trips widget embeds
 - rebuild/edit still append revisions
+- Git history only records material widget changes
+- history panel can load a baseline for pre-Git widgets
+- restore is blocked when storage schemas differ
+- restore clears dead library/shared-component references
 - save-to-library still writes `saved`, `libraryItemId`, and `componentId`
 - library insert reuses the canonical widget file when present
 - library delete still clears matching widget files

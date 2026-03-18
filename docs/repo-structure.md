@@ -118,6 +118,8 @@ Non-UI application logic. This is where most filesystem and domain behavior live
   - File-backed AI chat history persistence.
 - `widget-files.ts`
   - File-backed widget persistence, widget markdown parsing, widget embed resolution, and widget revision history.
+- `widget-git-history.ts`
+  - Desktop bridge for app-managed Git widget snapshots, diffs, and restore.
 - `widget-storage.ts`
   - Widget-instance storage helpers, schema normalization, and Tauri bridge for per-widget SQLite queries/mutations.
 - `generate.ts`, `assistant.ts`
@@ -229,9 +231,13 @@ If you are changing widgets, these are the highest-signal files:
 - `apps/desktop/src/components/editor/extensions/widget/WidgetExtension.ts`
   - TipTap node definition and markdown/HTML serialization entrypoint.
 - `apps/desktop/src/components/editor/extensions/widget/WidgetView.tsx`
-  - Widget toolbar behavior, rebuild flow, save-to-library flow, library reuse behavior, and runtime rendering.
+  - Widget toolbar behavior, rebuild flow, save-to-library flow, Git history/restore UI wiring, library reuse behavior, and runtime rendering.
+- `apps/desktop/src/components/editor/extensions/widget/WidgetHistoryPanel.tsx`
+  - Inline Git history browser and diff/restore controls for widgets.
 - `apps/desktop/src/services/widget-files.ts`
   - `.widget.md` file format, disk persistence, widget embed resolution, and revision snapshots.
+- `apps/desktop/src/services/widget-git-history.ts`
+  - Normalized widget snapshot serialization and Tauri bridge for Git-backed widget history.
 - `apps/desktop/src/services/widget-storage.ts`
   - Instance-scoped widget SQLite storage and runtime query/mutation plumbing.
 - `apps/desktop/src/services/library.ts`
