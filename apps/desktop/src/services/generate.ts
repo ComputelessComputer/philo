@@ -29,12 +29,6 @@ Available Philo SDK APIs:
 - Philo.useNow(intervalMs?)
 - Philo.useQuery(name, params?)
 - Philo.useMutation(name)
-- Philo.Card
-- Philo.Stack
-- Philo.Text
-- Philo.Heading
-- Philo.Button
-- Philo.TextInput
 
 Available React APIs:
 - const { useEffect, useMemo, useRef, useState } = PhiloReact;
@@ -49,7 +43,10 @@ Storage rules:
 
 Design rules:
 - Design widgets like compact utility panels: functional first, minimal chrome, clear hierarchy.
-- Default to a single Card wrapper.
+- Use normal React and HTML elements by default.
+- Prefer semantic HTML like div, section, h1-h3, p, button, input, label, ul, li, table, and form.
+- Do not invent or rely on a custom declarative component layer for ordinary UI.
+- Keep Philo usage focused on host APIs like state, queries, mutations, and time.
 - Use real interactive logic in code instead of inventing pseudo-DSL props.
 - Prefer clear button labels and obvious state transitions.
 - For timers/countdowns, use Philo.useWidgetState for the target timestamp and Philo.useNow(1000) for ticking updates.
