@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, } from "react";
 import type { SharedWidgetRuntimeApi, } from "../runtime";
 import { buildCodeWidgetSandboxUrl, compileCodeWidgetSource, } from "./compiler";
 import {
@@ -39,6 +39,15 @@ export function CodeWidgetRenderer({
   const [frameReady, setFrameReady,] = useState(false,);
   const [height, setHeight,] = useState(220,);
 
+  const postLoadMessage = useCallback(() => {
+    if (!compiledCode) return;
+    iframeRef.current?.contentWindow?.postMessage({
+      type: CODE_WIDGET_LOAD,
+      frameId,
+      code: compiledCode,
+    }, "*",);
+  }, [compiledCode, frameId,],);
+
   useEffect(() => {
     let active = true;
     setCompiledCode(null,);
@@ -67,6 +76,7 @@ export function CodeWidgetRenderer({
         const message = event.data as CodeWidgetReadyMessage;
         if (message.frameId !== frameId) return;
         setFrameReady(true,);
+        postLoadMessage();
         return;
       }
 
@@ -106,16 +116,12 @@ export function CodeWidgetRenderer({
 
     window.addEventListener("message", handleMessage,);
     return () => window.removeEventListener("message", handleMessage,);
-  }, [frameId, runtime,],);
+  }, [frameId, postLoadMessage, runtime,],);
 
   useEffect(() => {
     if (!compiledCode || !frameReady) return;
-    iframeRef.current?.contentWindow?.postMessage({
-      type: CODE_WIDGET_LOAD,
-      frameId,
-      code: compiledCode,
-    }, "*",);
-  }, [compiledCode, frameId, frameReady,],);
+    postLoadMessage();
+  }, [compiledCode, frameReady, postLoadMessage,],);
 
   if (compileError) {
     return <WidgetError title="Code widget failed" message={compileError} />;
@@ -128,6 +134,7 @@ export function CodeWidgetRenderer({
         title={`code-widget-${id}`}
         src={sandboxUrl}
         sandbox="allow-scripts"
+        onLoad={() => setFrameReady(true,)}
         style={{
           width: "100%",
           height: `${height}px`,

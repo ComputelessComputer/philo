@@ -153,6 +153,7 @@ export function WidgetSandboxApp() {
   const frameId = useMemo(() => readFrameId(), [],);
   const bridge = useMemo(() => createBridge(frameId,), [frameId,],);
   const containerRef = useRef<HTMLDivElement>(null,);
+  const codeLoadedRef = useRef(false,);
 
   useEffect(() => {
     globalThis.__PHILO_WIDGET_REACT__ = React;
@@ -160,15 +161,16 @@ export function WidgetSandboxApp() {
 
   useEffect(() => {
     if (!frameId) return;
-    window.parent.postMessage({ type: CODE_WIDGET_READY, frameId, }, "*",);
-  }, [frameId,],);
-
-  useEffect(() => {
+    codeLoadedRef.current = false;
+    const sendReady = () => {
+      window.parent.postMessage({ type: CODE_WIDGET_READY, frameId, }, "*",);
+    };
     const handleMessage = (event: MessageEvent<unknown>,) => {
       if (event.source !== window.parent) return;
       if (!isCodeWidgetMessage(event.data,)) return;
       const message = event.data as CodeWidgetLoadMessage;
       if (message.type !== CODE_WIDGET_LOAD || message.frameId !== frameId) return;
+      codeLoadedRef.current = true;
 
       try {
         setError(null,);
@@ -180,7 +182,19 @@ export function WidgetSandboxApp() {
     };
 
     window.addEventListener("message", handleMessage,);
-    return () => window.removeEventListener("message", handleMessage,);
+    sendReady();
+    const intervalId = window.setInterval(() => {
+      if (codeLoadedRef.current) {
+        window.clearInterval(intervalId,);
+        return;
+      }
+      sendReady();
+    }, 250,);
+
+    return () => {
+      window.clearInterval(intervalId,);
+      window.removeEventListener("message", handleMessage,);
+    };
   }, [frameId,],);
 
   useEffect(() => {
