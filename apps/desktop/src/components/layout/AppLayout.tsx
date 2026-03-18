@@ -4,6 +4,7 @@ import { getCurrentWindow, } from "@tauri-apps/api/window";
 import { watch, } from "@tauri-apps/plugin-fs";
 import { openPath, } from "@tauri-apps/plugin-opener";
 import type { Editor as TiptapEditor, } from "@tiptap/core";
+import { MapPin, } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, } from "react";
 import { useCurrentDate, } from "../../hooks/useCurrentDate";
 import { useCurrentCity, } from "../../hooks/useTimezoneCity";
@@ -145,52 +146,55 @@ function DateHeader({
         </span>
       )}
       {(displayCity || onCityChange) && (
-        isEditingCity && onCityChange
-          ? (
-            <input
-              autoFocus
-              value={draftCity}
-              onChange={(event,) => setDraftCity(event.target.value,)}
-              onClick={(event,) => event.stopPropagation()}
-              onMouseDown={(event,) => event.stopPropagation()}
-              onBlur={saveCity}
-              onKeyDown={(event,) => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  saveCity();
-                }
-                if (event.key === "Escape") {
-                  event.preventDefault();
-                  cancelCityEdit();
-                }
-              }}
-              placeholder="Add city"
-              className="min-w-0 bg-transparent text-sm text-gray-500 dark:text-gray-400 font-sans focus:outline-hidden"
-              style={{ width: `${cityInputWidthCh}ch`, maxWidth: "100%", }}
-            />
-          )
-          : (
-            onCityChange
-              ? (
-                <button
-                  type="button"
-                  onMouseDown={(event,) => event.stopPropagation()}
-                  onClick={(event,) => {
-                    event.stopPropagation();
-                    setIsEditingCity(true,);
-                  }}
-                  className="cursor-pointer text-sm text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 font-sans transition-colors"
-                  title="Click to change city"
-                >
-                  {displayCity || "Add city"}
-                </button>
-              )
-              : (
-                <span className="text-sm text-gray-400 dark:text-gray-500 font-sans">
-                  {displayCity}
-                </span>
-              )
-          )
+        <div className="inline-flex items-center gap-1.5 text-gray-400 dark:text-gray-500">
+          <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+          {isEditingCity && onCityChange
+            ? (
+              <input
+                autoFocus
+                value={draftCity}
+                onChange={(event,) => setDraftCity(event.target.value,)}
+                onClick={(event,) => event.stopPropagation()}
+                onMouseDown={(event,) => event.stopPropagation()}
+                onBlur={saveCity}
+                onKeyDown={(event,) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    saveCity();
+                  }
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    cancelCityEdit();
+                  }
+                }}
+                placeholder="Add city"
+                className="min-w-0 bg-transparent text-sm text-gray-500 dark:text-gray-400 font-sans focus:outline-hidden"
+                style={{ width: `${cityInputWidthCh}ch`, maxWidth: "100%", }}
+              />
+            )
+            : (
+              onCityChange
+                ? (
+                  <button
+                    type="button"
+                    onMouseDown={(event,) => event.stopPropagation()}
+                    onClick={(event,) => {
+                      event.stopPropagation();
+                      setIsEditingCity(true,);
+                    }}
+                    className="cursor-pointer text-sm text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300 font-sans transition-colors"
+                    title="Click to change city"
+                  >
+                    {displayCity || "Add city"}
+                  </button>
+                )
+                : (
+                  <span className="text-sm text-gray-400 dark:text-gray-500 font-sans">
+                    {displayCity}
+                  </span>
+                )
+            )}
+        </div>
       )}
     </div>
   );
