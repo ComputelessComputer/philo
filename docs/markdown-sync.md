@@ -115,11 +115,8 @@ That pairing is what makes the round-trip work:
 - `CustomParagraph` preserves intentionally blank paragraphs.
 - `MentionChipExtension` renders chips in the editor, but serializes them as wiki links like `[[2026-03-08]]` or `[[tag_work|work]]`.
 - `ExcalidrawExtension` renders an embedded preview in the editor, but serializes back to `![[file.excalidraw]]`.
-- `WidgetExtension` renders an interactive React node view in the editor, but persists as a raw HTML sentinel:
-
-```html
-<div data-widget="" data-id="..." data-prompt="..." data-spec="..." data-saved="true"></div>
-```
+- `WidgetExtension` renders an interactive React node view in the editor, but file-backed widgets serialize as embeds like `![[widgets/<slug>-<id>.widget.md]]`.
+- On load, `resolveWidgetEmbeds()` turns those embeds into `data-widget` HTML placeholders for TipTap. Those placeholders carry the per-node editor id plus the stable widget file/storage id.
 
 The editor is therefore not reading the markdown file directly on every keystroke. It reads a TipTap document that was derived from markdown when the note was loaded.
 
@@ -172,7 +169,7 @@ city: Seoul
 
 ![[weekly-plan.excalidraw]]
 
-<div data-widget="" data-id="w1" data-prompt="habit tracker" data-spec="{...}" data-saved="true"></div>
+![[widgets/habit-tracker-123.widget.md]]
 ```
 
 That same note appears in the editor as:
@@ -182,3 +179,9 @@ That same note appears in the editor as:
 - an interactive widget node view
 
 The markdown file stays plain and portable, while the editor gets richer UI from the custom TipTap extensions.
+
+For widgets specifically:
+
+- the note on disk stores the embed target
+- the `.widget.md` file stores the widget source, storage schema, and revision history
+- the in-memory editor placeholder is only a runtime transport shape, not the canonical saved note format

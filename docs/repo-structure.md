@@ -82,6 +82,7 @@ UI components, grouped by feature area.
 - `components/editor/`
   - Shared editor UI and custom TipTap extensions.
   - Widget-specific editor files live under `components/editor/extensions/widget/`.
+  - `components/editor/extensions/widget/code/` contains the code-widget compiler, runtime renderer, and widget SDK.
 - `components/library/`
   - Widget library UI.
 - `components/settings/`
@@ -112,7 +113,7 @@ Non-UI application logic. This is where most filesystem and domain behavior live
 - `tasks.ts`
   - Rollover and recurring-task behavior.
 - `library.ts`
-  - Widget library persistence.
+  - Library drawer item loading, archived widget reuse, and shared component persistence.
 - `chats.ts`
   - File-backed AI chat history persistence.
 - `widget-files.ts`
@@ -120,7 +121,7 @@ Non-UI application logic. This is where most filesystem and domain behavior live
 - `widget-storage.ts`
   - Widget-instance storage helpers, schema normalization, and Tauri bridge for per-widget SQLite queries/mutations.
 - `generate.ts`, `assistant.ts`
-  - AI/widget generation logic.
+  - AI/widget generation logic. New widgets are generated as TSX code widgets plus storage schema.
 - `settings.ts`
   - Persistent settings access.
 - `updater.ts`
@@ -228,7 +229,7 @@ If you are changing widgets, these are the highest-signal files:
 - `apps/desktop/src/components/editor/extensions/widget/WidgetExtension.ts`
   - TipTap node definition and markdown/HTML serialization entrypoint.
 - `apps/desktop/src/components/editor/extensions/widget/WidgetView.tsx`
-  - Widget toolbar behavior, rebuild flow, save-to-library flow, and runtime rendering.
+  - Widget toolbar behavior, rebuild flow, save-to-library flow, library reuse behavior, and runtime rendering.
 - `apps/desktop/src/services/widget-files.ts`
   - `.widget.md` file format, disk persistence, widget embed resolution, and revision snapshots.
 - `apps/desktop/src/services/widget-storage.ts`

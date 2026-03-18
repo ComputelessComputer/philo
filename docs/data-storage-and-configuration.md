@@ -177,7 +177,7 @@ What a note file stores:
 - note links that follow the active filename pattern
 - markdown image references
 - Obsidian-style Excalidraw embeds
-- widget placeholders serialized as HTML blocks
+- widget embeds that point at `.widget.md` files
 
 Example:
 
@@ -238,7 +238,7 @@ Current location:
 - vault mode: `<vaultDir>/widgets/`
 - default mode: `<journalDir>/widgets/`
 
-Each widget becomes a `.widget.md` file that stores the current widget metadata, the current spec snapshot, optional generated storage schema, and revision history.
+Each widget becomes a `.widget.md` file that stores the current widget metadata, the active runtime payload, optional generated storage schema, and revision history.
 
 If the widget has generated persistent storage, it also gets a sidecar SQLite database next to the widget file:
 
@@ -246,31 +246,26 @@ If the widget has generated persistent storage, it also gets a sidecar SQLite da
 <slug>-<widget-id>.widget.sqlite3
 ```
 
-The markdown file remains the canonical source of truth for widget identity, prompt, spec, and storage metadata. The SQLite sidecar stores the widget instance's queryable/mutable data rows. Daily notes do not inline the full widget payload. They store widget placeholder blocks that point back to the widget file.
+The markdown file remains the canonical source of truth for widget identity, prompt, runtime payload, and storage metadata. The SQLite sidecar stores the widget instance's queryable/mutable data rows. Daily notes do not inline the full widget payload. They store widget embeds that point back to the widget file.
 
 For the full file schema and update lifecycle, see [Widget persistence and lifecycle](widget-persistence-and-lifecycle.md).
 
 ## Widget Library
 
-The widget library stores reusable widget templates under the resolved library directory.
+The widget library is a merged view of archived widget files plus shared component manifests under the resolved library directory.
 
 Current location:
 
 - vault mode: `<vaultDir>/library/`
 - default mode: `<journalDir>/library/`
 
-Each saved widget becomes:
+For the current code-widget path:
 
-```text
-<slug>-<id>.component.md
-```
+- the canonical archived widget still lives under `widgets/` as a normal `.widget.md` file with `saved`, `libraryItemId`, and optional `componentId`
+- the resolved library directory stores shared component manifests and any shared-component runtime assets
+- the library drawer is built from saved widget files first, with shared component metadata layered on top
 
-Each file contains:
-
-- frontmatter-like metadata fields such as `id`, `title`, `description`, `prompt`, `savedAt`
-- a fenced JSON block containing the widget spec
-
-Shared library entries also have a component manifest directory with a `manifest.json` file and, when needed, a `component.sqlite3` template database. Inserted widgets do not reuse that runtime database by default; they get their own widget-instance storage sidecar when the stored schema is non-empty.
+When a library item already knows its canonical widget file, inserting it from the library reuses that existing `.widget.md` file and its sibling SQLite storage. Repeated inserts therefore share the archived widget's file-backed state. Legacy entries without canonical widget file metadata still fall back to creating a new widget file.
 
 There is also legacy support for:
 
