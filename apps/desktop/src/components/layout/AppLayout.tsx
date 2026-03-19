@@ -312,6 +312,7 @@ export default function AppLayout() {
   const aiLastSubmittedPromptRef = useRef("",);
   const widgetEditSessionRef = useRef<WidgetEditRequestDetail | null>(null,);
   const todayNoteRef = useRef<DailyNote | null>(null,);
+  const todayEditorRef = useRef<EditableNoteHandle>(null,);
   const googleSyncRef = useRef<Promise<boolean> | null>(null,);
   const suppressWatcherUntilRef = useRef(0,);
   const searchInputRef = useRef<HTMLInputElement>(null,);
@@ -400,6 +401,17 @@ export default function AppLayout() {
 
     googleSyncRef.current = active;
     return await active;
+  }, [],);
+
+  const getCurrentTodayNoteForAi = useCallback(() => {
+    const note = todayNoteRef.current;
+    if (!note) return null;
+    const editor = todayEditorRef.current?.editor;
+    if (!editor || editor.isDestroyed) return note;
+    return {
+      ...note,
+      content: JSON.stringify(editor.getJSON(),),
+    };
   }, [],);
 
   const openGlobalSearch = useCallback(() => {
@@ -836,7 +848,7 @@ export default function AppLayout() {
   }, [],);
 
   const runAiPrompt = useCallback(async (promptText: string,) => {
-    const todayNoteValue = todayNoteRef.current;
+    const todayNoteValue = getCurrentTodayNoteForAi();
     const normalizedPrompt = promptText.trim();
     if (!todayNoteValue || aiRunning || !normalizedPrompt) return;
     const previousActiveChatId = aiActiveChatId;
@@ -950,6 +962,7 @@ export default function AppLayout() {
     aiActiveChatId,
     aiChatHistory,
     aiLatestChatId,
+    getCurrentTodayNoteForAi,
     aiRunning,
     aiScope,
     aiSelectedText,
@@ -1110,7 +1123,6 @@ export default function AppLayout() {
     return () => window.removeEventListener(WIDGET_BUILD_STATE_EVENT, handleWidgetBuildState,);
   }, [clearWidgetEditSession,],);
 
-  const todayEditorRef = useRef<EditableNoteHandle>(null,);
   const todayRef = useRef<HTMLDivElement>(null,);
   const scrollRef = useRef<HTMLDivElement>(null,);
 
