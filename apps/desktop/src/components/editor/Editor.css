@@ -142,6 +142,96 @@
   background: rgba(254, 226, 226, 0.85);
 }
 
+.ai-markdown .tiptap {
+  line-height: 1.6;
+}
+
+.ai-markdown .tiptap > * + * {
+  margin-top: 0.85rem;
+}
+
+.ai-markdown .tiptap p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.ai-markdown .tiptap h1,
+.ai-markdown .tiptap h2,
+.ai-markdown .tiptap h3,
+.ai-markdown .tiptap h4,
+.ai-markdown .tiptap h5,
+.ai-markdown .tiptap h6 {
+  margin: 0;
+  color: #111827;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.ai-markdown .tiptap h1 {
+  font-size: 1.25rem;
+}
+
+.ai-markdown .tiptap h2 {
+  font-size: 1.125rem;
+}
+
+.ai-markdown .tiptap h3,
+.ai-markdown .tiptap h4,
+.ai-markdown .tiptap h5,
+.ai-markdown .tiptap h6 {
+  font-size: 1rem;
+}
+
+.ai-markdown .tiptap ul,
+.ai-markdown .tiptap ol {
+  margin: 0;
+  padding-left: 1.4rem;
+}
+
+.ai-markdown .tiptap li > p {
+  white-space: normal;
+}
+
+.ai-markdown .tiptap blockquote {
+  margin: 0;
+  padding-left: 0.9rem;
+  border-left: 3px solid #d1d5db;
+  color: #4b5563;
+}
+
+.ai-markdown .tiptap code {
+  border-radius: 0.35rem;
+  background: #f3f4f6;
+  padding: 0.12rem 0.35rem;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.9em;
+}
+
+.ai-markdown .tiptap pre {
+  margin: 0;
+  overflow-x: auto;
+  border-radius: 0.9rem;
+  background: #111827;
+  padding: 0.9rem 1rem;
+  color: #f9fafb;
+}
+
+.ai-markdown .tiptap pre code {
+  background: transparent;
+  padding: 0;
+  color: inherit;
+}
+
+.ai-markdown .tiptap hr {
+  margin: 0;
+  border-top-style: solid;
+  border-top-color: #e5e7eb;
+}
+
+.ai-markdown .tiptap table {
+  width: 100%;
+}
+
 .mention-menu {
   width: fit-content;
   min-width: min(14rem, calc(100vw - 16px));

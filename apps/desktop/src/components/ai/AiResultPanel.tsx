@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, } from "react";
 import type { AssistantCitation, AssistantPendingChange, } from "../../services/assistant";
 import type { ChatHistoryEntry, } from "../../services/chats";
 import { AiDiffPreview, } from "./AiDiffPreview";
+import { AiMarkdown, } from "./AiMarkdown";
 
 interface AiResultPanelProps {
   title: string | null;
@@ -137,9 +138,7 @@ export function AiResultPanel({
 
         {answer && (
           <div className="space-y-2">
-            <p className="whitespace-pre-wrap text-sm leading-6 text-gray-900">
-              {answer}
-            </p>
+            <AiMarkdown markdown={answer} />
           </div>
         )}
 
