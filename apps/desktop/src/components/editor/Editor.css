@@ -883,6 +883,25 @@
   cursor: default;
 }
 
+.widget-edit-preview-diff {
+  border-top: none;
+}
+
+.widget-edit-preview-decline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  color: #4b5563;
+}
+
+.widget-edit-preview-decline:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .widget-history-hint {
   font-size: 11px;
   color: #9ca3af;

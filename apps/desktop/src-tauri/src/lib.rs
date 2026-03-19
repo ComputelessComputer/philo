@@ -1410,6 +1410,11 @@ fn run_ai_tool(
     }
 }
 
+#[tauri::command]
+fn build_unified_diff(before: String, after: String) -> Result<String, String> {
+    Ok(philo_tools::build_unified_diff(&before, &after))
+}
+
 fn should_skip_dir(name: &str) -> bool {
     if name.starts_with('.') && name != ".obsidian" {
         return true;
@@ -3441,6 +3446,7 @@ pub fn run() {
             open_in_apple_mail,
             open_in_apple_calendar,
             run_ai_tool,
+            build_unified_diff,
             set_window_opacity,
             search_markdown_files,
             create_shared_component,

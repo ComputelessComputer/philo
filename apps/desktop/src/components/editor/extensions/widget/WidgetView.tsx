@@ -3,6 +3,7 @@ import type { NodeViewProps, } from "@tiptap/react";
 import { Archive, History, PencilLine, RefreshCw, Trash2, } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, } from "react";
 import { getAiConfigurationMessage, isAiKeyMissingError, } from "../../../../services/ai";
+import { buildUnifiedDiff, } from "../../../../services/diff";
 import { generateWidgetWithStorage, } from "../../../../services/generate";
 import {
   addToLibrary,
@@ -21,7 +22,10 @@ import {
   appendWidgetRevision,
   createWidgetFile,
   readWidgetFile,
+  serializeWidgetGitSnapshot,
+  toWidgetGitSnapshot,
   updateWidgetFile,
+  type WidgetFileRecord,
   type WidgetRuntimeKind,
 } from "../../../../services/widget-files";
 import {
@@ -54,6 +58,7 @@ import {
 } from "./events";
 import { waitForNextPaint, } from "./loading";
 import type { SharedWidgetRuntimeApi, } from "./runtime";
+import { WidgetEditPreviewPanel, } from "./WidgetEditPreviewPanel";
 import { WidgetHistoryPanel, } from "./WidgetHistoryPanel";
 
 const EMPTY_STORAGE_SCHEMA: SharedStorageSchema = {
@@ -216,6 +221,21 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
   const [selectedHistoryCommitId, setSelectedHistoryCommitId,] = useState<string | null>(null,);
   const [historyDiff, setHistoryDiff,] = useState<WidgetGitDiff | null>(null,);
   const [historyRestoring, setHistoryRestoring,] = useState(false,);
+  const [pendingEditPreview, setPendingEditPreview,] = useState<
+    {
+      unifiedDiff: string;
+      persistedPrompt: string;
+      nextRuntime: WidgetRuntimeKind;
+      nextSource: string;
+      nextSaved: boolean;
+      nextLibraryItemId: string | null;
+      nextComponentId: string | null;
+      nextStorageSchema: SharedStorageSchema | null;
+      historyReason: Extract<WidgetGitReason, "rebuild" | "edit">;
+      sharedComponentId: string | null;
+    } | null
+  >(null,);
+  const [applyingPendingEdit, setApplyingPendingEdit,] = useState(false,);
   const effectiveLibraryItemId = libraryItemId ?? componentId ?? null;
   const storageId = storageIdAttr || id;
   const storageSchema = useMemo(() => parseStorageSchema(storageSchemaStr,), [storageSchemaStr,],);
@@ -521,11 +541,69 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
     return record;
   }, [file, path, sourceStr, storageId,],);
 
+  const stageWidgetPreview = useCallback(async ({
+    existingRecord,
+    persistedPrompt,
+    nextRuntime,
+    nextSource,
+    nextSaved,
+    nextLibraryItemId,
+    nextComponentId,
+    nextStorageSchema,
+    historyReason,
+    sharedComponentId,
+  }: {
+    existingRecord: WidgetFileRecord;
+    persistedPrompt: string;
+    nextRuntime: WidgetRuntimeKind;
+    nextSource: string;
+    nextSaved: boolean;
+    nextLibraryItemId: string | null;
+    nextComponentId: string | null;
+    nextStorageSchema: SharedStorageSchema | null;
+    historyReason: Extract<WidgetGitReason, "rebuild" | "edit">;
+    sharedComponentId: string | null;
+  },) => {
+    const before = serializeWidgetGitSnapshot(toWidgetGitSnapshot(existingRecord,),);
+    const after = serializeWidgetGitSnapshot(toWidgetGitSnapshot({
+      ...existingRecord,
+      title: deriveTitle(persistedPrompt,),
+      prompt: persistedPrompt,
+      runtime: nextRuntime,
+      saved: nextSaved,
+      spec: "",
+      source: nextSource,
+      libraryItemId: nextLibraryItemId,
+      componentId: nextComponentId,
+      storageSchema: nextStorageSchema,
+    },),);
+
+    if (before.trim() === after.trim()) {
+      updateAttributes({ prompt: persistedPrompt, loading: false, error: "", },);
+      return;
+    }
+
+    setPendingEditPreview({
+      unifiedDiff: await buildUnifiedDiff(before, after,),
+      persistedPrompt,
+      nextRuntime,
+      nextSource,
+      nextSaved,
+      nextLibraryItemId,
+      nextComponentId,
+      nextStorageSchema,
+      historyReason,
+      sharedComponentId,
+    },);
+    updateAttributes({ prompt: persistedPrompt, loading: false, error: "", },);
+  }, [updateAttributes,],);
+
   const runGeneration = async (
     generationPrompt: string,
     persistedPrompt = prompt,
     historyReason: Extract<WidgetGitReason, "rebuild" | "edit"> = "rebuild",
   ) => {
+    setPendingEditPreview(null,);
     window.dispatchEvent(
       new CustomEvent<WidgetBuildStateDetail>(WIDGET_BUILD_STATE_EVENT, {
         detail: { widgetId: id, isBuilding: true, },
@@ -538,6 +616,22 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
         const generated = await generateWidgetWithStorage(generationPrompt, manifest.storageSchema,);
         if (!storageSchemaMatch(generated.storageSchema, manifest.storageSchema,)) {
           throw new Error("Storage schema changed. Save as a new component to rebuild with a new DB schema.",);
+        }
+        const existingRecord = path && file ? await readWidgetFile(path, file,) : null;
+        if (existingRecord) {
+          await stageWidgetPreview({
+            existingRecord,
+            persistedPrompt,
+            nextRuntime: "code",
+            nextSource: generated.source,
+            nextSaved: true,
+            nextLibraryItemId: effectiveLibraryItemId,
+            nextComponentId: manifest.id,
+            nextStorageSchema: generated.storageSchema,
+            historyReason,
+            sharedComponentId: manifest.id,
+          },);
+          return;
         }
         const next = await updateSharedComponent(manifest.id, generated.source, persistedPrompt,);
         setManifest(next,);
@@ -574,6 +668,22 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
       if (storageSchema && !storageSchemaMatch(generated.storageSchema, storageSchema,)) {
         throw new Error("Storage schema changed. Build a new widget to use a new DB schema.",);
       }
+      const existingRecord = path && file ? await readWidgetFile(path, file,) : null;
+      if (existingRecord) {
+        await stageWidgetPreview({
+          existingRecord,
+          persistedPrompt,
+          nextRuntime: "code",
+          nextSource: generated.source,
+          nextSaved: saved,
+          nextLibraryItemId: effectiveLibraryItemId,
+          nextComponentId: componentId ?? null,
+          nextStorageSchema: generated.storageSchema,
+          historyReason,
+          sharedComponentId: null,
+        },);
+        return;
+      }
       const record = await persistWidgetRecord({
         nextPrompt: persistedPrompt,
         nextRuntime: "code",
@@ -601,6 +711,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
       },);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : typeof err === "string" ? err : "Something went wrong.";
+      setPendingEditPreview(null,);
       updateAttributes({
         prompt: persistedPrompt,
         loading: false,
@@ -614,6 +725,93 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
       );
     }
   };
+
+  const handleApplyPendingEdit = useCallback(async () => {
+    if (!pendingEditPreview) return;
+
+    updateAttributes({ loading: true, error: "", },);
+    setApplyingPendingEdit(true,);
+    await waitForNextPaint();
+
+    try {
+      if (pendingEditPreview.sharedComponentId) {
+        const next = await updateSharedComponent(
+          pendingEditPreview.sharedComponentId,
+          pendingEditPreview.nextSource,
+          pendingEditPreview.persistedPrompt,
+        );
+        setManifest(next,);
+        const record = await persistWidgetRecord({
+          nextPrompt: pendingEditPreview.persistedPrompt,
+          nextRuntime: pendingEditPreview.nextRuntime,
+          nextSource: resolveStoredWidgetSource(next.uiSpec,) || pendingEditPreview.nextSource,
+          nextSaved: pendingEditPreview.nextSaved,
+          nextLibraryItemId: pendingEditPreview.nextLibraryItemId,
+          nextComponentId: pendingEditPreview.sharedComponentId,
+          nextStorageSchema: pendingEditPreview.nextStorageSchema,
+          createRevision: true,
+          historyReason: pendingEditPreview.historyReason,
+        },);
+        updateAttributes({
+          storageId: record.id,
+          runtime: record.runtime,
+          file: record.file,
+          path: record.path,
+          libraryItemId: record.libraryItemId,
+          componentId: pendingEditPreview.sharedComponentId,
+          prompt: pendingEditPreview.persistedPrompt,
+          loading: false,
+          spec: record.spec,
+          source: record.source,
+          storageSchema: stringifyStorageSchema(record.storageSchema,),
+          saved: true,
+          error: "",
+        },);
+      } else {
+        const record = await persistWidgetRecord({
+          nextPrompt: pendingEditPreview.persistedPrompt,
+          nextRuntime: pendingEditPreview.nextRuntime,
+          nextSource: pendingEditPreview.nextSource,
+          nextSaved: pendingEditPreview.nextSaved,
+          nextLibraryItemId: pendingEditPreview.nextLibraryItemId,
+          nextComponentId: pendingEditPreview.nextComponentId,
+          nextStorageSchema: pendingEditPreview.nextStorageSchema,
+          createRevision: true,
+          historyReason: pendingEditPreview.historyReason,
+        },);
+        updateAttributes({
+          storageId: record.id,
+          runtime: record.runtime,
+          file: record.file,
+          path: record.path,
+          libraryItemId: record.libraryItemId,
+          componentId: record.componentId,
+          prompt: pendingEditPreview.persistedPrompt,
+          spec: record.spec,
+          source: record.source,
+          storageSchema: stringifyStorageSchema(record.storageSchema,),
+          loading: false,
+          error: "",
+        },);
+      }
+
+      setPendingEditPreview(null,);
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : typeof err === "string" ? err : "Something went wrong.";
+      updateAttributes({
+        loading: false,
+        error: isAiKeyMissingError(errMsg,) ? getAiConfigurationMessage(errMsg,) : errMsg,
+      },);
+    } finally {
+      setApplyingPendingEdit(false,);
+    }
+  }, [pendingEditPreview, persistWidgetRecord, updateAttributes,],);
+
+  const handleDeclinePendingEdit = useCallback(() => {
+    if (applyingPendingEdit) return;
+    setPendingEditPreview(null,);
+    updateAttributes({ loading: false, error: "", },);
+  }, [applyingPendingEdit, updateAttributes,],);
 
   const handleRebuild = async () => {
     await runGeneration(buildWidgetGenerationPrompt(prompt, generationContext,), prompt, "rebuild",);
@@ -779,7 +977,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
   const saveTitle = isShared || saved ? "Archived in library" : "Archive in library";
   const rebuildTitle = loading || sharedLoading ? "Refreshing widget" : "Refresh widget";
   const showSaveAction = !isShared && !saved && Boolean(currentSource,);
-  const showRenderOverlay = (loading || sharedLoading) && Boolean(currentSource,);
+  const showRenderOverlay = (loading || sharedLoading) && Boolean(currentSource,) && !pendingEditPreview;
   const overlayText = isEditingInChat ? "Building new version..." : "Refreshing widget...";
   const overlayPrompt = isEditingInChat ? "Updating this widget with your latest edit." : prompt;
   const showLegacyWarning = !currentSource && !loading && !sharedLoading && generationContext?.runtime === "json";
@@ -798,7 +996,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
                 onClick={() => {
                   setHistoryOpen((current,) => !current);
                 }}
-                disabled={loading || sharedLoading}
+                disabled={loading || sharedLoading || applyingPendingEdit}
                 title="Show widget Git history"
                 aria-label="Show widget Git history"
               >
@@ -818,7 +1016,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
                   },),
                 );
               }}
-              disabled={loading || sharedLoading}
+              disabled={loading || sharedLoading || applyingPendingEdit}
               title="Edit widget in chat"
               aria-label="Edit widget in chat"
             >
@@ -829,7 +1027,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
               onClick={() => {
                 void handleRebuild();
               }}
-              disabled={loading || sharedLoading}
+              disabled={loading || sharedLoading || applyingPendingEdit}
               title={rebuildTitle}
               aria-label={rebuildTitle}
             >
@@ -841,7 +1039,7 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
                 onClick={() => {
                   void handleSave();
                 }}
-                disabled={loading || missingComponent}
+                disabled={loading || missingComponent || applyingPendingEdit}
                 title={saveTitle}
                 aria-label={saveTitle}
               >
@@ -873,6 +1071,17 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
             onRestore={() => {
               void handleRestoreHistory();
             }}
+          />
+        )}
+
+        {pendingEditPreview && (
+          <WidgetEditPreviewPanel
+            unifiedDiff={pendingEditPreview.unifiedDiff}
+            applying={applyingPendingEdit}
+            onApply={() => {
+              void handleApplyPendingEdit();
+            }}
+            onDecline={handleDeclinePendingEdit}
           />
         )}
 

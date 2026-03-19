@@ -373,7 +373,7 @@ fn create_note(context: &NoteContext, date: &str) -> Result<NoteRecord, String> 
     })
 }
 
-fn build_unified_diff(before: &str, after: &str) -> String {
+pub fn build_unified_diff(before: &str, after: &str) -> String {
     similar::TextDiff::from_lines(before, after)
         .unified_diff()
         .context_radius(3)
