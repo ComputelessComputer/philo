@@ -1,5 +1,11 @@
 # Philo
 
+<p align="center">
+  <a href="https://github.com/ComputelessComputer/philo/releases/latest">
+    <img src="https://img.shields.io/badge/Download-Latest%20Release-1E6BD6?style=for-the-badge&logo=github&logoColor=white" alt="Download the latest Philo release" />
+  </a>
+</p>
+
 ![Philo app screenshot](docs/assets/philo-app-screenshot.png)
 
 Philo is the IDE for your daily notes.
