@@ -126,7 +126,7 @@ export function AiResultPanel({
             <div key={turn.createdAt} className="space-y-4">
               {turn.prompt.trim() && (
                 <div className="flex justify-end">
-                  <div className="max-w-[85%] rounded-[20px] bg-gray-900 px-4 py-3 text-sm leading-6 text-white">
+                  <div className="max-w-[85%] rounded-md bg-gray-900 px-4 py-3 text-sm leading-6 text-white">
                     <p className="whitespace-pre-wrap">{turn.prompt}</p>
                   </div>
                 </div>
