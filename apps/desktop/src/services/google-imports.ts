@@ -1343,8 +1343,22 @@ export async function syncGoogleImports(): Promise<boolean> {
 
   await Promise.all(
     googleAccounts.map(async (account,) => {
-      await syncGmailAccount(account.email, state, aiConfig,);
-      await syncCalendarAccount(account.email, state, aiConfig,);
+      const results = await Promise.allSettled([
+        syncGmailAccount(account.email, state, aiConfig,),
+        syncCalendarAccount(account.email, state, aiConfig,),
+      ],);
+
+      results.forEach((result, index,) => {
+        if (result.status === "fulfilled") {
+          return;
+        }
+
+        const source = index === 0 ? "gmail" : "calendar";
+        console.error(
+          `Google ${source} sync failed for ${account.email}:`,
+          result.reason,
+        );
+      },);
     },),
   );
 
