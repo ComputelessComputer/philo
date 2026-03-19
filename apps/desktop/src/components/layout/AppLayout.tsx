@@ -143,7 +143,7 @@ function DateHeader({
       </h1>
       {showToday && (
         <span
-          className="text-xs font-medium uppercase tracking-wide px-3 py-1 rounded-full text-white font-sans"
+          className="text-xs font-medium uppercase tracking-wide px-3 py-1 rounded-md text-white font-sans"
           style={{ background: "linear-gradient(to bottom, #4b5563, #1f2937)", }}
         >
           today
@@ -1417,7 +1417,7 @@ export default function AppLayout() {
             {todayDirection && (
               <button
                 onClick={scrollToToday}
-                className="fixed left-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-medium uppercase tracking-wide text-white font-sans shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer"
+                className="fixed left-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-medium uppercase tracking-wide text-white font-sans shadow-lg transition-all hover:scale-105 active:scale-95 cursor-pointer"
                 style={{
                   background: "linear-gradient(to bottom, #4b5563, #1f2937)",
                   ...(todayDirection === "above" ? { top: 16, } : { bottom: 16, }),

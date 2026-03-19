@@ -101,6 +101,7 @@
 }
 
 .tiptap .mention-chip-today {
+  border-radius: 6px;
   border-color: #fde68a;
   background: #fef3c7;
   color: #92400e;
