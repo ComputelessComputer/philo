@@ -9,6 +9,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState, } from "re
 import { useCurrentDate, } from "../../hooks/useCurrentDate";
 import { useCurrentCity, } from "../../hooks/useTimezoneCity";
 import { getAiConfigurationMessage, } from "../../services/ai";
+import { runAiSlashCommand, } from "../../services/ai-slash-commands";
 import {
   AI_NOT_CONFIGURED,
   applyAssistantPendingChanges,
@@ -895,6 +896,17 @@ export default function AppLayout() {
     upsertAiChatHistoryEntry(draftEntry, false,);
 
     try {
+      const slashCommandResult = await runAiSlashCommand(normalizedPrompt, todayNoteValue,);
+      if (slashCommandResult) {
+        latestResult = slashCommandResult;
+        const entry = syncDraftEntry(slashCommandResult, true,);
+        setAiResult(slashCommandResult,);
+        setAiPrompt("",);
+        setAiLatestChatId(entry.id,);
+        setAiActiveChatId(entry.id,);
+        return;
+      }
+
       const recentNotes = aiScope === "recent" ? await loadPastNotes(14,) : [];
       const result = await runAssistant({
         prompt: normalizedPrompt,

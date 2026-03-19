@@ -59,6 +59,7 @@ export function AiComposer({
   const visibleSelectedLabel = selectedLabel ?? (selectedText ? formatSelectedLabel(selectedText,) : null);
   const widgetEditLabel = parseWidgetEditLabel(visibleSelectedLabel,);
   const hasPanel = !widgetEditLabel && (chatHistory.length > 0 || Boolean(title,) || Boolean(activeChatId,));
+  const slashHint = getSlashHint(prompt,);
 
   useEffect(() => {
     if (!open || !hasAiConfigured) return;
@@ -171,6 +172,14 @@ export function AiComposer({
                       : <ArrowUp size={18} strokeWidth={2.25} />}
                   </button>
                 </form>
+                {slashHint && !error && (
+                  <p
+                    className="px-1 text-[11px] uppercase tracking-[0.14em] text-slate-400"
+                    style={{ fontFamily: "'IBM Plex Mono', monospace", }}
+                  >
+                    {slashHint}
+                  </p>
+                )}
                 {error && <p className="px-1 text-sm text-red-500">{error}</p>}
               </div>
             </div>
@@ -190,4 +199,12 @@ function formatSelectedLabel(selectedText: string,) {
 function parseWidgetEditLabel(label: string | null,) {
   if (!label?.startsWith("[Edit widget] ",)) return null;
   return label.slice("[Edit widget] ".length,).trim() || "Widget";
+}
+
+function getSlashHint(prompt: string,) {
+  const normalized = prompt.trim().toLowerCase();
+  if (normalized === "/" || normalized === "/todo" || normalized.startsWith("/todo ",)) {
+    return "/todo organize sorts the current note's todos by due date";
+  }
+  return null;
 }

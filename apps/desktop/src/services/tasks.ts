@@ -1,6 +1,9 @@
+import type { JSONContent, } from "@tiptap/react";
 import { json2md, md2json, parseJsonContent, } from "../lib/markdown";
 import { getDaysAgo, getToday, } from "../types/note";
 import type { DailyNote, } from "../types/note";
+import type { AssistantPendingChange, } from "./assistant";
+import { buildUnifiedDiff, } from "./diff";
 import { loadDailyNote, saveDailyNote, } from "./storage";
 
 /** Regex matching unchecked task lines: `- [ ] text` or `* [ ] text` */
@@ -29,6 +32,7 @@ const RECURRENCE_TAG = /(?:#|@)(daily|weekly|monthly|(\d+)(days?|weeks?|months?)
 const RECURRENCE_WIKILINK = /\[\[(?:recurring_)?(daily|weekly|monthly|(\d+)(days?|weeks?|months?))(?:\|[^\]]+)?\]\]/i;
 const CANONICAL_RECURRING_WIKILINK = /\[\[(\d{4}-\d{2}-\d{2})\(start date\),\s*(\d+)\((day|days)\)\]\]/i;
 const DUE_DATE_WIKILINK = /\[\[\d{4}-\d{2}-\d{2}\(due date\)(?:\|[^\]]+)?\]\]/i;
+const DUE_DATE_CAPTURE = /\[\[(\d{4}-\d{2}-\d{2})\(due date\)(?:\|[^\]]+)?\]\]/gi;
 const GOOGLE_BLOCK_HEADING = "# Google";
 
 function stripManagedGoogleBlock(content: string,) {
@@ -110,6 +114,70 @@ function sortTaskBlocks(taskBlocks: TaskBlock[],): TaskBlock[] {
   const withDueDates = taskBlocks.filter((block,) => block.hasDueDate);
   const withoutDueDates = taskBlocks.filter((block,) => !block.hasDueDate);
   return [...withDueDates, ...withoutDueDates,];
+}
+
+function collectNodeText(node: JSONContent | null | undefined,): string {
+  if (!node) return "";
+  const text = typeof node.text === "string" ? node.text : "";
+  if (!Array.isArray(node.content,)) return text;
+  return [text, ...node.content.map((child,) => collectNodeText(child,)),].join(" ",).trim();
+}
+
+function getEarliestDueDate(text: string,) {
+  let earliest: string | null = null;
+  for (const match of text.matchAll(DUE_DATE_CAPTURE,)) {
+    const dueDate = match[1];
+    if (!earliest || dueDate < earliest) {
+      earliest = dueDate;
+    }
+  }
+  return earliest;
+}
+
+function sortTaskLists(node: JSONContent,): JSONContent {
+  const content = Array.isArray(node.content,) ? node.content.map((child,) => sortTaskLists(child,)) : node.content;
+  if (node.type !== "taskList" || !Array.isArray(content,)) {
+    return content === node.content ? node : { ...node, content, };
+  }
+
+  const sortedContent = content
+    .map((child, index,) => ({
+      child,
+      index,
+      dueDate: getEarliestDueDate(collectNodeText(child,),),
+    }))
+    .sort((left, right,) => {
+      if (left.dueDate && right.dueDate) {
+        if (left.dueDate === right.dueDate) return left.index - right.index;
+        return left.dueDate.localeCompare(right.dueDate,);
+      }
+      if (left.dueDate) return -1;
+      if (right.dueDate) return 1;
+      return left.index - right.index;
+    },)
+    .map((item,) => item.child);
+
+  return { ...node, content: sortedContent, };
+}
+
+export async function buildSortedTodosPendingChange(note: DailyNote,): Promise<AssistantPendingChange | null> {
+  const beforeDoc = parseJsonContent(note.content,);
+  const afterDoc = sortTaskLists(beforeDoc,);
+  const beforeMarkdown = json2md(beforeDoc,);
+  const afterMarkdown = json2md(afterDoc,);
+
+  if (beforeMarkdown.trim() === afterMarkdown.trim()) {
+    return null;
+  }
+
+  return {
+    date: note.date,
+    beforeMarkdown,
+    afterMarkdown,
+    unifiedDiff: await buildUnifiedDiff(beforeMarkdown, afterMarkdown,),
+    cityBefore: note.city ?? null,
+    cityAfter: note.city ?? null,
+  };
 }
 
 /**
