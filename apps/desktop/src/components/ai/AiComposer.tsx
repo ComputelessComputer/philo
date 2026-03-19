@@ -26,7 +26,6 @@ interface AiComposerProps {
   onClose: () => void;
   onNewChat: () => void;
   onSubmit: () => void;
-  onRefresh: () => void;
   onStop: () => void;
   onOpenSettings: () => void;
   onOpenDate: (date: string,) => void;
@@ -56,7 +55,6 @@ export function AiComposer({
   onPromptChange,
   onNewChat,
   onSubmit,
-  onRefresh,
   onStop,
   onOpenSettings,
   onOpenDate,
@@ -155,7 +153,7 @@ export function AiComposer({
                       onKeyDown={(event,) => {
                         if (!(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== "n") return;
                         event.preventDefault();
-                        onRefresh();
+                        onNewChat();
                       }}
                       placeholder="chat with notes."
                       className={`w-full min-w-0 bg-transparent px-1 text-[15px] text-gray-900 outline-hidden placeholder:text-gray-400 ${

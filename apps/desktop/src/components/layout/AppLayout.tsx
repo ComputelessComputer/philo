@@ -970,10 +970,6 @@ export default function AppLayout() {
     await runAiPrompt(aiPrompt,);
   }, [aiPrompt, closeAiComposer, runAiPrompt, widgetEditSession,],);
 
-  const handleRefreshAi = useCallback(async () => {
-    await runAiPrompt(aiLastSubmittedPromptRef.current,);
-  }, [runAiPrompt,],);
-
   const handleStopAi = useCallback(() => {
     aiAbortControllerRef.current?.abort();
   }, [],);
@@ -1418,7 +1414,6 @@ export default function AppLayout() {
         onClose={closeAiComposer}
         onNewChat={handleStartNewAiChat}
         onSubmit={handleAiSubmit}
-        onRefresh={handleRefreshAi}
         onStop={handleStopAi}
         onOpenDate={scrollToDate}
         onSelectChat={handleSelectAiChat}
