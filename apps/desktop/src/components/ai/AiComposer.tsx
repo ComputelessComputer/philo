@@ -59,7 +59,7 @@ export function AiComposer({
   const visibleSelectedLabel = selectedLabel ?? (selectedText ? formatSelectedLabel(selectedText,) : null);
   const widgetEditLabel = parseWidgetEditLabel(visibleSelectedLabel,);
   const hasPanel = !widgetEditLabel && (chatHistory.length > 0 || Boolean(title,) || Boolean(activeChatId,));
-  const slashHint = getSlashHint(prompt,);
+  const slashSuggestions = getSlashSuggestions(prompt,);
 
   useEffect(() => {
     if (!open || !hasAiConfigured) return;
@@ -131,54 +131,86 @@ export function AiComposer({
                   : visibleSelectedLabel
                   ? <div className="px-1 text-sm text-slate-500">{visibleSelectedLabel}</div>
                   : null}
-                <form
-                  className="flex items-center gap-3"
-                  onSubmit={(event,) => {
-                    event.preventDefault();
-                    onSubmit();
-                  }}
-                >
-                  <div className="relative min-w-0 flex-1">
-                    <input
-                      ref={inputRef}
-                      value={prompt}
-                      readOnly={isSubmitting}
-                      onChange={(event,) => onPromptChange(event.target.value,)}
-                      placeholder="chat with notes."
-                      className={`w-full min-w-0 bg-transparent px-1 text-[15px] text-gray-900 outline-hidden placeholder:text-gray-400 ${
-                        isSubmitting ? "text-transparent caret-transparent" : ""
-                      }`}
-                    />
-                    {isSubmitting && (
-                      <div className="pointer-events-none absolute inset-0 flex items-center gap-2 px-1 text-[15px] text-slate-500">
-                        <LoaderCircle size={14} className="shrink-0 animate-spin" />
-                        <span className="truncate">{submittingLabel}</span>
+                <div className="relative">
+                  {slashSuggestions.length > 0 && !error && (
+                    <div className="absolute right-0 bottom-full left-0 mb-3">
+                      <div className="overflow-hidden border border-gray-200 bg-white shadow-[0_-14px_36px_rgba(15,23,42,0.12)]">
+                        {slashSuggestions.map((suggestion,) => (
+                          <button
+                            key={suggestion.command}
+                            type="button"
+                            onClick={() => {
+                              onPromptChange(suggestion.command,);
+                              window.setTimeout(() => inputRef.current?.focus(), 0,);
+                            }}
+                            className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50"
+                          >
+                            <div className="min-w-0">
+                              <p
+                                className="text-[11px] uppercase tracking-[0.18em] text-slate-400"
+                                style={{ fontFamily: "'IBM Plex Mono', monospace", }}
+                              >
+                                slash command
+                              </p>
+                              <p
+                                className="mt-1 text-sm text-slate-900"
+                                style={{ fontFamily: "'IBM Plex Mono', monospace", }}
+                              >
+                                {suggestion.command}
+                              </p>
+                            </div>
+                            <p className="max-w-[18rem] text-sm leading-6 text-slate-500">
+                              {suggestion.description}
+                            </p>
+                          </button>
+                        ))}
                       </div>
-                    )}
-                  </div>
-                  <button
-                    type={isSubmitting ? "button" : "submit"}
-                    disabled={isSubmitting ? !canStopSubmitting : !prompt.trim()}
-                    onClick={isSubmitting && canStopSubmitting ? onStop : undefined}
-                    aria-label={isSubmitting ? (canStopSubmitting ? "Stop generating" : "Submitting") : "Send message"}
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-none bg-gray-900 text-white transition-colors disabled:cursor-not-allowed disabled:bg-gray-300"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace", }}
+                    </div>
+                  )}
+
+                  <form
+                    className="flex items-center gap-3"
+                    onSubmit={(event,) => {
+                      event.preventDefault();
+                      onSubmit();
+                    }}
                   >
-                    {isSubmitting
-                      ? canStopSubmitting
-                        ? <Square size={14} fill="currentColor" strokeWidth={0} />
-                        : <LoaderCircle size={18} className="animate-spin" strokeWidth={2.25} />
-                      : <ArrowUp size={18} strokeWidth={2.25} />}
-                  </button>
-                </form>
-                {slashHint && !error && (
-                  <p
-                    className="px-1 text-[11px] uppercase tracking-[0.14em] text-slate-400"
-                    style={{ fontFamily: "'IBM Plex Mono', monospace", }}
-                  >
-                    {slashHint}
-                  </p>
-                )}
+                    <div className="relative min-w-0 flex-1">
+                      <input
+                        ref={inputRef}
+                        value={prompt}
+                        readOnly={isSubmitting}
+                        onChange={(event,) => onPromptChange(event.target.value,)}
+                        placeholder="chat with notes."
+                        className={`w-full min-w-0 bg-transparent px-1 text-[15px] text-gray-900 outline-hidden placeholder:text-gray-400 ${
+                          isSubmitting ? "text-transparent caret-transparent" : ""
+                        }`}
+                      />
+                      {isSubmitting && (
+                        <div className="pointer-events-none absolute inset-0 flex items-center gap-2 px-1 text-[15px] text-slate-500">
+                          <LoaderCircle size={14} className="shrink-0 animate-spin" />
+                          <span className="truncate">{submittingLabel}</span>
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type={isSubmitting ? "button" : "submit"}
+                      disabled={isSubmitting ? !canStopSubmitting : !prompt.trim()}
+                      onClick={isSubmitting && canStopSubmitting ? onStop : undefined}
+                      aria-label={isSubmitting
+                        ? (canStopSubmitting ? "Stop generating" : "Submitting")
+                        : "Send message"}
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-none bg-gray-900 text-white transition-colors disabled:cursor-not-allowed disabled:bg-gray-300"
+                      style={{ fontFamily: "'IBM Plex Mono', monospace", }}
+                    >
+                      {isSubmitting
+                        ? canStopSubmitting
+                          ? <Square size={14} fill="currentColor" strokeWidth={0} />
+                          : <LoaderCircle size={18} className="animate-spin" strokeWidth={2.25} />
+                        : <ArrowUp size={18} strokeWidth={2.25} />}
+                    </button>
+                  </form>
+                </div>
                 {error && <p className="px-1 text-sm text-red-500">{error}</p>}
               </div>
             </div>
@@ -200,10 +232,15 @@ function parseWidgetEditLabel(label: string | null,) {
   return label.slice("[Edit widget] ".length,).trim() || "Widget";
 }
 
-function getSlashHint(prompt: string,) {
+const SLASH_COMMANDS = [
+  {
+    command: "/todo organize",
+    description: "Sort the current note's todos by due date",
+  },
+];
+
+function getSlashSuggestions(prompt: string,) {
   const normalized = prompt.trim().toLowerCase();
-  if (normalized === "/" || normalized === "/todo" || normalized.startsWith("/todo ",)) {
-    return "/todo organize sorts the current note's todos by due date";
-  }
-  return null;
+  if (!normalized.startsWith("/",)) return [];
+  return SLASH_COMMANDS.filter(({ command, },) => normalized === "/" || command.startsWith(normalized,));
 }
