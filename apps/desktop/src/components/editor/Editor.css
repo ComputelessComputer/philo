@@ -350,6 +350,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 1.7rem;
   height: 1.7rem;
   border: 0;
   border-radius: 50%;
@@ -358,6 +359,7 @@
   font-size: 0.72rem;
   cursor: pointer;
   padding: 0;
+  justify-self: center;
 }
 
 .mention-calendar-cell:hover:not(.mention-calendar-empty) {
