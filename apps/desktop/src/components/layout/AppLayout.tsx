@@ -433,6 +433,11 @@ export default function AppLayout() {
   const today = useCurrentDate();
   const currentCity = useCurrentCity();
   const [todayNote, setTodayNote,] = useState<DailyNote | null>(null,);
+  const todayCity = currentCity.source === "timezone"
+      && todayNote?.city?.trim()
+      && todayNote.city.trim() === currentCity.timezoneCity.trim()
+    ? null
+    : todayNote?.city;
   const [todayAttachedPages, setTodayAttachedPages,] = useState<AttachedPage[]>([],);
   const pastDates = useMemo(() => Array.from({ length: 30, }, (_, i,) => getDaysAgo(i + 1,),), [today,],);
   const [settingsOpen, setSettingsOpen,] = useState(false,);
@@ -1753,7 +1758,7 @@ export default function AppLayout() {
                       <div className="px-6 pt-6 pb-4">
                         <DateHeader
                           date={today}
-                          city={todayNote?.city}
+                          city={todayCity}
                           fallbackCity={currentCity.city}
                           onCityChange={todayNote ? handleTodayCityChange : undefined}
                         />

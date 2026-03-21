@@ -130,7 +130,7 @@ export function useCurrentCity(): CurrentCityState {
     }
 
     return {
-      city: timezoneCity,
+      city: "",
       source: "timezone",
       timezoneCity,
     };
@@ -156,10 +156,10 @@ export function useCurrentCity(): CurrentCityState {
         if (permissions.location !== "granted") {
           clearCachedCity();
           setState((prev,) => (
-            prev.city === timezoneCity && prev.source === "timezone" && prev.timezoneCity === timezoneCity
+            !prev.city && prev.source === "timezone" && prev.timezoneCity === timezoneCity
               ? prev
               : {
-                city: timezoneCity,
+                city: "",
                 source: "timezone",
                 timezoneCity,
               }
@@ -204,10 +204,10 @@ export function useCurrentCity(): CurrentCityState {
 
         clearCachedCity();
         setState((prev,) => (
-          prev.city === timezoneCity && prev.source === "timezone" && prev.timezoneCity === timezoneCity
+          !prev.city && prev.source === "timezone" && prev.timezoneCity === timezoneCity
             ? prev
             : {
-              city: timezoneCity,
+              city: "",
               source: "timezone",
               timezoneCity,
             }
@@ -216,10 +216,10 @@ export function useCurrentCity(): CurrentCityState {
         if ((error as Error).name === "AbortError" || disposed) return;
         clearCachedCity();
         setState((prev,) => (
-          prev.city === timezoneCity && prev.source === "timezone" && prev.timezoneCity === timezoneCity
+          !prev.city && prev.source === "timezone" && prev.timezoneCity === timezoneCity
             ? prev
             : {
-              city: timezoneCity,
+              city: "",
               source: "timezone",
               timezoneCity,
             }
