@@ -8,6 +8,7 @@
 
 html, body {
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .vault-path {
@@ -83,6 +84,7 @@ html, body {
 .modal-scroll {
   scrollbar-width: none;
   -ms-overflow-style: none;
+  overscroll-behavior: none;
 }
 
 .modal-scroll::-webkit-scrollbar {
@@ -93,6 +95,7 @@ html, body {
 .hide-scrollbar {
   scrollbar-width: none;
   -ms-overflow-style: none;
+  overscroll-behavior: none;
 }
 
 .hide-scrollbar::-webkit-scrollbar {
