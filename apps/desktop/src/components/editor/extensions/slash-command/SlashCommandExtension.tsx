@@ -12,29 +12,128 @@ import { Extension, } from "@tiptap/core";
 import { PluginKey, } from "@tiptap/pm/state";
 import { ReactRenderer, } from "@tiptap/react";
 import Suggestion, { type SuggestionOptions, } from "@tiptap/suggestion";
-import { FilePlus2, } from "lucide-react";
+import { CalendarDays, FilePlus2, } from "lucide-react";
 import { forwardRef, useEffect, useImperativeHandle, useState, } from "react";
+import { createDateMention, createRecurringMention, type MentionSuggestion, } from "../../../../services/mentions";
+import { getToday, } from "../../../../types/note";
 
 interface SlashCommandItem {
   id: string;
   title: string;
   subtitle: string;
   keywords: string[];
-  run: () => void;
+  action: "attach_page" | "open_date_picker";
+}
+
+function MiniCalendar({ selected, onSelect, }: { selected: string; onSelect: (date: string,) => void; },) {
+  const todayStr = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1,).padStart(2, "0",)}-${
+      String(d.getDate(),).padStart(2, "0",)
+    }`;
+  })();
+  const init = selected ? new Date(`${selected}T00:00:00`,) : new Date();
+  const [viewYear, setViewYear,] = useState(init.getFullYear(),);
+  const [viewMonth, setViewMonth,] = useState(init.getMonth(),);
+
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0,).getDate();
+  const firstDay = (new Date(viewYear, viewMonth, 1,).getDay() + 6) % 7;
+  const cells: (number | null)[] = [];
+  for (let i = 0; i < firstDay; i++) cells.push(null,);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d,);
+
+  const pad = (n: number,) => String(n,).padStart(2, "0",);
+  const toIso = (day: number,) => `${viewYear}-${pad(viewMonth + 1,)}-${pad(day,)}`;
+
+  const prevMonth = () => {
+    if (viewMonth === 0) {
+      setViewYear((y,) => y - 1);
+      setViewMonth(11,);
+    } else setViewMonth((m,) => m - 1);
+  };
+  const nextMonth = () => {
+    if (viewMonth === 11) {
+      setViewYear((y,) => y + 1);
+      setViewMonth(0,);
+    } else setViewMonth((m,) => m + 1);
+  };
+
+  const title = new Date(viewYear, viewMonth, 1,).toLocaleDateString("en-US", { month: "long", year: "numeric", },);
+
+  return (
+    <div className="mention-calendar">
+      <div className="mention-calendar-header">
+        <button className="mention-calendar-nav" onClick={prevMonth} type="button">‹</button>
+        <span className="mention-calendar-title">{title}</span>
+        <button className="mention-calendar-nav" onClick={nextMonth} type="button">›</button>
+      </div>
+      <div className="mention-calendar-weekdays">
+        {["M", "T", "W", "T", "F", "S", "S",].map((d, i,) => (
+          <span key={i} className="mention-calendar-weekday">{d}</span>
+        ))}
+      </div>
+      <div className="mention-calendar-grid">
+        {cells.map((day, i,) => {
+          if (day === null) return <span key={i} className="mention-calendar-cell mention-calendar-empty" />;
+          const iso = toIso(day,);
+          return (
+            <button
+              key={i}
+              className={`mention-calendar-cell${iso === todayStr ? " is-today" : ""}${
+                iso === selected ? " is-selected" : ""
+              }`}
+              onClick={() => onSelect(iso,)}
+              type="button"
+            >
+              {day}
+            </button>
+          );
+        },)}
+      </div>
+    </div>
+  );
 }
 
 const SlashCommandMenu = forwardRef<
   { onKeyDown: (props: { event: KeyboardEvent; },) => boolean; },
-  { items: SlashCommandItem[]; command: (item: SlashCommandItem,) => void; }
->(function SlashCommandMenu({ items, command, }, ref,) {
+  {
+    items: SlashCommandItem[];
+    insertMention: (items: MentionSuggestion[],) => void;
+    runCommand: (item: SlashCommandItem,) => void;
+  }
+>(function SlashCommandMenu({ items, insertMention, runCommand, }, ref,) {
   const [selectedIndex, setSelectedIndex,] = useState(0,);
+  const [showDatePicker, setShowDatePicker,] = useState(false,);
+  const [selectedDate, setSelectedDate,] = useState(getToday(),);
+  const [recurrence, setRecurrence,] = useState("",);
 
   useEffect(() => {
     setSelectedIndex(0,);
+    setShowDatePicker(false,);
   }, [items,],);
+
+  const applyCustomDate = () => {
+    if (!selectedDate) return;
+    const nextItem = recurrence ? createRecurringMention(selectedDate, recurrence,) : createDateMention(selectedDate,);
+    insertMention([nextItem,],);
+  };
 
   useImperativeHandle(ref, () => ({
     onKeyDown: ({ event, },) => {
+      if (showDatePicker) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          setShowDatePicker(false,);
+          return true;
+        }
+        if (event.key === "Enter") {
+          event.preventDefault();
+          applyCustomDate();
+          return true;
+        }
+        return false;
+      }
+
       if (items.length === 0) return false;
 
       if (event.key === "ArrowUp" || event.key === "ArrowDown" || event.key === "Enter") {
@@ -54,16 +153,20 @@ const SlashCommandMenu = forwardRef<
       if (event.key === "Enter") {
         const item = items[selectedIndex];
         if (item) {
-          command(item,);
+          if (item.action === "open_date_picker") {
+            setShowDatePicker(true,);
+          } else {
+            runCommand(item,);
+          }
           return true;
         }
       }
 
       return false;
     },
-  }), [items, selectedIndex, command,],);
+  }), [showDatePicker, items, selectedIndex, selectedDate, recurrence, insertMention, runCommand,],);
 
-  if (items.length === 0) {
+  if (!showDatePicker && items.length === 0) {
     return (
       <div className="slash-menu">
         <div className="slash-menu-empty">No matching commands</div>
@@ -73,22 +176,76 @@ const SlashCommandMenu = forwardRef<
 
   return (
     <div className="slash-menu">
-      <div className="slash-menu-items">
-        {items.map((item, index,) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => command(item,)}
-            className={`slash-menu-item ${index === selectedIndex ? "is-selected" : ""}`}
-          >
-            <FilePlus2 className="slash-menu-icon" size={15} />
-            <span className="slash-menu-copy">
-              <span className="slash-menu-title">{item.title}</span>
-              <span className="slash-menu-subtitle">{item.subtitle}</span>
-            </span>
-          </button>
-        ))}
-      </div>
+      {!showDatePicker && (
+        <div className="slash-menu-items">
+          {items.map((item, index,) => {
+            const Icon = item.action === "attach_page" ? FilePlus2 : CalendarDays;
+
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => {
+                  if (item.action === "open_date_picker") {
+                    setShowDatePicker(true,);
+                    return;
+                  }
+                  runCommand(item,);
+                }}
+                className={`slash-menu-item ${index === selectedIndex ? "is-selected" : ""}`}
+              >
+                <Icon className="slash-menu-icon" size={15} />
+                <span className="slash-menu-copy">
+                  <span className="slash-menu-title">{item.title}</span>
+                  <span className="slash-menu-subtitle">{item.subtitle}</span>
+                </span>
+              </button>
+            );
+          },)}
+        </div>
+      )}
+      {showDatePicker && (
+        <div className="mention-date-picker">
+          <MiniCalendar selected={selectedDate} onSelect={setSelectedDate} />
+          <div className="mention-recurrence">
+            <div className="mention-recurrence-label">Repeat</div>
+            <div className="mention-recurrence-options">
+              {[
+                { value: "", label: "None", },
+                { value: "daily", label: "Daily", },
+                { value: "weekly", label: "Weekly", },
+                { value: "monthly", label: "Monthly", },
+              ].map((opt,) => (
+                <button
+                  key={opt.value || "none"}
+                  className={`mention-recurrence-option${recurrence === opt.value ? " is-active" : ""}`}
+                  onClick={() => setRecurrence(opt.value,)}
+                  type="button"
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mention-date-picker-actions">
+            <button
+              className="mention-date-picker-btn mention-date-picker-btn-muted"
+              onClick={() => setShowDatePicker(false,)}
+              type="button"
+            >
+              Back
+            </button>
+            <button
+              className="mention-date-picker-btn"
+              disabled={!selectedDate}
+              onClick={applyCustomDate}
+              type="button"
+            >
+              Insert
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 },);
@@ -105,6 +262,30 @@ export const SlashCommandExtension = Extension.create<{
   },
 
   addProseMirrorPlugins() {
+    const insertMentionItems = (
+      editor: Parameters<NonNullable<SuggestionOptions["command"]>>[0]["editor"],
+      range: Parameters<NonNullable<SuggestionOptions["command"]>>[0]["range"],
+      items: MentionSuggestion[],
+    ) => {
+      const content = items.flatMap((item,) => [
+        {
+          type: "mentionChip",
+          attrs: {
+            id: item.id,
+            label: item.label,
+            kind: item.kind,
+          },
+        },
+        { type: "text", text: " ", },
+      ]);
+
+      editor
+        .chain()
+        .focus()
+        .insertContentAt(range, content,)
+        .run();
+    };
+
     const suggestion: SuggestionOptions<SlashCommandItem> = {
       editor: this.editor,
       char: "/",
@@ -123,20 +304,26 @@ export const SlashCommandExtension = Extension.create<{
         return /(?:^|\s)\/[^\s/]*$/.test(activeText,);
       },
       items: ({ query, },) => {
-        if (!this.options.onAttachPage) return [];
-
         const normalizedQuery = query.trim().toLowerCase();
         const items: SlashCommandItem[] = [
           {
+            id: "insert-date-mention",
+            title: "Date mention",
+            subtitle: "Insert a date or repeating date chip",
+            keywords: ["date", "chip", "mention", "deadline", "schedule",],
+            action: "open_date_picker",
+          },
+        ];
+
+        if (this.options.onAttachPage) {
+          items.unshift({
             id: "attach-page",
             title: "Attach page",
             subtitle: "Create a page attached to this daily note",
             keywords: ["page", "attach", "meeting", "note",],
-            run: () => {
-              this.options.onAttachPage?.();
-            },
-          },
-        ];
+            action: "attach_page",
+          },);
+        }
 
         if (!normalizedQuery) return items;
         return items.filter((item,) =>
@@ -148,7 +335,9 @@ export const SlashCommandExtension = Extension.create<{
       command: ({ editor, range, props, },) => {
         const item = props as SlashCommandItem;
         editor.chain().focus().deleteRange(range,).run();
-        item.run();
+        if (item.action === "attach_page") {
+          this.options.onAttachPage?.();
+        }
       },
       render: () => {
         let renderer: ReactRenderer;
@@ -186,7 +375,10 @@ export const SlashCommandExtension = Extension.create<{
             renderer = new ReactRenderer(SlashCommandMenu, {
               props: {
                 items: props.items as SlashCommandItem[],
-                command: (item: SlashCommandItem,) => {
+                insertMention: (items: MentionSuggestion[],) => {
+                  insertMentionItems(props.editor, props.range, items,);
+                },
+                runCommand: (item: SlashCommandItem,) => {
                   props.command(item,);
                 },
               },
@@ -214,7 +406,10 @@ export const SlashCommandExtension = Extension.create<{
           onUpdate: (props,) => {
             renderer.updateProps({
               items: props.items as SlashCommandItem[],
-              command: (item: SlashCommandItem,) => {
+              insertMention: (items: MentionSuggestion[],) => {
+                insertMentionItems(props.editor, props.range, items,);
+              },
+              runCommand: (item: SlashCommandItem,) => {
                 props.command(item,);
               },
             },);
