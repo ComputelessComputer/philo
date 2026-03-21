@@ -1,11 +1,27 @@
 import { invoke, } from "@tauri-apps/api/core";
 import { exists, readDir, readTextFile, } from "@tauri-apps/plugin-fs";
 import { EMPTY_DOC, json2md, md2json, parseJsonContent, } from "../lib/markdown";
-import { AttachedPage, DailyNote, type PageFrontmatter, type PageNote, type PageType, getDaysAgo, getToday, } from "../types/note";
+import {
+  AttachedPage,
+  DailyNote,
+  getDaysAgo,
+  getToday,
+  type PageFrontmatter,
+  type PageNote,
+  type PageType,
+} from "../types/note";
 import { resolveExcalidrawEmbeds, } from "./excalidraw";
 import { resolveMarkdownImages, unresolveMarkdownImages, } from "./images";
 import { convertAtMentionsToWikiLinks, replaceMentionWikiLinksWithChips, } from "./mentions";
-import { getNoteLinkTarget, getNotePath, getPagePath, getPagesDir, parseDateFromNoteLinkTarget, parsePageTitleFromPath, sanitizePageTitle, } from "./paths";
+import {
+  getNoteLinkTarget,
+  getNotePath,
+  getPagePath,
+  getPagesDir,
+  parseDateFromNoteLinkTarget,
+  parsePageTitleFromPath,
+  sanitizePageTitle,
+} from "./paths";
 import {
   DEFAULT_FILENAME_PATTERN,
   getDailyLogsFolderSetting,
@@ -25,7 +41,7 @@ const PAGE_FRONTMATTER_KEYS = new Set([
   "ended_at",
   "participants",
   "source",
-]);
+],);
 
 type FrontmatterValue = unknown;
 type FrontmatterRecord = Record<string, FrontmatterValue>;
@@ -141,10 +157,10 @@ function parseMarkdownFrontmatter(raw: string,): {
 }
 
 function buildMarkdownFrontmatter(frontmatter: FrontmatterRecord, body: string,): string {
-  const entries = Object.entries(frontmatter,).filter(([, value,]) => value !== undefined,);
+  const entries = Object.entries(frontmatter,).filter(([, value,],) => value !== undefined);
   if (entries.length === 0) return body;
 
-  const lines = entries.flatMap(([key, value,]) => {
+  const lines = entries.flatMap(([key, value,],) => {
     if (Array.isArray(value,)) {
       if (value.length === 0) return [`${key}: []`,];
       return [`${key}:`, ...value.map((item,) => `  - ${serializeFrontmatterScalar(item,)}`),];
@@ -181,7 +197,7 @@ function toStringArray(value: unknown,): string[] {
   if (!Array.isArray(value,)) return [];
   return value
     .filter((entry,): entry is string => typeof entry === "string")
-    .map((entry,) => entry.trim(),)
+    .map((entry,) => entry.trim())
     .filter(Boolean,);
 }
 
@@ -196,7 +212,7 @@ function buildPageNote(
     title,
     path,
     content,
-    type: isPageType(frontmatter.type) ? frontmatter.type : "page",
+    type: isPageType(frontmatter.type,) ? frontmatter.type : "page",
     attachedTo: toOptionalString(frontmatter.attached_to,),
     eventId: toOptionalString(frontmatter.event_id,),
     startedAt: toOptionalString(frontmatter.started_at,),
@@ -378,7 +394,7 @@ export async function listPagesAttachedTo(date: string,): Promise<AttachedPage[]
           return {
             title,
             path,
-            type: isPageType(frontmatter.type) ? frontmatter.type : "page",
+            type: isPageType(frontmatter.type,) ? frontmatter.type : "page",
             attachedTo: date,
           } satisfies AttachedPage;
         } catch {

@@ -287,7 +287,7 @@ export async function getPagePath(title: string,): Promise<string> {
 }
 
 export function parsePageTitleFromPath(path: string,): string | null {
-  const filename = path.split(/[\\/]/).pop();
+  const filename = path.split(/[\\/]/,).pop();
   if (!filename?.toLowerCase().endsWith(".md",)) return null;
   return filename.slice(0, -3,);
 }

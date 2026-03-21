@@ -19,7 +19,7 @@ import { openGoogleMentionChip, } from "../../services/google-open";
 import { resolveAssetUrl, saveImage, } from "../../services/images";
 import { getMentionChipDate, getMentionChipHref, type MentionKind, } from "../../services/mentions";
 import { saveDailyNote, } from "../../services/storage";
-import { getToday, type DailyNote, type PageNote, } from "../../types/note";
+import { type DailyNote, getToday, type PageNote, } from "../../types/note";
 import { EditorBubbleMenu, } from "../editor/EditorBubbleMenu";
 import { ClipboardTextSerializer, } from "../editor/extensions/clipboard";
 import { ExcalidrawExtension, } from "../editor/extensions/excalidraw/ExcalidrawExtension";
@@ -171,7 +171,9 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
                         id: chip.getAttribute("data-id",) ?? "",
                         kind: (chip.getAttribute("data-kind",) ?? "tag") as MentionKind,
                       };
-                      const date = onOpenDate ? getMentionChipDate(chipData, getReferenceDate(noteRef.current,),) : null;
+                      const date = onOpenDate
+                        ? getMentionChipDate(chipData, getReferenceDate(noteRef.current,),)
+                        : null;
                       if (date) {
                         event.preventDefault();
                         onOpenDate?.(date,);

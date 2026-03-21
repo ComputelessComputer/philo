@@ -1,7 +1,8 @@
 import { invoke, } from "@tauri-apps/api/core";
 import { listen, } from "@tauri-apps/api/event";
+import { dirname, } from "@tauri-apps/api/path";
 import { getCurrentWindow, } from "@tauri-apps/api/window";
-import { watch, } from "@tauri-apps/plugin-fs";
+import { exists, watch, } from "@tauri-apps/plugin-fs";
 import { openPath, } from "@tauri-apps/plugin-opener";
 import type { Editor as TiptapEditor, } from "@tiptap/core";
 import { ChevronLeft, ChevronRight, FileText, House, MapPin, Plus, } from "lucide-react";
@@ -30,7 +31,14 @@ import {
 import { syncGoogleImports, } from "../../services/google-imports";
 import type { LibraryItem, } from "../../services/library";
 import { cleanupLegacyLibraryState, } from "../../services/library";
-import { getJournalDir, initJournalScope, parseDateFromNoteLinkTarget, sanitizePageTitle, } from "../../services/paths";
+import {
+  getJournalDir,
+  getPagesDir,
+  initJournalScope,
+  parseDateFromNoteLinkTarget,
+  parsePageTitleFromPath,
+  sanitizePageTitle,
+} from "../../services/paths";
 import { getFilenamePattern, hasActiveAiProvider, loadSettings, } from "../../services/settings";
 import {
   createAttachedPage,
@@ -296,8 +304,8 @@ function LazyNote({
     const observer = new IntersectionObserver(
       ([entry,],) => {
         if (entry.isIntersecting) {
-          Promise.all([loadDailyNote(date,), listPagesAttachedTo(date,),])
-            .then(([loadedNote, pages,]) => {
+          Promise.all([loadDailyNote(date,), listPagesAttachedTo(date,),],)
+            .then(([loadedNote, pages,],) => {
               setNote(loadedNote,);
               setAttachedPages(pages,);
             },)
@@ -349,11 +357,13 @@ function PageView({
   title,
   pagesRevision,
   onOpenDate,
+  onSave,
   onInteract,
 }: {
   title: string;
   pagesRevision: number;
   onOpenDate?: (date: string,) => void;
+  onSave?: (page: PageNote,) => void;
   onInteract?: () => void;
 },) {
   const [page, setPage,] = useState<PageNote | null>(null,);
@@ -365,8 +375,12 @@ function PageView({
   const handleSave = useCallback((note: DailyNote | PageNote,) => {
     if ("date" in note) return;
     setPage(note,);
-    savePage(note,).catch(console.error,);
-  }, [],);
+    if (onSave) {
+      onSave(note,);
+    } else {
+      savePage(note,).catch(console.error,);
+    }
+  }, [onSave,],);
 
   if (!page) {
     return (
@@ -456,7 +470,7 @@ export default function AppLayout() {
   const [widgetEditSession, setWidgetEditSession,] = useState<WidgetEditRequestDetail | null>(null,);
   const [widgetEditSubmitting, setWidgetEditSubmitting,] = useState(false,);
   const [viewState, setViewState,] = useState<{ history: AppView[]; index: number; }>({
-    history: [{ kind: "home", }],
+    history: [{ kind: "home", },],
     index: 0,
   },);
   const aiAbortControllerRef = useRef<AbortController | null>(null,);
@@ -735,6 +749,16 @@ export default function AppLayout() {
   const openGlobalSearchResult = useCallback(async (result: GlobalSearchResult | undefined,) => {
     if (!result) return;
 
+    closeGlobalSearch();
+
+    if (result.kind === "page") {
+      const title = parsePageTitleFromPath(result.path,);
+      if (title) {
+        openPageView(title,);
+        return;
+      }
+    }
+
     try {
       const pattern = await getFilenamePattern();
       const date = parseDateFromNoteLinkTarget(result.relativePath, pattern,);
@@ -747,7 +771,7 @@ export default function AppLayout() {
     }
 
     openPath(result.path,).catch(console.error,);
-  }, [navigateToDate,],);
+  }, [closeGlobalSearch, navigateToDate, openPageView,],);
 
   // Load configuration and extend FS scope on mount
   useEffect(() => {
@@ -936,14 +960,25 @@ export default function AppLayout() {
       setGlobalSearchError(null,);
       (async () => {
         try {
-          const rootDir = await getJournalDir();
-          const results = await invoke<GlobalSearchResult[]>("search_markdown_files", {
-            rootDir,
-            query,
-            limit: 120,
-          },);
+          const [journalDir, pagesDir,] = await Promise.all([getJournalDir(), getPagesDir(),],);
+          const [dailyResults, pageResults,] = await Promise.all([
+            invoke<Omit<GlobalSearchResult, "kind">[]>("search_markdown_files", {
+              rootDir: journalDir,
+              query,
+              limit: 120,
+            },),
+            invoke<Omit<GlobalSearchResult, "kind">[]>("search_markdown_files", {
+              rootDir: pagesDir,
+              query,
+              limit: 120,
+            },),
+          ],);
+          const results = [
+            ...dailyResults.map((result,) => ({ ...result, kind: "daily" as const, })),
+            ...pageResults.map((result,) => ({ ...result, kind: "page" as const, })),
+          ].slice(0, 120,);
           if (!cancelled) {
-            setGlobalSearchResults(results.map((result,) => ({ ...result, kind: "daily", })),);
+            setGlobalSearchResults(results,);
             setGlobalSearchSelectedIndex(results.length > 0 ? 0 : -1,);
           }
         } catch (error) {
@@ -1005,11 +1040,13 @@ export default function AppLayout() {
     const handleFocus = () => {
       runGoogleSync().finally(() => {
         syncTodayNoteFromDisk();
+        syncTodayAttachedPages();
+        setPagesRevision((value,) => value + 1);
       },);
     };
     window.addEventListener("focus", handleFocus,);
     return () => window.removeEventListener("focus", handleFocus,);
-  }, [isConfigured, runGoogleSync, syncTodayNoteFromDisk,],);
+  }, [isConfigured, runGoogleSync, syncTodayAttachedPages, syncTodayNoteFromDisk,],);
 
   // Roll over unchecked tasks from past days, then load today's note
   useEffect(() => {
@@ -1068,6 +1105,29 @@ export default function AppLayout() {
     };
   }, [isConfigured, storageRevision, syncTodayNoteFromDisk,],);
 
+  useEffect(() => {
+    if (!isConfigured) return;
+    let unwatch: (() => void) | null = null;
+
+    getPagesDir().then(async (pagesDir,) => {
+      const watchRoot = await exists(pagesDir,) ? pagesDir : await dirname(pagesDir,);
+      unwatch = await watch(
+        watchRoot,
+        (event,) => {
+          if (Date.now() < suppressWatcherUntilRef.current) return;
+          if (!event.paths.some((path,) => path.startsWith(pagesDir,) && path.endsWith(".md",))) return;
+          syncTodayAttachedPages();
+          setPagesRevision((value,) => value + 1);
+        },
+        { recursive: true, },
+      );
+    },).catch(console.error,);
+
+    return () => {
+      unwatch?.();
+    };
+  }, [isConfigured, syncTodayAttachedPages,],);
+
   const handleTodaySave = useCallback(
     (note: DailyNote | PageNote,) => {
       if (!("date" in note)) return;
@@ -1077,6 +1137,11 @@ export default function AppLayout() {
     },
     [],
   );
+
+  const handlePageSave = useCallback((page: PageNote,) => {
+    suppressWatcherUntilRef.current = Date.now() + LOCAL_SAVE_WATCH_SUPPRESSION_MS;
+    savePage(page,).catch(console.error,);
+  }, [],);
 
   const handleTodayCityChange = useCallback((city: string | null,) => {
     const note = todayNoteRef.current;
@@ -1441,7 +1506,7 @@ export default function AppLayout() {
 
     const targetTop = restoreHomeScrollTopRef.current;
     const frameId = window.requestAnimationFrame(() => {
-      scrollRef.current?.scrollTo({ top: targetTop, behavior: "auto", });
+      scrollRef.current?.scrollTo({ top: targetTop, behavior: "auto", },);
       restoreHomeScrollTopRef.current = null;
     },);
 
@@ -1639,6 +1704,7 @@ export default function AppLayout() {
                   title={currentView.title}
                   pagesRevision={pagesRevision}
                   onOpenDate={scrollToDate}
+                  onSave={handlePageSave}
                   onInteract={handleEditorInteract}
                 />
               )
