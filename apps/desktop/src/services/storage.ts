@@ -19,11 +19,15 @@ import {
 } from "./images";
 import { convertAtMentionsToWikiLinks, replaceMentionWikiLinksWithChips, } from "./mentions";
 import {
+  buildPageLinkTarget,
+  buildPageMarkdownHref,
   getNoteLinkTarget,
   getNotePath,
   getPagePath,
   getPagesDir,
+  isExplicitPageLinkTarget,
   parseDateFromNoteLinkTarget,
+  parsePageTitleFromLinkTarget,
   parsePageTitleFromPath,
   sanitizePageTitle,
 } from "./paths";
@@ -38,6 +42,7 @@ import { resolveWidgetEmbeds, } from "./widget-files";
 const FRONTMATTER_RE = /^---\n([\s\S]*?)\n---\n?/;
 const CANONICAL_DUE_LINK_RE = /\[\[(\d{4}-\d{2}-\d{2})\(due date\)\]\]/g;
 const WIKI_LINK_RE = /\[\[([^[\]|]+)(?:\|([^[\]]+))?\]\]/g;
+const MARKDOWN_LINK_RE = /\[([^\]]+)\]\(([^)\s"]+)(?:\s+"([^"]*)")?\)/g;
 const PAGE_FRONTMATTER_KEYS = new Set([
   "type",
   "attached_to",
@@ -89,6 +94,46 @@ async function rewriteNoteLinksToDateMentionLinks(markdown: string,): Promise<st
 
         return label ? `[[${date}(due date)|${label}]]` : `[[${date}(due date)]]`;
       },),
+  );
+}
+
+function rewriteWikiPageLinksToMarkdownLinks(markdown: string,): string {
+  return mapMarkdownOutsideCode(
+    markdown,
+    (part,) =>
+      part.replace(WIKI_LINK_RE, (full, target: string, label: string | undefined, offset: number, source: string,) => {
+        if (offset > 0 && source[offset - 1] === "!") return full;
+        if (target.includes("(due date)",)) return full;
+
+        const title = parsePageTitleFromLinkTarget(target,);
+        if (!title) return full;
+
+        return `[${label?.trim() || title}](${buildPageMarkdownHref(title,)})`;
+      },),
+  );
+}
+
+function rewriteMarkdownPageLinksToCanonicalWikiLinks(markdown: string,): string {
+  return mapMarkdownOutsideCode(
+    markdown,
+    (part,) =>
+      part.replace(
+        MARKDOWN_LINK_RE,
+        (full, label: string, target: string, titleAttr: string | undefined, offset: number, source: string,) => {
+          if (offset > 0 && source[offset - 1] === "!") return full;
+          if (titleAttr) return full;
+
+          const pageTitle = parsePageTitleFromLinkTarget(target,);
+          if (!pageTitle) return full;
+          if (!isExplicitPageLinkTarget(target,) && label.trim() !== pageTitle) return full;
+
+          const canonicalTarget = buildPageLinkTarget(pageTitle,);
+          const trimmedLabel = label.trim();
+          return trimmedLabel && trimmedLabel !== pageTitle
+            ? `[[${canonicalTarget}|${trimmedLabel}]]`
+            : `[[${canonicalTarget}]]`;
+        },
+      ),
   );
 }
 
@@ -273,6 +318,7 @@ export async function saveDailyNote(note: DailyNote,): Promise<void> {
   body = unresolveMarkdownAssetLinks(body,);
   body = convertAtMentionsToWikiLinks(body, note.date,);
   body = await rewriteDateMentionLinksToNoteLinks(body,);
+  body = rewriteMarkdownPageLinksToCanonicalWikiLinks(body,);
   await invoke("write_markdown_file", {
     path: filepath,
     content: buildFrontmatter(note.city, body,),
@@ -287,7 +333,8 @@ export async function loadDailyNote(date: string,): Promise<DailyNote | null> {
   }
   const { city, body, } = parseFrontmatter(raw,);
   const withDateMentionLinks = await rewriteNoteLinksToDateMentionLinks(body,);
-  const withEmbeds = await resolveExcalidrawEmbeds(withDateMentionLinks,);
+  const withPageLinks = rewriteWikiPageLinksToMarkdownLinks(withDateMentionLinks,);
+  const withEmbeds = await resolveExcalidrawEmbeds(withPageLinks,);
   const withWidgets = await resolveWidgetEmbeds(withEmbeds,);
   const withMentionChips = replaceMentionWikiLinksWithChips(withWidgets, date,);
   const withAssetLinks = await resolveMarkdownAssetLinks(withMentionChips,);
@@ -307,7 +354,8 @@ export async function loadPage(title: string,): Promise<PageNote | null> {
   const { frontmatter, body, hasFrontmatter, } = parseMarkdownFrontmatter(raw,);
   const referenceDate = toOptionalString(frontmatter.attached_to,) ?? getToday();
   const withDateMentionLinks = await rewriteNoteLinksToDateMentionLinks(body,);
-  const withEmbeds = await resolveExcalidrawEmbeds(withDateMentionLinks,);
+  const withPageLinks = rewriteWikiPageLinksToMarkdownLinks(withDateMentionLinks,);
+  const withEmbeds = await resolveExcalidrawEmbeds(withPageLinks,);
   const withWidgets = await resolveWidgetEmbeds(withEmbeds,);
   const withMentionChips = replaceMentionWikiLinksWithChips(withWidgets, referenceDate,);
   const withAssetLinks = await resolveMarkdownAssetLinks(withMentionChips,);
@@ -338,6 +386,7 @@ export async function savePage(page: PageNote,): Promise<void> {
   body = unresolveMarkdownAssetLinks(body,);
   body = convertAtMentionsToWikiLinks(body, page.attachedTo ?? getToday(),);
   body = await rewriteDateMentionLinksToNoteLinks(body,);
+  body = rewriteMarkdownPageLinksToCanonicalWikiLinks(body,);
   await invoke("write_markdown_file", {
     path: filepath,
     content: buildMarkdownFrontmatter(buildPageFrontmatter(page,), body,),

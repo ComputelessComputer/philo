@@ -29,6 +29,7 @@ import {
 import { forwardRef, useEffect, useImperativeHandle, useState, } from "react";
 import { resolveAssetUrl, saveAsset, } from "../../../../services/images";
 import { createDateMention, createRecurringMention, type MentionSuggestion, } from "../../../../services/mentions";
+import { buildPageMarkdownHref, } from "../../../../services/paths";
 import { getToday, } from "../../../../types/note";
 
 function formatRecurrenceDescriptionDate(date: string,) {
@@ -391,10 +392,14 @@ export const SlashCommandExtension = Extension.create<{
           void Promise.resolve(this.options.onAttachPage?.(),)
             .then((pageTitle,) => {
               if (!pageTitle || editor.isDestroyed) return;
-              editor.chain().focus().insertContent({
-                type: "text",
-                text: `[[${pageTitle}.md]] `,
-              },).run();
+              editor.chain().focus().insertContent([
+                {
+                  type: "text",
+                  text: pageTitle,
+                  marks: [{ type: "link", attrs: { href: buildPageMarkdownHref(pageTitle,), }, },],
+                },
+                { type: "text", text: " ", },
+              ],).run();
             },)
             .catch(console.error,);
           break;

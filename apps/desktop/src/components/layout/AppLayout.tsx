@@ -328,6 +328,7 @@ function LazyNote({
           <EditableNote
             note={note}
             onOpenDate={onOpenDate}
+            onOpenPage={onOpenPage}
             onCreatePage={onCreatePage}
             onInteract={onInteract}
             onChatSelection={onChatSelection}
@@ -345,12 +346,14 @@ function PageView({
   title,
   pagesRevision,
   onOpenDate,
+  onOpenPage,
   onSave,
   onInteract,
 }: {
   title: string;
   pagesRevision: number;
   onOpenDate?: (date: string,) => void;
+  onOpenPage?: (title: string,) => void;
   onSave?: (page: PageNote,) => void;
   onInteract?: () => void;
 },) {
@@ -411,6 +414,7 @@ function PageView({
         note={page}
         onSave={handleSave}
         onOpenDate={onOpenDate}
+        onOpenPage={onOpenPage}
         onInteract={onInteract}
       />
     </div>
@@ -1710,6 +1714,7 @@ export default function AppLayout() {
                   title={currentView.title}
                   pagesRevision={pagesRevision}
                   onOpenDate={scrollToDate}
+                  onOpenPage={openPageView}
                   onSave={handlePageSave}
                   onInteract={handleEditorInteract}
                 />
@@ -1760,6 +1765,7 @@ export default function AppLayout() {
                           ref={todayEditorRef}
                           note={todayNote}
                           onOpenDate={scrollToDate}
+                          onOpenPage={openPageView}
                           onSave={handleTodaySave}
                           onCreatePage={handleCreateAttachedPage}
                           onInteract={handleEditorInteract}

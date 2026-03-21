@@ -18,6 +18,7 @@ import { parseJsonContent, } from "../../lib/markdown";
 import { openGoogleMentionChip, } from "../../services/google-open";
 import { resolveAssetUrl, saveImage, } from "../../services/images";
 import { getMentionChipDate, getMentionChipHref, type MentionKind, } from "../../services/mentions";
+import { parsePageTitleFromLinkTarget, } from "../../services/paths";
 import { saveDailyNote, } from "../../services/storage";
 import { type DailyNote, getToday, type PageNote, } from "../../types/note";
 import { EditorBubbleMenu, } from "../editor/EditorBubbleMenu";
@@ -56,6 +57,7 @@ interface EditableNoteProps {
   placeholder?: string;
   onSave?: (note: DailyNote | PageNote,) => void;
   onOpenDate?: (date: string,) => void;
+  onOpenPage?: (title: string,) => void;
   onInteract?: () => void;
   onChatSelection?: (selection: EditableNoteSelection,) => void;
   onSelectionChange?: (selection: EditableNoteSelection | null,) => void;
@@ -117,6 +119,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
       placeholder = "Start writing...",
       onSave,
       onOpenDate,
+      onOpenPage,
       onInteract,
       onChatSelection,
       onSelectionChange,
@@ -200,8 +203,16 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
                       }
                     }
 
-                    if (!(event.metaKey || event.ctrlKey)) return false;
                     const anchor = (event.target as HTMLElement).closest("a",);
+                    const anchorHref = anchor?.getAttribute("href",) ?? "";
+                    const pageTitle = onOpenPage ? parsePageTitleFromLinkTarget(anchorHref,) : null;
+                    if (pageTitle) {
+                      event.preventDefault();
+                      onOpenPage?.(pageTitle,);
+                      return true;
+                    }
+
+                    if (!(event.metaKey || event.ctrlKey)) return false;
                     if (anchor && (anchor as HTMLAnchorElement).href) {
                       event.preventDefault();
                       openUrl((anchor as HTMLAnchorElement).href,);

@@ -164,6 +164,14 @@ function stripMdExtension(target: string,): string {
   return target.replace(/\.md$/i, "",);
 }
 
+function decodePathTarget(target: string,): string {
+  try {
+    return decodeURIComponent(target,);
+  } catch {
+    return target;
+  }
+}
+
 const INVALID_PAGE_TITLE_RE = /[\/\\\u0000-\u001F]+/g;
 
 export function sanitizePageTitle(title: string,): string {
@@ -290,6 +298,57 @@ export function parsePageTitleFromPath(path: string,): string | null {
   const filename = path.split(/[\\/]/,).pop();
   if (!filename?.toLowerCase().endsWith(".md",)) return null;
   return filename.slice(0, -3,);
+}
+
+export function buildPageLinkTarget(title: string,): string {
+  const normalizedTitle = sanitizePageTitle(title,);
+  if (!normalizedTitle) {
+    throw new Error("Page title is required.",);
+  }
+
+  return `pages/${normalizedTitle}`;
+}
+
+export function buildPageMarkdownHref(title: string,): string {
+  const target = buildPageLinkTarget(title,);
+  const [prefix, pageTitle,] = target.split("/", 2,);
+  return `${prefix}/${encodeURIComponent(pageTitle,)}.md`;
+}
+
+export function isExplicitPageLinkTarget(target: string,): boolean {
+  const trimmed = target.trim();
+  if (!trimmed) return false;
+
+  const [pathOnly,] = trimmed.split(/[?#]/, 1,);
+  const decoded = decodePathTarget(pathOnly,).replace(/^\/+/, "",).replace(/^\.?\/+/, "",);
+  return /^pages\//i.test(decoded,);
+}
+
+export function parsePageTitleFromLinkTarget(target: string,): string | null {
+  const trimmed = target.trim();
+  if (!trimmed) return null;
+  if (/^(?:[a-z]+:)?\/\//i.test(trimmed,) || /^[a-z]+:/i.test(trimmed,)) return null;
+
+  const [pathOnly,] = trimmed.split(/[?#]/, 1,);
+  const decoded = decodePathTarget(pathOnly,).replace(/^\/+/, "",).replace(/^\.?\/+/, "",);
+  if (!decoded) return null;
+
+  const lower = decoded.toLowerCase();
+  if (
+    lower.endsWith(".excalidraw",)
+    || lower.endsWith(".excalidraw.md",)
+    || lower.endsWith(".widget.md",)
+  ) {
+    return null;
+  }
+
+  const withoutExtension = stripMdExtension(decoded,);
+  const withoutPagesPrefix = withoutExtension.replace(/^pages\//i, "",);
+  if (withoutPagesPrefix.includes("/",) || withoutPagesPrefix.includes("\\",)) {
+    return null;
+  }
+  const normalizedTitle = sanitizePageTitle(withoutPagesPrefix,);
+  return normalizedTitle || null;
 }
 
 /**
