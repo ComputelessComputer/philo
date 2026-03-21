@@ -1335,6 +1335,14 @@ fn clear_google_oauth_session(account_email: String) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn list_google_oauth_session_accounts() -> Result<Vec<String>, String> {
+    let (sessions, _) = load_google_stored_sessions()?;
+    let mut accounts = sessions.keys().cloned().collect::<Vec<_>>();
+    accounts.sort();
+    Ok(accounts)
+}
+
 #[cfg(target_os = "macos")]
 fn run_osascript(lines: &[&str], args: &[&str]) -> Result<String, String> {
     let mut command = Command::new("/usr/bin/osascript");
@@ -3497,6 +3505,7 @@ pub fn run() {
             complete_google_oauth,
             ensure_google_access_token,
             clear_google_oauth_session,
+            list_google_oauth_session_accounts,
             open_in_apple_mail,
             open_in_apple_calendar,
             run_ai_tool,

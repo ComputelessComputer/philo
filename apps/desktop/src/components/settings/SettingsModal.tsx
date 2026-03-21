@@ -1,7 +1,8 @@
+import { invoke, } from "@tauri-apps/api/core";
 import { join, } from "@tauri-apps/api/path";
 import { open as openDialog, } from "@tauri-apps/plugin-dialog";
 import { exists, } from "@tauri-apps/plugin-fs";
-import { Check, ChevronDown, RefreshCw, X, } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, RefreshCw, X, } from "lucide-react";
 import { useEffect, useRef, useState, } from "react";
 import claudeAiSymbol from "../../assets/claude-ai-symbol.svg";
 import googleGeminiIcon from "../../assets/google-gemini-icon.svg";
@@ -301,6 +302,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
     }
   >(null,);
   const [googleError, setGoogleError,] = useState("",);
+  const [googleSessionAccounts, setGoogleSessionAccounts,] = useState<string[]>([],);
   const [isObsidianVault, setIsObsidianVault,] = useState(false,);
   const inputRef = useRef<HTMLInputElement>(null,);
   const modalRef = useRef<HTMLDivElement>(null,);
@@ -321,6 +323,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
         setIsFilenamePatternFocused(false,);
         setGoogleAction(null,);
         setGoogleError("",);
+        setGoogleSessionAccounts([],);
       },);
       // Resolve the default journal dir for display
       getJournalDir().then(setDefaultJournalDir,);
@@ -354,6 +357,27 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
       cancelled = true;
     };
   }, [open, settings?.vaultDir,],);
+
+  useEffect(() => {
+    if (!open || !settings) return;
+
+    let cancelled = false;
+    invoke<string[]>("list_google_oauth_session_accounts",)
+      .then((accounts,) => {
+        if (!cancelled) {
+          setGoogleSessionAccounts(accounts.map((account,) => account.trim().toLowerCase()),);
+        }
+      },)
+      .catch(() => {
+        if (!cancelled) {
+          setGoogleSessionAccounts([],);
+        }
+      },);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, settings?.googleAccounts,],);
 
   if (!open || !settings) return null;
 
@@ -763,30 +787,51 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
                   const isRefreshing = googleAction?.type === "refreshing" && googleAction.email === account.email;
                   const isDisconnecting = googleAction?.type === "disconnecting"
                     && googleAction.email === account.email;
+                  const hasSecureSession = googleSessionAccounts.includes(account.email.trim().toLowerCase(),);
                   return (
-                    <div key={account.email} className="flex min-w-0 items-center gap-1">
-                      <p
-                        className="min-w-0 flex-1 truncate text-xs text-gray-500"
-                        style={mono}
-                        title={account.email}
-                      >
-                        {account.email}
-                      </p>
+                    <div key={account.email} className="flex min-w-0 items-start gap-1">
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className="min-w-0 truncate text-xs text-gray-500"
+                          style={mono}
+                          title={account.email}
+                        >
+                          {account.email}
+                        </p>
+                        {!hasSecureSession && (
+                          <p className="mt-0.5 text-[10px] uppercase tracking-[0.18em] text-amber-600" style={mono}>
+                            Reconnect required
+                          </p>
+                        )}
+                      </div>
                       <button
                         onClick={() => handleRefreshGoogle(account.email,)}
                         disabled={googleAction !== null}
-                        className="group relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-none text-emerald-600 transition-colors cursor-pointer hover:bg-emerald-50 hover:text-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-300/40 disabled:cursor-default disabled:opacity-60"
-                        title={`Refresh ${account.email}`}
-                        aria-label={`Refresh ${account.email}`}
+                        className={`group relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-none transition-colors cursor-pointer focus:outline-none focus:ring-2 disabled:cursor-default disabled:opacity-60 ${
+                          hasSecureSession
+                            ? "text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 focus:ring-emerald-300/40"
+                            : "text-amber-600 hover:bg-amber-50 hover:text-amber-700 focus:ring-amber-300/40"
+                        }`}
+                        title={`${hasSecureSession ? "Refresh" : "Reconnect"} ${account.email}`}
+                        aria-label={`${hasSecureSession ? "Refresh" : "Reconnect"} ${account.email}`}
                       >
                         {isRefreshing
                           ? <RefreshCw className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
                           : (
                             <>
-                              <Check
-                                className="h-3.5 w-3.5 transition-opacity group-hover:opacity-0"
-                                strokeWidth={2.25}
-                              />
+                              {hasSecureSession
+                                ? (
+                                  <Check
+                                    className="h-3.5 w-3.5 transition-opacity group-hover:opacity-0"
+                                    strokeWidth={2.25}
+                                  />
+                                )
+                                : (
+                                  <AlertTriangle
+                                    className="h-3.5 w-3.5 transition-opacity group-hover:opacity-0"
+                                    strokeWidth={2.1}
+                                  />
+                                )}
                               <RefreshCw
                                 className="absolute h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100"
                                 strokeWidth={2}
