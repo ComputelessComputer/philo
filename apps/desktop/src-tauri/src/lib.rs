@@ -3523,7 +3523,7 @@ pub fn run() {
 
             #[cfg(target_os = "macos")]
             if let Some(window) = app.get_webview_window("main") {
-                let _ = offset_macos_traffic_lights(&window, 4.0);
+                let _ = offset_macos_traffic_lights(&window, 2.0);
             }
 
             let app_name = if cfg!(debug_assertions) {
