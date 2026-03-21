@@ -289,7 +289,6 @@ const SlashCommandMenu = forwardRef<
                   <Icon className="slash-menu-icon" size={15} />
                   <span className="slash-menu-copy">
                     <span className="slash-menu-title">{item.title}</span>
-                    <span className="slash-menu-subtitle">{item.subtitle}</span>
                   </span>
                 </button>
               </div>
