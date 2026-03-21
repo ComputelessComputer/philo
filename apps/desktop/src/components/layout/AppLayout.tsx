@@ -5,7 +5,7 @@ import { getCurrentWindow, } from "@tauri-apps/api/window";
 import { exists, watch, } from "@tauri-apps/plugin-fs";
 import { openPath, } from "@tauri-apps/plugin-opener";
 import type { Editor as TiptapEditor, } from "@tiptap/core";
-import { ChevronLeft, ChevronRight, FileText, House, MapPin, Plus, } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, House, MapPin, } from "lucide-react";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState, } from "react";
 import { useCurrentDate, } from "../../hooks/useCurrentDate";
 import { useCurrentCity, } from "../../hooks/useTimezoneCity";
@@ -226,14 +226,12 @@ function DateHeader({
 
 function AttachedPagesRow({
   pages,
-  onCreatePage,
   onOpenPage,
 }: {
   pages: AttachedPage[];
-  onCreatePage?: () => void;
   onOpenPage?: (title: string,) => void;
 },) {
-  if (pages.length === 0 && !onCreatePage) return null;
+  if (pages.length === 0) return null;
 
   return (
     <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -256,16 +254,6 @@ function AttachedPagesRow({
           )}
         </button>
       ))}
-      {onCreatePage && (
-        <button
-          type="button"
-          onClick={onCreatePage}
-          className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-gray-300 px-3 py-1.5 text-sm text-gray-500 transition-colors hover:border-gray-400 hover:text-gray-700 dark:border-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-200"
-        >
-          <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-          <span>Page</span>
-        </button>
-      )}
     </div>
   );
 }
@@ -335,12 +323,12 @@ function LazyNote({
             <AttachedPagesRow
               pages={attachedPages}
               onOpenPage={onOpenPage}
-              onCreatePage={onCreatePage ? () => onCreatePage(date,) : undefined}
             />
           </div>
           <EditableNote
             note={note}
             onOpenDate={onOpenDate}
+            onCreatePage={onCreatePage}
             onInteract={onInteract}
             onChatSelection={onChatSelection}
             onSelectionChange={onSelectionChange}
@@ -1765,7 +1753,6 @@ export default function AppLayout() {
                         <AttachedPagesRow
                           pages={todayAttachedPages}
                           onOpenPage={openPageView}
-                          onCreatePage={() => handleCreateAttachedPage(today,)}
                         />
                       </div>
                       {todayNote && (
@@ -1774,6 +1761,7 @@ export default function AppLayout() {
                           note={todayNote}
                           onOpenDate={scrollToDate}
                           onSave={handleTodaySave}
+                          onCreatePage={handleCreateAttachedPage}
                           onInteract={handleEditorInteract}
                           onChatSelection={openAiComposer}
                           onSelectionChange={handleAiSelectionChange}

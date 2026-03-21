@@ -32,6 +32,7 @@ import {
   type PersistentSelectionRange,
   setPersistentSelectionHighlight,
 } from "../editor/extensions/persistent-selection/PersistentSelectionHighlightExtension";
+import { SlashCommandExtension, } from "../editor/extensions/slash-command/SlashCommandExtension";
 import { CustomTaskItem, } from "../editor/extensions/task-item/TaskItemNode";
 import { UnderlineExtension, } from "../editor/extensions/underline/UnderlineExtension";
 import { WidgetExtension, } from "../editor/extensions/widget/WidgetExtension";
@@ -59,6 +60,7 @@ interface EditableNoteProps {
   onChatSelection?: (selection: EditableNoteSelection,) => void;
   onSelectionChange?: (selection: EditableNoteSelection | null,) => void;
   onSelectionBlur?: (editor: TiptapEditor,) => void;
+  onCreatePage?: (date: string,) => void;
   persistentSelectionRange?: PersistentSelectionRange | null;
 }
 
@@ -119,6 +121,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
       onChatSelection,
       onSelectionChange,
       onSelectionBlur,
+      onCreatePage,
       persistentSelectionRange,
     },
     ref,
@@ -128,6 +131,9 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
 
     const onSaveRef = useRef(onSave,);
     onSaveRef.current = onSave;
+
+    const onCreatePageRef = useRef(onCreatePage,);
+    onCreatePageRef.current = onCreatePage;
 
     const selfUpdateRef = useRef(false,);
 
@@ -219,6 +225,13 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
         HashtagExtension,
         ExcalidrawExtension,
         WidgetExtension,
+        SlashCommandExtension.configure({
+          onAttachPage: () => {
+            const currentNote = noteRef.current;
+            if (!("date" in currentNote)) return;
+            onCreatePageRef.current?.(currentNote.date,);
+          },
+        },),
         PersistentSelectionHighlightExtension,
         CustomListKeymap,
         ClipboardTextSerializer,
