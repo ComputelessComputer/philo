@@ -108,8 +108,20 @@ export const SlashCommandExtension = Extension.create<{
     const suggestion: SuggestionOptions<SlashCommandItem> = {
       editor: this.editor,
       char: "/",
-      startOfLine: true,
+      allowedPrefixes: null,
+      startOfLine: false,
       pluginKey: new PluginKey("page-slash-command",),
+      allow: ({ state, range, },) => {
+        if (!state.selection.empty) return false;
+
+        const $from = state.selection.$from;
+        if ($from.parent.type.spec.code) return false;
+
+        const textBefore = $from.parent.textBetween(0, $from.parentOffset, undefined, "\ufffc",);
+        const activeText = textBefore.slice(Math.max(0, range.from - $from.start(),),);
+
+        return /(?:^|\s)\/[^\s/]*$/.test(activeText,);
+      },
       items: ({ query, },) => {
         if (!this.options.onAttachPage) return [];
 
