@@ -351,7 +351,7 @@ export async function createAttachedPage({
   title: string;
   attachedTo: string;
 },): Promise<PageNote> {
-  const normalizedTitle = sanitizePageTitle(title,);
+  const normalizedTitle = sanitizePageTitle(title.replace(/\.md$/i, "",),);
   if (!normalizedTitle) {
     throw new Error("Page title is required.",);
   }

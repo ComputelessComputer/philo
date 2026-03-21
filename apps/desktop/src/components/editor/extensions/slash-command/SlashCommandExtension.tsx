@@ -344,7 +344,7 @@ const SlashCommandMenu = forwardRef<
 },);
 
 export const SlashCommandExtension = Extension.create<{
-  onAttachPage?: () => void;
+  onAttachPage?: () => Promise<string | null> | string | null;
 }>({
   name: "pageSlashCommand",
 
@@ -388,7 +388,15 @@ export const SlashCommandExtension = Extension.create<{
       switch (item.action) {
         case "attach_page":
           chain.run();
-          this.options.onAttachPage?.();
+          void Promise.resolve(this.options.onAttachPage?.(),)
+            .then((pageTitle,) => {
+              if (!pageTitle || editor.isDestroyed) return;
+              editor.chain().focus().insertContent({
+                type: "text",
+                text: `[[${pageTitle}.md]] `,
+              },).run();
+            },)
+            .catch(console.error,);
           break;
         case "set_paragraph":
           chain.clearNodes().run();

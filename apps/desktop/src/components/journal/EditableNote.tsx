@@ -60,7 +60,7 @@ interface EditableNoteProps {
   onChatSelection?: (selection: EditableNoteSelection,) => void;
   onSelectionChange?: (selection: EditableNoteSelection | null,) => void;
   onSelectionBlur?: (editor: TiptapEditor,) => void;
-  onCreatePage?: (date: string,) => void;
+  onCreatePage?: (date: string,) => Promise<string | null> | string | null;
   persistentSelectionRange?: PersistentSelectionRange | null;
 }
 
@@ -228,8 +228,8 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
         SlashCommandExtension.configure({
           onAttachPage: () => {
             const currentNote = noteRef.current;
-            if (!("date" in currentNote)) return;
-            onCreatePageRef.current?.(currentNote.date,);
+            if (!("date" in currentNote)) return null;
+            return onCreatePageRef.current?.(currentNote.date,) ?? null;
           },
         },),
         PersistentSelectionHighlightExtension,
