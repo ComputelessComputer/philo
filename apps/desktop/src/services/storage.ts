@@ -429,6 +429,19 @@ export async function createAttachedPage({
   return page;
 }
 
+export async function createUntitledAttachedPage(attachedTo: string,): Promise<PageNote> {
+  const baseTitle = "Untitled";
+  let candidate = baseTitle;
+  let suffix = 2;
+
+  while (await exists(await getPagePath(candidate,),)) {
+    candidate = `${baseTitle} ${suffix}`;
+    suffix += 1;
+  }
+
+  return await createAttachedPage({ title: candidate, attachedTo, },);
+}
+
 export async function listPagesAttachedTo(date: string,): Promise<AttachedPage[]> {
   const pagesDir = await getPagesDir();
   if (!(await exists(pagesDir,))) return [];

@@ -475,23 +475,6 @@
   margin-top: 0.75rem;
 }
 
-.slash-menu-input {
-  width: 100%;
-  height: 2.2rem;
-  display: flex;
-  align-items: center;
-  padding: 0 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.65rem;
-  background: #fff;
-  color: #111827;
-  font-size: 0.86rem;
-}
-
-.slash-menu-input.is-placeholder {
-  color: #9ca3af;
-}
-
 .mention-date-picker-btn {
   height: 1.9rem;
   padding: 0 0.8rem;

@@ -41,7 +41,7 @@ import {
 } from "../../services/paths";
 import { getFilenamePattern, hasActiveAiProvider, loadSettings, } from "../../services/settings";
 import {
-  createAttachedPage,
+  createUntitledAttachedPage,
   getOrCreateDailyNote,
   listPagesAttachedTo,
   loadDailyNote,
@@ -274,7 +274,7 @@ function LazyNote({
   pagesRevision: number;
   onOpenDate?: (date: string,) => void;
   onOpenPage?: (title: string,) => void;
-  onCreatePage?: (date: string, title: string,) => Promise<string | null> | string | null;
+  onCreatePage?: (date: string,) => Promise<string | null> | string | null;
   onInteract?: () => void;
   onChatSelection?: (selection: EditableNoteSelection,) => void;
   onSelectionChange?: (selection: EditableNoteSelection | null,) => void;
@@ -1162,15 +1162,15 @@ export default function AppLayout() {
     saveDailyNote(updated,).catch(console.error,);
   }, [],);
 
-  const handleCreateAttachedPage = useCallback(async (date: string, title: string,) => {
-    if (!title.trim()) return null;
-    const page = await createAttachedPage({ title, attachedTo: date, },);
+  const handleCreateAttachedPage = useCallback(async (date: string,) => {
+    const page = await createUntitledAttachedPage(date,);
     setPagesRevision((value,) => value + 1);
     if (date === today) {
       syncTodayAttachedPages();
     }
+    openPageView(page.title,);
     return page.title;
-  }, [syncTodayAttachedPages, today,],);
+  }, [openPageView, syncTodayAttachedPages, today,],);
 
   const runAiPrompt = useCallback(async (promptText: string,) => {
     const todayNoteValue = getCurrentTodayNoteForAi();
