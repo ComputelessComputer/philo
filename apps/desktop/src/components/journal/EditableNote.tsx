@@ -240,7 +240,18 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
         TableHeader,
         TableCell,
         Highlight,
-        MentionChipExtension.configure({ suggestion: buildMentionChipSuggestion(getReferenceDate(note,),), },),
+        MentionChipExtension.configure({
+          suggestions: [
+            buildMentionChipSuggestion(getReferenceDate(note,), {
+              char: "@",
+              pluginKey: "mention-chip-suggestion-at",
+            },),
+            buildMentionChipSuggestion(getReferenceDate(note,), {
+              char: "[[",
+              pluginKey: "mention-chip-suggestion-wikilink",
+            },),
+          ],
+        },),
         HashtagExtension,
         ExcalidrawExtension,
         WidgetExtension,

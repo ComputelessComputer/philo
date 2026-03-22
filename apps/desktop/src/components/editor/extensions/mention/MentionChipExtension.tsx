@@ -274,7 +274,16 @@ const MentionMenu = forwardRef<
   );
 },);
 
-export function buildMentionChipSuggestion(referenceDate?: string,): Omit<SuggestionOptions, "editor"> {
+export function buildMentionChipSuggestion(
+  referenceDate?: string,
+  options?: {
+    char?: string;
+    pluginKey?: string;
+  },
+): Omit<SuggestionOptions, "editor"> {
+  const triggerChar = options?.char ?? "@";
+  const pluginKey = options?.pluginKey ?? "mention-chip-suggestion";
+
   const insertMentionItems = (
     editor: Parameters<NonNullable<SuggestionOptions["command"]>>[0]["editor"],
     range: Parameters<NonNullable<SuggestionOptions["command"]>>[0]["range"],
@@ -287,6 +296,7 @@ export function buildMentionChipSuggestion(referenceDate?: string,): Omit<Sugges
           id: item.id,
           label: item.label,
           kind: item.kind,
+          mentionSuggestionChar: triggerChar,
         },
       },
       { type: "text", text: " ", },
@@ -300,10 +310,10 @@ export function buildMentionChipSuggestion(referenceDate?: string,): Omit<Sugges
   };
 
   return {
-    char: "@",
+    char: triggerChar,
     allowSpaces: true,
     allowedPrefixes: [" ", "(", "[", "{",],
-    pluginKey: new PluginKey("mention-chip-suggestion",),
+    pluginKey: new PluginKey(pluginKey,),
     items: ({ query, },) => getMentionSuggestions(query, referenceDate,),
     command: ({ editor, range, props, },) => {
       const item = props as MentionSuggestion;
