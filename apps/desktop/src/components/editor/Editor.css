@@ -82,9 +82,8 @@
   height: auto;
   gap: 0.3rem;
   margin: 0;
-  padding: 0.06em 0.18em;
+  padding: 0;
   border: 0;
-  border-radius: 0.35rem;
   background: transparent;
   color: #111827;
   font-size: inherit;
@@ -92,13 +91,27 @@
   line-height: inherit;
   vertical-align: -0.08em;
   align-items: center;
+  position: relative;
+  isolation: isolate;
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
-  transition: background-color 120ms ease, color 120ms ease;
+  transition: color 120ms ease;
 }
 
-.tiptap .mention-chip-page:hover {
+.tiptap .mention-chip-page::after {
+  content: "";
+  position: absolute;
+  inset: -0.06em -0.18em;
+  border-radius: 0.35rem;
   background: rgba(17, 24, 39, 0.08);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 120ms ease;
+  z-index: -1;
+}
+
+.tiptap .mention-chip-page:hover::after {
+  opacity: 1;
 }
 
 .tiptap .mention-chip-page-icon {
