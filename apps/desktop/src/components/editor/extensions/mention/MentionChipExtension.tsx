@@ -434,6 +434,7 @@ export const MentionChipExtension = Mention.extend({
           "span",
           mergeAttributes(options.HTMLAttributes, {
             "data-mention-chip": "",
+            contenteditable: "false",
             class: [
               "mention-chip",
               `mention-chip-${String(node.attrs.kind ?? "tag",)}`,
@@ -443,12 +444,7 @@ export const MentionChipExtension = Mention.extend({
               .filter(Boolean,)
               .join(" ",),
           },),
-          ...(chip.kind === "page"
-            ? [
-              ["span", { class: "mention-chip-page-icon", "aria-hidden": "true", contenteditable: "false", },],
-              ["span", { class: "mention-chip-page-label", }, label,],
-            ]
-            : [label,]),
+          label,
         ];
       },
       suggestions: [],
