@@ -108,6 +108,13 @@ function addDays(date: Date, days: number,): Date {
   return next;
 }
 
+function startOfWeek(date: Date,): Date {
+  const next = new Date(date,);
+  next.setHours(0, 0, 0, 0,);
+  next.setDate(next.getDate() - next.getDay(),);
+  return next;
+}
+
 function addDaysToIsoDate(date: string, days: number,): string {
   return toIsoDate(addDays(fromIsoDate(date,), days,),);
 }
@@ -453,11 +460,25 @@ function resolveDateQuery(query: string, reference: Date,): MentionSuggestion | 
 }
 
 function buildDefaultDateSuggestions(reference: Date,): MentionSuggestion[] {
+  const tomorrow = addDays(reference, 1,);
+  const referenceWeekStart = startOfWeek(reference,).getTime();
+  const upcomingWorkdays = [1, 5,]
+    .map((weekdayIndex,) => {
+      let offset = (weekdayIndex - reference.getDay() + 7) % 7;
+      while (offset <= 1) {
+        offset += 7;
+      }
+
+      const candidate = addDays(reference, offset,);
+      const weekLabel = startOfWeek(candidate,).getTime() === referenceWeekStart ? "This" : "Next";
+      return buildDateSuggestion(toIsoDate(candidate,), `${weekLabel} ${toTitleCase(WEEKDAYS[weekdayIndex],)}`,);
+    },)
+    .sort((left, right,) => left.id.localeCompare(right.id,));
+
   return [
     buildDateSuggestion(toIsoDate(reference,), "Today",),
-    buildDateSuggestion(toIsoDate(addDays(reference, 1,),), "Tomorrow",),
-    resolveWeekdayDate("next monday", reference,),
-    resolveWeekdayDate("next friday", reference,),
+    buildDateSuggestion(toIsoDate(tomorrow,), "Tomorrow",),
+    ...upcomingWorkdays,
   ].filter((item,): item is MentionSuggestion => item !== null);
 }
 
