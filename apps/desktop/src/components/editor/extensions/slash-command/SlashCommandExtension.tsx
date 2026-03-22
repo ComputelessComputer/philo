@@ -26,7 +26,7 @@ import {
   Table2,
   Text,
 } from "lucide-react";
-import { forwardRef, useEffect, useImperativeHandle, useState, } from "react";
+import { useEffect, useState, } from "react";
 import { resolveAssetUrl, saveAsset, } from "../../../../services/images";
 import { createDateMention, createRecurringMention, type MentionSuggestion, } from "../../../../services/mentions";
 import { buildPageMarkdownHref, } from "../../../../services/paths";
@@ -147,14 +147,17 @@ function MiniCalendar({ selected, onSelect, }: { selected: string; onSelect: (da
   );
 }
 
-const SlashCommandMenu = forwardRef<
-  { onKeyDown: (props: { event: KeyboardEvent; },) => boolean; },
-  {
-    items: SlashCommandItem[];
-    insertMention: (items: MentionSuggestion[],) => void;
-    runCommand: (item: SlashCommandItem,) => void;
-  }
->(function SlashCommandMenu({ items, insertMention, runCommand, }, ref,) {
+function SlashCommandMenu({
+  items,
+  insertMention,
+  runCommand,
+  setOnKeyDown,
+}: {
+  items: SlashCommandItem[];
+  insertMention: (items: MentionSuggestion[],) => void;
+  runCommand: (item: SlashCommandItem,) => void;
+  setOnKeyDown: (handler: ((props: { event: KeyboardEvent; },) => boolean) | null,) => void;
+},) {
   const [selectedIndex, setSelectedIndex,] = useState(0,);
   const [showDatePicker, setShowDatePicker,] = useState(false,);
   const [selectedDate, setSelectedDate,] = useState(getToday(),);
@@ -171,8 +174,8 @@ const SlashCommandMenu = forwardRef<
     insertMention([nextItem,],);
   };
 
-  useImperativeHandle(ref, () => ({
-    onKeyDown: ({ event, },) => {
+  useEffect(() => {
+    const onKeyDown = ({ event, }: { event: KeyboardEvent; },) => {
       if (showDatePicker) {
         if (event.key === "Escape") {
           event.preventDefault();
@@ -216,8 +219,11 @@ const SlashCommandMenu = forwardRef<
       }
 
       return false;
-    },
-  }), [showDatePicker, items, selectedIndex, selectedDate, recurrence, insertMention, runCommand,],);
+    };
+
+    setOnKeyDown(onKeyDown,);
+    return () => setOnKeyDown(null,);
+  }, [showDatePicker, items, selectedIndex, selectedDate, recurrence, insertMention, runCommand, setOnKeyDown,],);
 
   if (!showDatePicker && items.length === 0) {
     return (
@@ -342,7 +348,7 @@ const SlashCommandMenu = forwardRef<
       )}
     </div>
   );
-},);
+}
 
 export const SlashCommandExtension = Extension.create<{
   onAttachPage?: () => Promise<string | null> | string | null;
@@ -631,6 +637,7 @@ export const SlashCommandExtension = Extension.create<{
         let cleanup: (() => void) | undefined;
         let floatingEl: HTMLElement;
         let referenceEl: VirtualElement | null = null;
+        let menuOnKeyDown: ((props: { event: KeyboardEvent; },) => boolean) | null = null;
 
         const update = () => {
           if (!referenceEl) return;
@@ -676,6 +683,9 @@ export const SlashCommandExtension = Extension.create<{
                 runCommand: (item: SlashCommandItem,) => {
                   props.command(item,);
                 },
+                setOnKeyDown: (handler: ((props: { event: KeyboardEvent; },) => boolean) | null,) => {
+                  menuOnKeyDown = handler;
+                },
               },
               editor: props.editor,
             },);
@@ -707,6 +717,9 @@ export const SlashCommandExtension = Extension.create<{
               runCommand: (item: SlashCommandItem,) => {
                 props.command(item,);
               },
+              setOnKeyDown: (handler: ((props: { event: KeyboardEvent; },) => boolean) | null,) => {
+                menuOnKeyDown = handler;
+              },
             },);
 
             if (props.clientRect && referenceEl) {
@@ -721,10 +734,10 @@ export const SlashCommandExtension = Extension.create<{
               return true;
             }
 
-            return ((renderer.ref as { onKeyDown?: (input: { event: KeyboardEvent; },) => boolean; } | null)
-              ?.onKeyDown?.({ event: props.event, },) ?? false);
+            return menuOnKeyDown?.({ event: props.event, },) ?? false;
           },
           onExit: () => {
+            menuOnKeyDown = null;
             cleanup?.();
             floatingEl.remove();
             renderer.destroy();
