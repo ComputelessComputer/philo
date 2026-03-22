@@ -1920,18 +1920,14 @@ export default function AppLayout() {
             onClick={() => {
               void handleAdHocMeetingNoteClick();
             }}
-            className={`flex h-5 w-5 items-center justify-center rounded-full transition-all ${
+            className={`h-4 w-4 rounded-full transition-all ${
               isAdHocMeetingListening
                 ? "bg-red-500 shadow-[0_0_0_4px_rgba(239,68,68,0.14)]"
                 : "bg-red-500/92 hover:bg-red-500"
             }`}
             title={isAdHocMeetingListening ? "Stop ad-hoc meeting note" : "Start ad-hoc meeting note"}
             aria-label={isAdHocMeetingListening ? "Stop ad-hoc meeting note" : "Start ad-hoc meeting note"}
-          >
-            <span
-              className={`h-2.5 w-2.5 rounded-full bg-white/95 ${isAdHocMeetingListening ? "animate-pulse" : ""}`}
-            />
-          </button>
+          />
 
           <button
             onClick={async () => {
