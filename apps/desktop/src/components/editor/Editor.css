@@ -101,7 +101,10 @@
 .tiptap .mention-chip-page::after {
   content: "";
   position: absolute;
-  inset: -0.06em -0.18em;
+  top: 0;
+  bottom: 0;
+  left: -0.22em;
+  right: -0.22em;
   border-radius: 0.35rem;
   background: rgba(17, 24, 39, 0.08);
   opacity: 0;
