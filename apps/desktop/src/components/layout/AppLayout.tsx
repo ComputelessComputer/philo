@@ -7,7 +7,7 @@ import { openPath, } from "@tauri-apps/plugin-opener";
 import type { Editor as TiptapEditor, } from "@tiptap/core";
 import type { JSONContent, } from "@tiptap/react";
 import { ChevronLeft, ChevronRight, House, MapPin, } from "lucide-react";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState, } from "react";
+import { Fragment, type RefObject, useCallback, useEffect, useMemo, useRef, useState, } from "react";
 import { useCurrentDate, } from "../../hooks/useCurrentDate";
 import { useCurrentCity, } from "../../hooks/useTimezoneCity";
 import { EMPTY_DOC, parseJsonContent, } from "../../lib/markdown";
@@ -189,10 +189,20 @@ function appendAttachedPageLink(doc: JSONContent, title: string,): JSONContent {
   };
 }
 
-function buildTranscriptDoc(transcript: string,): JSONContent {
+function appendTranscriptToDoc(baseDoc: JSONContent, transcript: string,): JSONContent {
+  const baseContent = normalizeDocContent(baseDoc,);
+  const trimmedTranscript = transcript.trim();
+  if (!trimmedTranscript) {
+    return baseContent.length > 0 ? { type: "doc", content: baseContent, } : EMPTY_DOC;
+  }
+
   return {
     type: "doc",
-    content: [createParagraph(transcript,),],
+    content: [
+      ...baseContent,
+      ...(baseContent.length > 0 ? [createParagraph(),] : []),
+      createParagraph(trimmedTranscript,),
+    ],
   };
 }
 
@@ -414,6 +424,8 @@ function PageView({
   onOpenPage,
   onSave,
   onInteract,
+  editorRef,
+  onPageChange,
 }: {
   title: string;
   pagesRevision: number;
@@ -421,12 +433,19 @@ function PageView({
   onOpenPage?: (title: string,) => void;
   onSave?: (page: PageNote,) => void;
   onInteract?: () => void;
+  editorRef?: RefObject<EditableNoteHandle | null>;
+  onPageChange?: (page: PageNote | null,) => void;
 },) {
   const [page, setPage,] = useState<PageNote | null>(null,);
 
   useEffect(() => {
     loadPage(title,).then(setPage,).catch(console.error,);
   }, [pagesRevision, title,],);
+
+  useEffect(() => {
+    onPageChange?.(page,);
+    return () => onPageChange?.(null,);
+  }, [onPageChange, page,],);
 
   const handleSave = useCallback((note: DailyNote | PageNote,) => {
     if ("date" in note) return;
@@ -476,6 +495,7 @@ function PageView({
         )}
       </div>
       <EditableNote
+        ref={editorRef}
         note={page}
         onSave={handleSave}
         onOpenDate={onOpenDate}
@@ -541,11 +561,15 @@ export default function AppLayout() {
   const widgetEditSessionRef = useRef<WidgetEditRequestDetail | null>(null,);
   const todayNoteRef = useRef<DailyNote | null>(null,);
   const todayEditorRef = useRef<EditableNoteHandle>(null,);
+  const currentPageRef = useRef<PageNote | null>(null,);
+  const pageEditorRef = useRef<EditableNoteHandle>(null,);
   const adHocMeetingPageRef = useRef<PageNote | null>(null,);
   const adHocMeetingRecognitionRef = useRef<SpeechRecognitionLike | null>(null,);
   const adHocMeetingPageTitleRef = useRef<string | null>(null,);
   const adHocMeetingFinalTranscriptRef = useRef("",);
   const adHocMeetingDisplayedTranscriptRef = useRef("",);
+  const adHocMeetingBaseDocRef = useRef<JSONContent>(EMPTY_DOC,);
+  const adHocMeetingShouldUpdateMeetingMetadataRef = useRef(false,);
   const homeScrollTopRef = useRef(0,);
   const restoreHomeScrollTopRef = useRef<number | null>(null,);
   const googleSyncRef = useRef<Promise<boolean> | null>(null,);
@@ -558,6 +582,7 @@ export default function AppLayout() {
   const viewAnimationFrameRef = useRef<number | null>(null,);
   const viewAnimationResetRef = useRef<number | null>(null,);
   const currentView = viewState.history[viewState.index] ?? { kind: "home", };
+  const currentPageTitle = currentView.kind === "page" ? currentView.title : null;
   const currentViewKey = currentView.kind === "page" ? `page:${currentView.title}` : "home";
   const canGoBack = viewState.index > 0;
   const canGoForward = viewState.index < viewState.history.length - 1;
@@ -577,6 +602,10 @@ export default function AppLayout() {
   useEffect(() => {
     widgetEditSessionRef.current = widgetEditSession;
   }, [widgetEditSession,],);
+
+  const handleCurrentPageChange = useCallback((page: PageNote | null,) => {
+    currentPageRef.current = page;
+  }, [],);
 
   const upsertAiChatHistoryEntry = useCallback((entry: ChatHistoryEntry, persist = true,) => {
     setAiChatHistory((current,) => {
@@ -844,20 +873,32 @@ export default function AppLayout() {
   const setAdHocMeetingPageTranscript = useCallback((title: string, transcript: string, endedAt?: string | null,) => {
     const page = adHocMeetingPageRef.current;
     if (!page || page.title !== title) return;
+    const nextContent = appendTranscriptToDoc(adHocMeetingBaseDocRef.current, transcript,);
+    const shouldUpdateMeetingMetadata = adHocMeetingShouldUpdateMeetingMetadataRef.current;
 
     const updated: PageNote = {
       ...page,
-      content: JSON.stringify(buildTranscriptDoc(transcript,),),
-      endedAt: endedAt ?? page.endedAt,
-      frontmatter: {
-        ...page.frontmatter,
-        ended_at: endedAt ?? page.endedAt ?? undefined,
-      },
+      content: JSON.stringify(nextContent,),
+      endedAt: shouldUpdateMeetingMetadata ? endedAt ?? page.endedAt : page.endedAt,
+      frontmatter: shouldUpdateMeetingMetadata
+        ? {
+          ...page.frontmatter,
+          ended_at: endedAt ?? page.endedAt ?? undefined,
+        }
+        : page.frontmatter,
     };
 
     adHocMeetingPageRef.current = updated;
+    if (currentView.kind === "page" && currentPageTitle === updated.title) {
+      currentPageRef.current = updated;
+      const editor = pageEditorRef.current?.editor;
+      if (editor && !editor.isDestroyed) {
+        editor.commands.setContent(nextContent, { emitUpdate: true, },);
+        return;
+      }
+    }
     savePage(updated,).catch(console.error,);
-  }, [],);
+  }, [currentPageTitle, currentView.kind,],);
 
   const openGlobalSearch = useCallback(() => {
     clearWidgetEditSession();
@@ -976,16 +1017,32 @@ export default function AppLayout() {
     }
 
     closeGlobalSearch();
-    const ensuredTodayNote = todayNoteRef.current ?? await getOrCreateDailyNote(today,);
-    if (!todayNoteRef.current) {
-      todayNoteRef.current = ensuredTodayNote;
-      setTodayNote(ensuredTodayNote,);
+    let page: PageNote | null = null;
+
+    if (currentView.kind === "page") {
+      page = currentPageRef.current ?? await loadPage(currentView.title,);
+      if (!page) return;
+      currentPageRef.current = page;
+      const editor = pageEditorRef.current?.editor;
+      adHocMeetingBaseDocRef.current = editor && !editor.isDestroyed
+        ? editor.getJSON()
+        : parseJsonContent(page.content,);
+      adHocMeetingShouldUpdateMeetingMetadataRef.current = false;
+    } else {
+      const ensuredTodayNote = todayNoteRef.current ?? await getOrCreateDailyNote(today,);
+      if (!todayNoteRef.current) {
+        todayNoteRef.current = ensuredTodayNote;
+        setTodayNote(ensuredTodayNote,);
+      }
+      page = await createAdHocMeetingPage();
+      attachAdHocMeetingPageToTodayNote(page.title,);
+      setPagesRevision((value,) => value + 1);
+      openPageView(page.title,);
+      adHocMeetingBaseDocRef.current = EMPTY_DOC;
+      adHocMeetingShouldUpdateMeetingMetadataRef.current = true;
     }
-    const page = await createAdHocMeetingPage();
+
     adHocMeetingPageRef.current = page;
-    attachAdHocMeetingPageToTodayNote(page.title,);
-    setPagesRevision((value,) => value + 1);
-    openPageView(page.title,);
 
     adHocMeetingPageTitleRef.current = page.title;
     adHocMeetingFinalTranscriptRef.current = "";
@@ -997,6 +1054,8 @@ export default function AppLayout() {
       adHocMeetingPageTitleRef.current = null;
       adHocMeetingFinalTranscriptRef.current = "";
       adHocMeetingDisplayedTranscriptRef.current = "";
+      adHocMeetingBaseDocRef.current = EMPTY_DOC;
+      adHocMeetingShouldUpdateMeetingMetadataRef.current = false;
       console.error("Speech recognition is not available in this environment.",);
       return;
     }
@@ -1052,6 +1111,8 @@ export default function AppLayout() {
       adHocMeetingPageTitleRef.current = null;
       adHocMeetingFinalTranscriptRef.current = "";
       adHocMeetingDisplayedTranscriptRef.current = "";
+      adHocMeetingBaseDocRef.current = EMPTY_DOC;
+      adHocMeetingShouldUpdateMeetingMetadataRef.current = false;
     };
 
     adHocMeetingRecognitionRef.current = recognition;
@@ -1065,6 +1126,8 @@ export default function AppLayout() {
       adHocMeetingPageTitleRef.current = null;
       adHocMeetingFinalTranscriptRef.current = "";
       adHocMeetingDisplayedTranscriptRef.current = "";
+      adHocMeetingBaseDocRef.current = EMPTY_DOC;
+      adHocMeetingShouldUpdateMeetingMetadataRef.current = false;
       setIsAdHocMeetingListening(false,);
       console.error("Could not start ad-hoc meeting listening:", error,);
     }
@@ -1072,6 +1135,8 @@ export default function AppLayout() {
     attachAdHocMeetingPageToTodayNote,
     closeGlobalSearch,
     createAdHocMeetingPage,
+    currentView.kind,
+    currentPageTitle,
     isAdHocMeetingListening,
     openPageView,
     setAdHocMeetingPageTranscript,
@@ -2070,6 +2135,8 @@ export default function AppLayout() {
                     onOpenPage={openPageView}
                     onSave={handlePageSave}
                     onInteract={handleEditorInteract}
+                    editorRef={pageEditorRef}
+                    onPageChange={handleCurrentPageChange}
                   />
                 </div>
               )
