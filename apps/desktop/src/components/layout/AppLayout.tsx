@@ -274,7 +274,7 @@ function LazyNote({
   pagesRevision: number;
   onOpenDate?: (date: string,) => void;
   onOpenPage?: (title: string,) => void;
-  onCreatePage?: (date: string,) => Promise<string | null> | string | null;
+  onCreatePage?: (date: string, title: string,) => Promise<string | null> | string | null;
   onInteract?: () => void;
   onChatSelection?: (selection: EditableNoteSelection,) => void;
   onSelectionChange?: (selection: EditableNoteSelection | null,) => void;
@@ -1162,20 +1162,15 @@ export default function AppLayout() {
     saveDailyNote(updated,).catch(console.error,);
   }, [],);
 
-  const handleCreateAttachedPage = useCallback(async (date: string,) => {
-    const title = window.prompt("Page title",);
-    if (!title?.trim()) return null;
-
+  const handleCreateAttachedPage = useCallback(async (date: string, title: string,) => {
+    if (!title.trim()) return null;
     const page = await createAttachedPage({ title, attachedTo: date, },);
     setPagesRevision((value,) => value + 1);
     if (date === today) {
       syncTodayAttachedPages();
     }
-    setTimeout(() => {
-      openPageView(page.title,);
-    }, 0,);
     return page.title;
-  }, [openPageView, syncTodayAttachedPages, today,],);
+  }, [syncTodayAttachedPages, today,],);
 
   const runAiPrompt = useCallback(async (promptText: string,) => {
     const todayNoteValue = getCurrentTodayNoteForAi();

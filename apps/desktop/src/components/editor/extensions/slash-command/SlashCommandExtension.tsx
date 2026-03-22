@@ -29,7 +29,7 @@ import {
 import { useEffect, useState, } from "react";
 import { resolveAssetUrl, saveAsset, } from "../../../../services/images";
 import { createDateMention, createRecurringMention, type MentionSuggestion, } from "../../../../services/mentions";
-import { buildPageMarkdownHref, } from "../../../../services/paths";
+import { buildPageLinkTarget, } from "../../../../services/paths";
 import { getToday, } from "../../../../types/note";
 
 function formatRecurrenceDescriptionDate(date: string,) {
@@ -53,6 +53,7 @@ interface SlashCommandItem {
   title: string;
   subtitle: string;
   keywords: string[];
+  pageTitle?: string;
   action:
     | "attach_page"
     | "open_date_picker"
@@ -160,12 +161,16 @@ function SlashCommandMenu({
 },) {
   const [selectedIndex, setSelectedIndex,] = useState(0,);
   const [showDatePicker, setShowDatePicker,] = useState(false,);
+  const [showAttachPageInput, setShowAttachPageInput,] = useState(false,);
+  const [attachPageTitle, setAttachPageTitle,] = useState("",);
   const [selectedDate, setSelectedDate,] = useState(getToday(),);
   const [recurrence, setRecurrence,] = useState("",);
 
   useEffect(() => {
     setSelectedIndex(0,);
     setShowDatePicker(false,);
+    setShowAttachPageInput(false,);
+    setAttachPageTitle("",);
   }, [items,],);
 
   const applyCustomDate = () => {
@@ -174,6 +179,15 @@ function SlashCommandMenu({
     insertMention([nextItem,],);
   };
 
+  const applyAttachPage = () => {
+    const pageTitle = attachPageTitle.trim();
+    if (!pageTitle) return;
+
+    const attachPageItem = items.find((item,) => item.action === "attach_page");
+    if (!attachPageItem) return;
+
+    runCommand({ ...attachPageItem, pageTitle, },);
+  };
   useEffect(() => {
     const onKeyDown = ({ event, }: { event: KeyboardEvent; },) => {
       if (showDatePicker) {
@@ -185,6 +199,35 @@ function SlashCommandMenu({
         if (event.key === "Enter") {
           event.preventDefault();
           applyCustomDate();
+          return true;
+        }
+        return false;
+      }
+
+      if (showAttachPageInput) {
+        if (event.key === "Escape") {
+          event.preventDefault();
+          setShowAttachPageInput(false,);
+          return true;
+        }
+        if (event.key === "Enter") {
+          event.preventDefault();
+          applyAttachPage();
+          return true;
+        }
+        if (event.key === "Backspace") {
+          event.preventDefault();
+          setAttachPageTitle((current,) => current.slice(0, -1,));
+          return true;
+        }
+        if (
+          event.key.length === 1
+          && !event.metaKey
+          && !event.ctrlKey
+          && !event.altKey
+        ) {
+          event.preventDefault();
+          setAttachPageTitle((current,) => current + event.key);
           return true;
         }
         return false;
@@ -209,7 +252,9 @@ function SlashCommandMenu({
       if (event.key === "Enter") {
         const item = items[selectedIndex];
         if (item) {
-          if (item.action === "open_date_picker") {
+          if (item.action === "attach_page") {
+            setShowAttachPageInput(true,);
+          } else if (item.action === "open_date_picker") {
             setShowDatePicker(true,);
           } else {
             runCommand(item,);
@@ -223,9 +268,20 @@ function SlashCommandMenu({
 
     setOnKeyDown(onKeyDown,);
     return () => setOnKeyDown(null,);
-  }, [showDatePicker, items, selectedIndex, selectedDate, recurrence, insertMention, runCommand, setOnKeyDown,],);
+  }, [
+    showDatePicker,
+    showAttachPageInput,
+    items,
+    selectedIndex,
+    selectedDate,
+    recurrence,
+    attachPageTitle,
+    insertMention,
+    runCommand,
+    setOnKeyDown,
+  ],);
 
-  if (!showDatePicker && items.length === 0) {
+  if (!showDatePicker && !showAttachPageInput && items.length === 0) {
     return (
       <div className="slash-menu">
         <div className="slash-menu-empty">No matching commands</div>
@@ -235,7 +291,7 @@ function SlashCommandMenu({
 
   return (
     <div className="slash-menu">
-      {!showDatePicker && (
+      {!showDatePicker && !showAttachPageInput && (
         <div className="slash-menu-items">
           {items.map((item, index,) => {
             const previous = index > 0 ? items[index - 1] : null;
@@ -285,6 +341,10 @@ function SlashCommandMenu({
                     event.preventDefault();
                   }}
                   onClick={() => {
+                    if (item.action === "attach_page") {
+                      setShowAttachPageInput(true,);
+                      return;
+                    }
                     if (item.action === "open_date_picker") {
                       setShowDatePicker(true,);
                       return;
@@ -301,6 +361,37 @@ function SlashCommandMenu({
               </div>
             );
           },)}
+        </div>
+      )}
+      {showAttachPageInput && (
+        <div className="mention-date-picker">
+          <div className="mention-recurrence-label">Page title</div>
+          <div className={`slash-menu-input${attachPageTitle ? "" : " is-placeholder"}`}>
+            {attachPageTitle || "Type a title, then press Enter"}
+          </div>
+          <div className="mention-date-picker-actions">
+            <button
+              className="mention-date-picker-btn mention-date-picker-btn-muted"
+              onMouseDown={(event,) => {
+                event.preventDefault();
+              }}
+              onClick={() => setShowAttachPageInput(false,)}
+              type="button"
+            >
+              Back
+            </button>
+            <button
+              className="mention-date-picker-btn"
+              disabled={!attachPageTitle.trim()}
+              onMouseDown={(event,) => {
+                event.preventDefault();
+              }}
+              onClick={applyAttachPage}
+              type="button"
+            >
+              Create
+            </button>
+          </div>
         </div>
       )}
       {showDatePicker && (
@@ -351,7 +442,7 @@ function SlashCommandMenu({
 }
 
 export const SlashCommandExtension = Extension.create<{
-  onAttachPage?: () => Promise<string | null> | string | null;
+  onAttachPage?: (title: string,) => Promise<string | null> | string | null;
 }>({
   name: "pageSlashCommand",
 
@@ -394,18 +485,15 @@ export const SlashCommandExtension = Extension.create<{
 
       switch (item.action) {
         case "attach_page":
+          if (!item.pageTitle?.trim()) {
+            chain.run();
+            break;
+          }
           chain.run();
-          void Promise.resolve(this.options.onAttachPage?.(),)
+          void Promise.resolve(this.options.onAttachPage?.(item.pageTitle.trim(),),)
             .then((pageTitle,) => {
               if (!pageTitle || editor.isDestroyed) return;
-              editor.chain().focus().insertContent([
-                {
-                  type: "text",
-                  text: pageTitle,
-                  marks: [{ type: "link", attrs: { href: buildPageMarkdownHref(pageTitle,), }, },],
-                },
-                { type: "text", text: " ", },
-              ],).run();
+              editor.chain().focus().insertContent(`[[${buildPageLinkTarget(pageTitle,)}]] `,).run();
             },)
             .catch(console.error,);
           break;
