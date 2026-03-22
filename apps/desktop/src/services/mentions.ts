@@ -2,9 +2,7 @@ import { invoke, } from "@tauri-apps/api/core";
 import { getToday, } from "../types/note";
 import { buildPageLinkTarget, getPagesDir, isExplicitPageLinkTarget, parsePageTitleFromLinkTarget, } from "./paths";
 
-const RECURRENCE_TOKEN_RE = /^(daily|weekly|monthly|(\d+)(days?|weeks?|months?))$/i;
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const AT_MENTION_RE = /(^|[\s([{])@([a-zA-Z0-9][\w-]*)\b/g;
 const MONTH_DAY_RE =
   /^(january|jan|february|feb|march|mar|april|apr|may|june|jun|july|jul|august|aug|september|sep|sept|october|oct|november|nov|december|dec)\s+(\d{1,2})(?:,\s*(\d{4}))?$/i;
 const SLASH_DATE_RE = /^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?$/;
@@ -136,10 +134,6 @@ function formatDisplayDate(date: string,): string {
 
 function normalizeToken(token: string,): string {
   return token.trim().toLowerCase().replace(/\s+/g, " ",);
-}
-
-function sanitizeToken(token: string,): string {
-  return token.toLowerCase().replace(/[^a-z0-9]+/g, "_",).replace(/^_+|_+$/g, "",);
 }
 
 function toTitleCase(value: string,): string {
@@ -828,31 +822,8 @@ export function getMentionChipSourceId(
 }
 
 export function convertAtMentionsToWikiLinks(markdown: string, referenceDate?: string,): string {
-  const reference = parseReferenceDate(referenceDate,);
-  const relativeReference = getRelativeDateReference();
-  const referenceIso = toIsoDate(reference,);
-  const parts = markdown.split(/(```[\s\S]*?```|`[^`\n]+`)/g,);
-
-  return parts
-    .map((part, i,) => {
-      if (i % 2 === 1) return part;
-      return part.replace(AT_MENTION_RE, (full, prefix: string, token: string,) => {
-        const normalized = normalizeToken(token,);
-        const date = resolveDateQuery(normalized, relativeReference,);
-        if (date) return `${prefix}[[${formatDueTarget(date.id.slice("date_".length,),)}]]`;
-
-        if (RECURRENCE_TOKEN_RE.test(normalized,)) {
-          const intervalDays = recurrenceTokenToIntervalDays(normalized,);
-          if (!intervalDays) return full;
-          return `${prefix}[[${formatRecurringTarget(referenceIso, intervalDays,)}]]`;
-        }
-
-        const cleaned = sanitizeToken(token,);
-        if (!cleaned) return full;
-        return `${prefix}[[tag_${cleaned}|${token}]]`;
-      },);
-    },)
-    .join("",);
+  void referenceDate;
+  return markdown;
 }
 
 export function replaceMentionWikiLinksWithChips(markdown: string, referenceDate?: string,): string {
