@@ -437,9 +437,23 @@ export default function AppLayout() {
   const searchInputRef = useRef<HTMLInputElement>(null,);
   const searchResultRefs = useRef<(HTMLButtonElement | null)[]>([],);
   const searchNavigationModeRef = useRef<"mouse" | "keyboard">("mouse",);
+  const hasMountedViewRef = useRef(false,);
+  const nextViewAnimationDirectionRef = useRef<"forward" | "backward" | null>(null,);
+  const viewAnimationFrameRef = useRef<number | null>(null,);
+  const viewAnimationResetRef = useRef<number | null>(null,);
   const currentView = viewState.history[viewState.index] ?? { kind: "home", };
+  const currentViewKey = currentView.kind === "page" ? `page:${currentView.title}` : "home";
   const canGoBack = viewState.index > 0;
   const canGoForward = viewState.index < viewState.history.length - 1;
+  const [viewTransitionStyle, setViewTransitionStyle,] = useState<{
+    opacity: number;
+    transform: string;
+    transition: string;
+  }>({
+    opacity: 1,
+    transform: "translateX(0px)",
+    transition: "none",
+  },);
   useEffect(() => {
     todayNoteRef.current = todayNote;
   }, [todayNote,],);
@@ -517,6 +531,69 @@ export default function AppLayout() {
     }
   }, [],);
 
+  useEffect(() => {
+    if (!hasMountedViewRef.current) {
+      hasMountedViewRef.current = true;
+      return;
+    }
+
+    if (typeof window === "undefined" || window.matchMedia("(prefers-reduced-motion: reduce)",).matches) {
+      setViewTransitionStyle({
+        opacity: 1,
+        transform: "translateX(0px)",
+        transition: "none",
+      },);
+      nextViewAnimationDirectionRef.current = null;
+      return;
+    }
+
+    if (viewAnimationFrameRef.current !== null) {
+      window.cancelAnimationFrame(viewAnimationFrameRef.current,);
+    }
+    if (viewAnimationResetRef.current !== null) {
+      window.clearTimeout(viewAnimationResetRef.current,);
+    }
+
+    const direction = nextViewAnimationDirectionRef.current ?? "forward";
+    nextViewAnimationDirectionRef.current = null;
+    const startOffset = direction === "backward" ? -40 : 40;
+
+    setViewTransitionStyle({
+      opacity: 0.92,
+      transform: `translateX(${startOffset}px)`,
+      transition: "none",
+    },);
+
+    viewAnimationFrameRef.current = window.requestAnimationFrame(() => {
+      viewAnimationFrameRef.current = window.requestAnimationFrame(() => {
+        setViewTransitionStyle({
+          opacity: 1,
+          transform: "translateX(0px)",
+          transition: "transform 220ms cubic-bezier(0.22, 1, 0.36, 1), opacity 220ms ease-out",
+        },);
+        viewAnimationResetRef.current = window.setTimeout(() => {
+          setViewTransitionStyle({
+            opacity: 1,
+            transform: "translateX(0px)",
+            transition: "none",
+          },);
+          viewAnimationResetRef.current = null;
+        }, 240,);
+      },);
+    },);
+
+    return () => {
+      if (viewAnimationFrameRef.current !== null) {
+        window.cancelAnimationFrame(viewAnimationFrameRef.current,);
+        viewAnimationFrameRef.current = null;
+      }
+      if (viewAnimationResetRef.current !== null) {
+        window.clearTimeout(viewAnimationResetRef.current,);
+        viewAnimationResetRef.current = null;
+      }
+    };
+  }, [currentViewKey,],);
+
   const pushView = useCallback((nextView: AppView,) => {
     setViewState((current,) => {
       const activeView = current.history[current.index] ?? { kind: "home", };
@@ -524,6 +601,7 @@ export default function AppLayout() {
         return current;
       }
 
+      nextViewAnimationDirectionRef.current = "forward";
       handleViewTransition(activeView, nextView,);
       return {
         history: [...current.history.slice(0, current.index + 1,), nextView,],
@@ -535,6 +613,7 @@ export default function AppLayout() {
   const goBack = useCallback(() => {
     setViewState((current,) => {
       if (current.index === 0) return current;
+      nextViewAnimationDirectionRef.current = "backward";
       handleViewTransition(current.history[current.index], current.history[current.index - 1],);
       return { ...current, index: current.index - 1, };
     },);
@@ -543,6 +622,7 @@ export default function AppLayout() {
   const goForward = useCallback(() => {
     setViewState((current,) => {
       if (current.index >= current.history.length - 1) return current;
+      nextViewAnimationDirectionRef.current = "forward";
       handleViewTransition(current.history[current.index], current.history[current.index + 1],);
       return { ...current, index: current.index + 1, };
     },);
@@ -1651,18 +1731,26 @@ export default function AppLayout() {
               : updateInfo && <UpdateBanner update={updateInfo} onDismiss={() => setUpdateInfo(null,)} />}
             {currentView.kind === "page"
               ? (
-                <PageView
-                  title={currentView.title}
-                  pagesRevision={pagesRevision}
-                  onOpenDate={scrollToDate}
-                  onOpenPage={openPageView}
-                  onSave={handlePageSave}
-                  onInteract={handleEditorInteract}
-                />
+                <div
+                  className="overflow-x-hidden will-change-transform"
+                  style={viewTransitionStyle}
+                >
+                  <PageView
+                    title={currentView.title}
+                    pagesRevision={pagesRevision}
+                    onOpenDate={scrollToDate}
+                    onOpenPage={openPageView}
+                    onSave={handlePageSave}
+                    onInteract={handleEditorInteract}
+                  />
+                </div>
               )
               : (
                 <>
-                  <div className="w-full max-w-3xl">
+                  <div
+                    className="w-full max-w-3xl overflow-x-hidden will-change-transform"
+                    style={viewTransitionStyle}
+                  >
                     {focusedDate && focusedDate !== today && !pastDates.includes(focusedDate,) && (
                       <div key={`${focusedDate}-${storageRevision}-${pagesRevision}`} data-note-date={focusedDate}>
                         <div className="mx-6 border-t border-gray-200 dark:border-gray-700" />
