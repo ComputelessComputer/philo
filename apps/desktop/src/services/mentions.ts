@@ -1,4 +1,5 @@
 import { invoke, } from "@tauri-apps/api/core";
+import { readDir, } from "@tauri-apps/plugin-fs";
 import { getToday, } from "../types/note";
 import { buildPageLinkTarget, getPagesDir, isExplicitPageLinkTarget, parsePageTitleFromLinkTarget, } from "./paths";
 
@@ -351,6 +352,23 @@ function buildPageSuggestion(title: string,): MentionSuggestion {
   };
 }
 
+async function getDefaultPageSuggestions(): Promise<MentionSuggestion[]> {
+  const pagesDir = await getPagesDir();
+
+  try {
+    const entries = await readDir(pagesDir,);
+    return entries
+      .filter((entry,) => entry.isFile && typeof entry.name === "string" && entry.name.toLowerCase().endsWith(".md",))
+      .map((entry,) => parsePageTitleFromLinkTarget(entry.name ?? "",))
+      .filter((title,): title is string => Boolean(title,))
+      .sort((left, right,) => left.localeCompare(right, undefined, { sensitivity: "base", numeric: true, },))
+      .slice(0, 8,)
+      .map((title,) => buildPageSuggestion(title,));
+  } catch {
+    return [];
+  }
+}
+
 function resolveWeekdayDate(query: string, reference: Date,): MentionSuggestion | null {
   const normalized = normalizeToken(query,);
   const nextMatch = normalized.match(/^next\s+([a-z]+)$/i,);
@@ -699,8 +717,10 @@ export async function getMentionSuggestions(query: string, referenceDate?: strin
   const normalized = normalizeToken(query,);
 
   if (!normalized) {
+    const pageSuggestions = await getDefaultPageSuggestions();
     return [
       buildDatePickerSuggestion(),
+      ...pageSuggestions,
       ...buildDefaultDateSuggestions(relativeReference,),
       ...buildRecurringSuggestions("", today,),
     ];
