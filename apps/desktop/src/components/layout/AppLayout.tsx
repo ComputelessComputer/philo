@@ -1171,7 +1171,9 @@ export default function AppLayout() {
     if (date === today) {
       syncTodayAttachedPages();
     }
-    openPageView(page.title,);
+    setTimeout(() => {
+      openPageView(page.title,);
+    }, 0,);
     return page.title;
   }, [openPageView, syncTodayAttachedPages, today,],);
 
