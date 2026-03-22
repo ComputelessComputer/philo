@@ -14,7 +14,7 @@ import { PluginKey, } from "@tiptap/pm/state";
 import { ReactRenderer, } from "@tiptap/react";
 import type { SuggestionOptions, } from "@tiptap/suggestion";
 import { CalendarDays, FileText, Repeat2, } from "lucide-react";
-import { forwardRef, useEffect, useImperativeHandle, useState, } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState, } from "react";
 import {
   createDateMention,
   createRecurringMention,
@@ -125,6 +125,7 @@ const MentionMenu = forwardRef<
   const [showDatePicker, setShowDatePicker,] = useState(false,);
   const [selectedDate, setSelectedDate,] = useState(getToday(),);
   const [recurrence, setRecurrence,] = useState("",);
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([],);
 
   useEffect(() => {
     setSelectedIndex(0,);
@@ -133,6 +134,14 @@ const MentionMenu = forwardRef<
   useEffect(() => {
     setSelectedDate(getToday(),);
   }, [referenceDate,],);
+
+  useEffect(() => {
+    if (showDatePicker) return;
+    itemRefs.current[selectedIndex]?.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+    },);
+  }, [selectedIndex, showDatePicker, items,],);
 
   const applyCustomDate = () => {
     if (!selectedDate) return;
@@ -205,6 +214,9 @@ const MentionMenu = forwardRef<
                 {showDateDivider && <div className="mention-menu-divider" />}
                 {showRecurringDivider && <div className="mention-menu-divider" />}
                 <button
+                  ref={(element,) => {
+                    itemRefs.current[index] = element;
+                  }}
                   className={`mention-menu-item ${index === selectedIndex ? "is-selected" : ""}`}
                   onClick={() => {
                     if (item.action === "open_date_picker") {

@@ -26,7 +26,7 @@ import {
   Table2,
   Text,
 } from "lucide-react";
-import { useEffect, useState, } from "react";
+import { useEffect, useRef, useState, } from "react";
 import { resolveAssetUrl, saveAsset, } from "../../../../services/images";
 import { createDateMention, createRecurringMention, type MentionSuggestion, } from "../../../../services/mentions";
 import { getToday, } from "../../../../types/note";
@@ -161,11 +161,20 @@ function SlashCommandMenu({
   const [showDatePicker, setShowDatePicker,] = useState(false,);
   const [selectedDate, setSelectedDate,] = useState(getToday(),);
   const [recurrence, setRecurrence,] = useState("",);
+  const itemRefs = useRef<(HTMLButtonElement | null)[]>([],);
 
   useEffect(() => {
     setSelectedIndex(0,);
     setShowDatePicker(false,);
   }, [items,],);
+
+  useEffect(() => {
+    if (showDatePicker) return;
+    itemRefs.current[selectedIndex]?.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+    },);
+  }, [selectedIndex, showDatePicker, items,],);
 
   const applyCustomDate = () => {
     if (!selectedDate) return;
@@ -288,6 +297,9 @@ function SlashCommandMenu({
               <div key={item.id}>
                 {showSection && <div className="slash-menu-section">{sectionTitle}</div>}
                 <button
+                  ref={(element,) => {
+                    itemRefs.current[index] = element;
+                  }}
                   type="button"
                   onMouseDown={(event,) => {
                     event.preventDefault();
