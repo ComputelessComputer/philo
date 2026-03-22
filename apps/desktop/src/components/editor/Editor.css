@@ -81,8 +81,8 @@
   max-width: none;
   height: auto;
   gap: 0.3rem;
-  margin: 0;
-  padding: 0;
+  margin: -0.25rem;
+  padding: 0.25rem;
   border: 0;
   background: transparent;
   color: #111827;
@@ -103,8 +103,8 @@
   position: absolute;
   top: 0;
   bottom: 0;
-  left: -0.22em;
-  right: -0.22em;
+  left: 0;
+  right: 0;
   border-radius: 0.35rem;
   background: rgba(17, 24, 39, 0.08);
   opacity: 0;
