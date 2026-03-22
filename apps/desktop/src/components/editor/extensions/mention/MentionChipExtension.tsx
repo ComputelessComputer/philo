@@ -13,7 +13,7 @@ import Mention from "@tiptap/extension-mention";
 import { PluginKey, } from "@tiptap/pm/state";
 import { ReactRenderer, } from "@tiptap/react";
 import type { SuggestionOptions, } from "@tiptap/suggestion";
-import { CalendarDays, Repeat2, } from "lucide-react";
+import { CalendarDays, FileText, Repeat2, } from "lucide-react";
 import { forwardRef, useEffect, useImperativeHandle, useState, } from "react";
 import {
   createDateMention,
@@ -192,12 +192,17 @@ const MentionMenu = forwardRef<
         <div className="mention-menu-items">
           {items.map((item, index,) => {
             const showActionDivider = item.group !== "action" && index > 0 && items[index - 1]?.group === "action";
+            const showPageDivider = item.group === "page" && items[index - 1]?.group !== "page" && index > 0;
+            const showDateDivider = item.group === "date" && items[index - 1]?.group !== "date"
+              && items[index - 1]?.group !== "action";
             const showRecurringDivider = item.group === "recurring" && items[index - 1]?.group !== "recurring";
-            const Icon = item.kind === "recurring" ? Repeat2 : CalendarDays;
+            const Icon = item.kind === "page" ? FileText : item.kind === "recurring" ? Repeat2 : CalendarDays;
 
             return (
               <div key={item.id}>
                 {showActionDivider && <div className="mention-menu-divider" />}
+                {showPageDivider && <div className="mention-menu-divider" />}
+                {showDateDivider && <div className="mention-menu-divider" />}
                 {showRecurringDivider && <div className="mention-menu-divider" />}
                 <button
                   className={`mention-menu-item ${index === selectedIndex ? "is-selected" : ""}`}

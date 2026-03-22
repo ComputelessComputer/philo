@@ -1,5 +1,6 @@
+import { invoke, } from "@tauri-apps/api/core";
 import { getToday, } from "../types/note";
-import { buildPageLinkTarget, isExplicitPageLinkTarget, parsePageTitleFromLinkTarget, } from "./paths";
+import { buildPageLinkTarget, getPagesDir, isExplicitPageLinkTarget, parsePageTitleFromLinkTarget, } from "./paths";
 
 const RECURRENCE_TOKEN_RE = /^(daily|weekly|monthly|(\d+)(days?|weeks?|months?))$/i;
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -49,7 +50,14 @@ const WEEKDAYS = [
 ];
 
 export type MentionKind = "date" | "recurring" | "tag" | "page" | "gmail" | "google_calendar";
-export type MentionGroup = "action" | "date" | "recurring";
+export type MentionGroup = "action" | "page" | "date" | "recurring";
+
+interface MarkdownSearchResult {
+  path: string;
+  relativePath: string;
+  title: string;
+  snippet: string;
+}
 
 export interface MentionChipData {
   id: string;
@@ -340,6 +348,15 @@ function buildDatePickerSuggestion(): MentionSuggestion {
   };
 }
 
+function buildPageSuggestion(title: string,): MentionSuggestion {
+  return {
+    id: buildPageLinkTarget(title,),
+    label: title,
+    kind: "page",
+    group: "page",
+  };
+}
+
 function resolveWeekdayDate(query: string, reference: Date,): MentionSuggestion | null {
   const normalized = normalizeToken(query,);
   const nextMatch = normalized.match(/^next\s+([a-z]+)$/i,);
@@ -451,6 +468,27 @@ function dedupeSuggestions(items: MentionSuggestion[],): MentionSuggestion[] {
     seen.add(item.id,);
     return true;
   },);
+}
+
+async function getPageSuggestions(query: string,): Promise<MentionSuggestion[]> {
+  const normalized = normalizeToken(query,);
+  if (!normalized) return [];
+
+  const pagesDir = await getPagesDir();
+  const results = await invoke<MarkdownSearchResult[]>("search_markdown_files", {
+    rootDir: pagesDir,
+    query: normalized,
+    limit: 8,
+  },);
+
+  return dedupeSuggestions(
+    results
+      .map((result,) =>
+        parsePageTitleFromLinkTarget(result.relativePath,) ?? parsePageTitleFromLinkTarget(result.title,)
+      )
+      .filter((title,): title is string => Boolean(title,))
+      .map((title,) => buildPageSuggestion(title,)),
+  );
 }
 
 function parseMentionTarget(
@@ -660,7 +698,7 @@ export function renderMentionMarkdown(
   return `[[${id}|${label}]]`;
 }
 
-export function getMentionSuggestions(query: string, referenceDate?: string,): MentionSuggestion[] {
+export async function getMentionSuggestions(query: string, referenceDate?: string,): Promise<MentionSuggestion[]> {
   const reference = parseReferenceDate(referenceDate,);
   const relativeReference = getRelativeDateReference();
   const today = toIsoDate(reference,);
@@ -674,6 +712,7 @@ export function getMentionSuggestions(query: string, referenceDate?: string,): M
     ];
   }
 
+  const pageSuggestions = await getPageSuggestions(normalized,);
   const items: MentionSuggestion[] = [];
   const resolvedDate = resolveDateQuery(normalized, relativeReference,);
   if (resolvedDate) items.push(resolvedDate,);
@@ -685,7 +724,7 @@ export function getMentionSuggestions(query: string, referenceDate?: string,): M
   }
 
   items.push(...buildRecurringSuggestions(normalized, today,),);
-  return [buildDatePickerSuggestion(), ...dedupeSuggestions(items,).slice(0, 6,),];
+  return [buildDatePickerSuggestion(), ...pageSuggestions, ...dedupeSuggestions(items,).slice(0, 6,),];
 }
 
 export function createDateMention(date: string, label?: string,): MentionSuggestion {
