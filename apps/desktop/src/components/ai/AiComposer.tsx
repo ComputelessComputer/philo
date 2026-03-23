@@ -55,7 +55,7 @@ export function AiComposer({
   onApplyChange,
   onDiscardChange,
 }: AiComposerProps,) {
-  const inputRef = useRef<HTMLInputElement>(null,);
+  const inputRef = useRef<HTMLTextAreaElement>(null,);
   const visibleSelectedLabel = selectedLabel ?? (selectedText ? formatSelectedLabel(selectedText,) : null);
   const widgetEditLabel = parseWidgetEditLabel(visibleSelectedLabel,);
   const hasPanel = !widgetEditLabel && (chatHistory.length > 0 || Boolean(title,) || Boolean(activeChatId,));
@@ -63,9 +63,17 @@ export function AiComposer({
 
   useEffect(() => {
     if (!open || !hasAiConfigured) return;
-    const timer = window.setTimeout(() => inputRef.current?.focus(), 0,);
+    const timer = window.setTimeout(() => {
+      resizeComposerInput(inputRef.current,);
+      inputRef.current?.focus();
+    }, 0,);
     return () => window.clearTimeout(timer,);
   }, [hasAiConfigured, open,],);
+
+  const setPromptValue = (value: string,) => {
+    onPromptChange(value,);
+    window.requestAnimationFrame(() => resizeComposerInput(inputRef.current,));
+  };
 
   return (
     <div
@@ -102,7 +110,7 @@ export function AiComposer({
                     canApplyPendingChanges={canApplyPendingChanges}
                     canStartNewChat={!isSubmitting}
                     onQuickAction={(value,) => {
-                      onPromptChange(value,);
+                      setPromptValue(value,);
                       window.setTimeout(() => inputRef.current?.focus(), 0,);
                     }}
                     onNewChat={() => {
@@ -140,7 +148,7 @@ export function AiComposer({
                             key={suggestion.command}
                             type="button"
                             onClick={() => {
-                              onPromptChange(suggestion.command,);
+                              setPromptValue(suggestion.command,);
                               window.setTimeout(() => inputRef.current?.focus(), 0,);
                             }}
                             className="flex w-full items-start justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-gray-50"
@@ -169,22 +177,31 @@ export function AiComposer({
                   )}
 
                   <form
-                    className="flex items-center gap-3"
+                    className="flex items-end gap-3"
                     onSubmit={(event,) => {
                       event.preventDefault();
                       onSubmit();
+                      window.requestAnimationFrame(() => resizeComposerInput(inputRef.current,));
                     }}
                   >
                     <div className="relative min-w-0 flex-1">
-                      <input
+                      <textarea
                         ref={inputRef}
                         value={prompt}
-                        onChange={(event,) => onPromptChange(event.target.value,)}
+                        rows={1}
+                        onChange={(event,) => setPromptValue(event.target.value,)}
+                        onInput={(event,) => resizeComposerInput(event.currentTarget,)}
+                        onKeyDown={(event,) => {
+                          if (event.key !== "Enter" || event.shiftKey || isSubmitting) return;
+                          event.preventDefault();
+                          onSubmit();
+                          window.requestAnimationFrame(() => resizeComposerInput(inputRef.current,));
+                        }}
                         placeholder="chat with notes."
-                        className="w-full min-w-0 bg-transparent px-1 text-[15px] text-gray-900 outline-hidden placeholder:text-gray-400"
+                        className="max-h-36 w-full min-w-0 resize-none overflow-y-auto bg-transparent px-1 py-0.5 text-[15px] leading-6 text-gray-900 outline-hidden placeholder:text-gray-400"
                       />
                       {isSubmitting && !prompt.trim() && (
-                        <div className="pointer-events-none absolute inset-0 flex items-center gap-2 px-1 text-[15px] text-slate-500">
+                        <div className="pointer-events-none absolute inset-0 flex items-center gap-2 px-1 py-0.5 text-[15px] leading-6 text-slate-500">
                           <LoaderCircle size={14} className="shrink-0 animate-spin" />
                           <span className="truncate">{submittingLabel}</span>
                         </div>
@@ -254,4 +271,10 @@ function getSlashSuggestions(prompt: string,) {
   const normalized = prompt.trim().toLowerCase();
   if (!normalized.startsWith("/",)) return [];
   return SLASH_COMMANDS.filter(({ command, },) => normalized === "/" || command.startsWith(normalized,));
+}
+
+function resizeComposerInput(element: HTMLTextAreaElement | null,) {
+  if (!element) return;
+  element.style.height = "0px";
+  element.style.height = `${Math.min(element.scrollHeight, 144,)}px`;
 }
