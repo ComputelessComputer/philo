@@ -418,7 +418,7 @@ export function buildMentionChipSuggestion(
             position: "fixed",
             top: "0",
             left: "0",
-            zIndex: "40",
+            zIndex: "60",
           },);
           document.body.appendChild(floatingEl,);
 
