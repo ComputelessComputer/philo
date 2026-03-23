@@ -75,18 +75,66 @@ function getReferenceDate(note: DailyNote | PageNote,) {
   return note.attachedTo ?? getToday();
 }
 
+function getMovableNodeContext(state: import("@tiptap/pm/state").EditorState,) {
+  const { doc, selection, } = state;
+
+  if (selection instanceof NodeSelection) {
+    if (!selection.node.isBlock) return null;
+
+    const $nodePos = doc.resolve(selection.from,);
+    const parentDepth = $nodePos.depth;
+
+    return {
+      node: selection.node,
+      nodePos: selection.from,
+      parentDepth,
+      parent: $nodePos.node(parentDepth,),
+      index: $nodePos.index(parentDepth,),
+    };
+  }
+
+  const { $from, } = selection;
+  let moveDepth = 1;
+
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    const node = $from.node(depth,);
+    if (node.type.name === "listItem" || node.type.name === "taskItem") {
+      moveDepth = depth;
+      break;
+    }
+  }
+
+  const node = $from.node(moveDepth,);
+  if (!node.isBlock) return null;
+
+  const nodePos = $from.before(moveDepth,);
+  if (selection.from < nodePos || selection.to > nodePos + node.nodeSize) {
+    return null;
+  }
+
+  const parentDepth = moveDepth - 1;
+
+  return {
+    node,
+    nodePos,
+    parentDepth,
+    parent: $from.node(parentDepth,),
+    index: $from.index(parentDepth,),
+  };
+}
+
 function moveSelectedNode(view: import("@tiptap/pm/view").EditorView, direction: "up" | "down",): boolean {
   const { state, } = view;
   const { selection, } = state;
+  const context = getMovableNodeContext(state,);
+  if (!context) return false;
 
-  if (!(selection instanceof NodeSelection)) return false;
-  if (!selection.node.isBlock) return false;
-
-  const nodePos = selection.from;
-  const $nodePos = state.doc.resolve(nodePos,);
-  const depth = $nodePos.depth;
-  const parent = $nodePos.node(depth,);
-  const index = $nodePos.index(depth,);
+  const {
+    index,
+    nodePos,
+    parent,
+    parentDepth,
+  } = context;
   const targetIndex = direction === "up" ? index - 1 : index + 1;
 
   if (targetIndex < 0 || targetIndex >= parent.childCount) {
@@ -98,17 +146,27 @@ function moveSelectedNode(view: import("@tiptap/pm/view").EditorView, direction:
   children.splice(targetIndex, 0, movingNode,);
 
   const tr = state.tr;
-  const parentStart = depth === 0 ? 0 : $nodePos.start(depth,);
-  const parentEnd = depth === 0 ? state.doc.content.size : $nodePos.end(depth,);
+  const $nodePos = state.doc.resolve(nodePos,);
+  const parentStart = parentDepth === 0 ? 0 : $nodePos.start(parentDepth,);
+  const parentEnd = parentDepth === 0 ? state.doc.content.size : $nodePos.end(parentDepth,);
   tr.replaceWith(parentStart, parentEnd, Fragment.fromArray(children,),);
 
   const adjacentNodeSize = direction === "up"
     ? parent.child(index - 1,).nodeSize
     : parent.child(index + 1,).nodeSize;
-  const newNodePos = direction === "up"
-    ? nodePos - adjacentNodeSize
-    : nodePos + adjacentNodeSize;
-  tr.setSelection(NodeSelection.create(tr.doc, newNodePos,),);
+  const positionDelta = direction === "up" ? -adjacentNodeSize : adjacentNodeSize;
+  const newNodePos = nodePos + positionDelta;
+
+  if (selection instanceof NodeSelection) {
+    tr.setSelection(NodeSelection.create(tr.doc, newNodePos,),);
+  } else {
+    const movedSelection = TextSelection.create(
+      tr.doc,
+      selection.anchor + positionDelta,
+      selection.head + positionDelta,
+    );
+    tr.setSelection(movedSelection,);
+  }
 
   view.dispatch(tr.scrollIntoView(),);
   return true;
