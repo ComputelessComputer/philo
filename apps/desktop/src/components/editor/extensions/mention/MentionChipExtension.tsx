@@ -26,6 +26,12 @@ import {
   renderMentionMarkdown,
 } from "../../../../services/mentions";
 import { getToday, } from "../../../../types/note";
+import {
+  DATE_PICKER_RECURRENCE_OPTIONS,
+  type DatePickerRecurrence,
+  handleDatePickerKeyDown,
+  MiniCalendar,
+} from "../date-picker";
 
 function formatRecurrenceDescriptionDate(date: string,) {
   return new Date(`${date}T00:00:00`,).toLocaleDateString("en-US", {
@@ -43,83 +49,6 @@ function getRecurrenceDescription(date: string, recurrence: string,) {
 const INITIAL_PAGE_RESULTS = 5;
 const PAGE_RESULTS_INCREMENT = 3;
 
-function MiniCalendar({ selected, onSelect, }: { selected: string; onSelect: (date: string,) => void; },) {
-  const todayStr = (() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1,).padStart(2, "0",)}-${
-      String(d.getDate(),).padStart(2, "0",)
-    }`;
-  })();
-  const init = selected ? new Date(`${selected}T00:00:00`,) : new Date();
-  const [viewYear, setViewYear,] = useState(init.getFullYear(),);
-  const [viewMonth, setViewMonth,] = useState(init.getMonth(),);
-
-  const daysInMonth = new Date(viewYear, viewMonth + 1, 0,).getDate();
-  const daysInPreviousMonth = new Date(viewYear, viewMonth, 0,).getDate();
-  const firstDay = (new Date(viewYear, viewMonth, 1,).getDay() + 6) % 7;
-  const cells: { day: number; monthOffset: -1 | 0 | 1; }[] = [];
-  for (let i = firstDay - 1; i >= 0; i--) {
-    cells.push({ day: daysInPreviousMonth - i, monthOffset: -1, },);
-  }
-  for (let d = 1; d <= daysInMonth; d++) cells.push({ day: d, monthOffset: 0, },);
-  while (cells.length % 7 !== 0) {
-    cells.push({ day: cells.length - (firstDay + daysInMonth) + 1, monthOffset: 1, },);
-  }
-
-  const pad = (n: number,) => String(n,).padStart(2, "0",);
-  const toIso = (day: number, monthOffset: -1 | 0 | 1,) => {
-    const date = new Date(viewYear, viewMonth + monthOffset, day,);
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1,)}-${pad(date.getDate(),)}`;
-  };
-
-  const prevMonth = () => {
-    if (viewMonth === 0) {
-      setViewYear((y,) => y - 1);
-      setViewMonth(11,);
-    } else setViewMonth((m,) => m - 1);
-  };
-  const nextMonth = () => {
-    if (viewMonth === 11) {
-      setViewYear((y,) => y + 1);
-      setViewMonth(0,);
-    } else setViewMonth((m,) => m + 1);
-  };
-
-  const title = new Date(viewYear, viewMonth, 1,).toLocaleDateString("en-US", { month: "long", year: "numeric", },);
-
-  return (
-    <div className="mention-calendar">
-      <div className="mention-calendar-header">
-        <button className="mention-calendar-nav" onClick={prevMonth} type="button">‹</button>
-        <span className="mention-calendar-title">{title}</span>
-        <button className="mention-calendar-nav" onClick={nextMonth} type="button">›</button>
-      </div>
-      <div className="mention-calendar-weekdays">
-        {["M", "T", "W", "T", "F", "S", "S",].map((d, i,) => (
-          <span key={i} className="mention-calendar-weekday">{d}</span>
-        ))}
-      </div>
-      <div className="mention-calendar-grid">
-        {cells.map(({ day, monthOffset, }, i,) => {
-          const iso = toIso(day, monthOffset,);
-          return (
-            <button
-              key={i}
-              className={`mention-calendar-cell${iso === todayStr ? " is-today" : ""}${
-                iso === selected ? " is-selected" : ""
-              }${monthOffset !== 0 ? " is-outside-month" : ""}`}
-              onClick={() => onSelect(iso,)}
-              type="button"
-            >
-              {day}
-            </button>
-          );
-        },)}
-      </div>
-    </div>
-  );
-}
-
 const MentionMenu = forwardRef<
   { onKeyDown: (props: { event: KeyboardEvent; },) => boolean; },
   { items: MentionSuggestion[]; command: (items: MentionSuggestion[],) => void; referenceDate?: string; }
@@ -127,7 +56,7 @@ const MentionMenu = forwardRef<
   const [selectedIndex, setSelectedIndex,] = useState(0,);
   const [showDatePicker, setShowDatePicker,] = useState(false,);
   const [selectedDate, setSelectedDate,] = useState(getToday(),);
-  const [recurrence, setRecurrence,] = useState("",);
+  const [recurrence, setRecurrence,] = useState<DatePickerRecurrence>("",);
   const [visiblePageCount, setVisiblePageCount,] = useState(INITIAL_PAGE_RESULTS,);
   const itemRefs = useRef<(HTMLButtonElement | null)[]>([],);
 
@@ -191,17 +120,15 @@ const MentionMenu = forwardRef<
   useImperativeHandle(ref, () => ({
     onKeyDown: ({ event, },) => {
       if (showDatePicker) {
-        if (event.key === "Escape") {
-          event.preventDefault();
-          setShowDatePicker(false,);
-          return true;
-        }
-        if (event.key === "Enter") {
-          event.preventDefault();
-          applyCustomDate();
-          return true;
-        }
-        return false;
+        return handleDatePickerKeyDown({
+          event,
+          selectedDate,
+          setSelectedDate,
+          recurrence,
+          setRecurrence,
+          onSubmit: applyCustomDate,
+          onClose: () => setShowDatePicker(false,),
+        },);
       }
 
       if (renderedItems.length === 0) return false;
@@ -271,12 +198,7 @@ const MentionMenu = forwardRef<
           <div className="mention-recurrence">
             <div className="mention-recurrence-label">Repeat</div>
             <div className="mention-recurrence-options">
-              {[
-                { value: "", label: "None", },
-                { value: "daily", label: "Daily", },
-                { value: "weekly", label: "Weekly", },
-                { value: "monthly", label: "Monthly", },
-              ].map((opt,) => (
+              {DATE_PICKER_RECURRENCE_OPTIONS.map((opt,) => (
                 <button
                   key={opt.value || "none"}
                   className={`mention-recurrence-option${recurrence === opt.value ? " is-active" : ""}`}
