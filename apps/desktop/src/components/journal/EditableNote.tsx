@@ -18,8 +18,9 @@ import { parseJsonContent, } from "../../lib/markdown";
 import { openGoogleMentionChip, } from "../../services/google-open";
 import { resolveAssetUrl, saveImage, } from "../../services/images";
 import { getMentionChipDate, getMentionChipHref, type MentionKind, } from "../../services/mentions";
-import { parsePageTitleFromLinkTarget, } from "../../services/paths";
+import { buildPageLinkTarget, parsePageTitleFromLinkTarget, } from "../../services/paths";
 import { saveDailyNote, } from "../../services/storage";
+import { ensureUrlSummaryPage, } from "../../services/url-summary";
 import { type DailyNote, getToday, type PageNote, } from "../../types/note";
 import { EditorBubbleMenu, } from "../editor/EditorBubbleMenu";
 import { ClipboardTextSerializer, } from "../editor/extensions/clipboard";
@@ -36,6 +37,7 @@ import {
 import { SlashCommandExtension, } from "../editor/extensions/slash-command/SlashCommandExtension";
 import { CustomTaskItem, } from "../editor/extensions/task-item/TaskItemNode";
 import { UnderlineExtension, } from "../editor/extensions/underline/UnderlineExtension";
+import { getUrlSummaryOccurrences, UrlSummaryExtension, } from "../editor/extensions/url-summary/UrlSummaryExtension";
 import { WidgetExtension, } from "../editor/extensions/widget/WidgetExtension";
 import { getEditorSelectionText, } from "../editor/selectionText";
 
@@ -255,6 +257,36 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
         HashtagExtension,
         ExcalidrawExtension,
         WidgetExtension,
+        UrlSummaryExtension.configure({
+          async onStaleUrl({ occurrence, },) {
+            if (!editor || editor.isDestroyed) return true;
+
+            try {
+              const result = await ensureUrlSummaryPage(occurrence.text,);
+              const latestOccurrence = getUrlSummaryOccurrences(editor.state,).find((entry,) =>
+                entry.id === occurrence.id
+              );
+              if (!latestOccurrence || latestOccurrence.text !== occurrence.text) {
+                return true;
+              }
+
+              const mentionNode = editor.schema.nodes.mentionChip?.create({
+                id: buildPageLinkTarget(result.pageTitle,),
+                kind: "page",
+                label: result.chipLabel,
+              },);
+              if (!mentionNode) return false;
+
+              editor.view.dispatch(
+                editor.state.tr.replaceWith(latestOccurrence.from, latestOccurrence.to, mentionNode,),
+              );
+              return true;
+            } catch (error) {
+              console.error(error,);
+              return false;
+            }
+          },
+        },),
         SlashCommandExtension.configure({
           onAttachPage: () => {
             const currentNote = noteRef.current;
