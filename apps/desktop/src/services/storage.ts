@@ -57,6 +57,9 @@ const PAGE_FRONTMATTER_KEYS = new Set([
   "agenda",
   "action_items",
   "source",
+  "link_title",
+  "summary_updated_at",
+  "follow_up_questions",
 ],);
 
 type FrontmatterValue = unknown;
@@ -291,6 +294,9 @@ function buildPageNote(
     agenda: toStringArray(frontmatter.agenda,),
     actionItems: toStringArray(frontmatter.action_items,),
     source: toOptionalString(frontmatter.source,),
+    linkTitle: toOptionalString(frontmatter.link_title,),
+    summaryUpdatedAt: toOptionalString(frontmatter.summary_updated_at,),
+    followUpQuestions: toStringArray(frontmatter.follow_up_questions,),
     frontmatter,
     hasFrontmatter,
   };
@@ -310,7 +316,10 @@ function buildPageFrontmatter(page: PageNote,): FrontmatterRecord {
     || !!page.sessionKind
     || page.agenda.length > 0
     || page.actionItems.length > 0
-    || !!page.source;
+    || !!page.source
+    || !!page.linkTitle
+    || !!page.summaryUpdatedAt
+    || page.followUpQuestions.length > 0;
 
   if (hasKnownMetadata) {
     frontmatter.type = page.type;
@@ -324,6 +333,9 @@ function buildPageFrontmatter(page: PageNote,): FrontmatterRecord {
     if (page.agenda.length > 0) frontmatter.agenda = page.agenda;
     if (page.actionItems.length > 0) frontmatter.action_items = page.actionItems;
     if (page.source) frontmatter.source = page.source;
+    if (page.linkTitle) frontmatter.link_title = page.linkTitle;
+    if (page.summaryUpdatedAt) frontmatter.summary_updated_at = page.summaryUpdatedAt;
+    if (page.followUpQuestions.length > 0) frontmatter.follow_up_questions = page.followUpQuestions;
   }
 
   for (const [key, value,] of Object.entries(page.frontmatter,)) {

@@ -19,6 +19,9 @@ export interface PageFrontmatter {
   agenda?: unknown;
   action_items?: unknown;
   source?: string;
+  link_title?: string;
+  summary_updated_at?: string;
+  follow_up_questions?: unknown;
   [key: string]: unknown;
 }
 
@@ -38,6 +41,9 @@ export interface PageNote {
   agenda: string[];
   actionItems: string[];
   source: string | null;
+  linkTitle: string | null;
+  summaryUpdatedAt: string | null;
+  followUpQuestions: string[];
   frontmatter: PageFrontmatter;
   hasFrontmatter: boolean;
 }

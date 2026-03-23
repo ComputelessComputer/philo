@@ -1239,6 +1239,9 @@ export default function AppLayout() {
       agenda: [],
       actionItems: [],
       source: "ad-hoc",
+      linkTitle: null,
+      summaryUpdatedAt: null,
+      followUpQuestions: [],
       frontmatter: {
         type: "meeting",
         started_at: startedAt,
