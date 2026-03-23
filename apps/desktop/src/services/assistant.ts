@@ -71,13 +71,19 @@ const searchEnvelopeSchema = z.object({
   },),),
 },);
 
+const noteRecordSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/,),
+  city: z.string().nullable().optional(),
+  markdown: z.string(),
+  path: z.string(),
+},);
+
 const noteEnvelopeSchema = z.object({
-  note: z.object({
-    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/,),
-    city: z.string().nullable().optional(),
-    markdown: z.string(),
-    path: z.string(),
-  },),
+  note: noteRecordSchema,
+},);
+
+const noteRangeEnvelopeSchema = z.object({
+  notes: z.array(noteRecordSchema,),
 },);
 
 const pendingChangeSchema = z.object({
@@ -124,11 +130,19 @@ function getTemporalContext() {
     minute: "2-digit",
     hour12: false,
   },);
+  const thisWeekStartDate = startOfWeek(now,);
+  const thisWeekEndDate = addDays(thisWeekStartDate, 6,);
+  const lastWeekStartDate = addDays(thisWeekStartDate, -7,);
+  const lastWeekEndDate = addDays(thisWeekStartDate, -1,);
 
   return {
     today,
     yesterday: toIsoDate(yesterdayDate,),
     tomorrow: toIsoDate(tomorrowDate,),
+    thisWeekStart: toIsoDate(thisWeekStartDate,),
+    thisWeekEnd: toIsoDate(thisWeekEndDate,),
+    lastWeekStart: toIsoDate(lastWeekStartDate,),
+    lastWeekEnd: toIsoDate(lastWeekEndDate,),
     localTime,
     timezone,
     city,
@@ -141,6 +155,21 @@ function toIsoDate(date: Date,) {
   }`;
 }
 
+function addDays(date: Date, days: number,) {
+  const next = new Date(date,);
+  next.setDate(next.getDate() + days,);
+  return next;
+}
+
+function startOfWeek(date: Date,) {
+  const start = new Date(date,);
+  const weekday = start.getDay();
+  const offset = weekday === 0 ? -6 : 1 - weekday;
+  start.setDate(start.getDate() + offset,);
+  start.setHours(0, 0, 0, 0,);
+  return start;
+}
+
 function buildSystemPrompt(scope: AssistantScope, temporal: ReturnType<typeof getTemporalContext>,) {
   return `You are Sophia, an AI assistant inside the Philo daily notes app.
 
@@ -150,6 +179,8 @@ Current local date context:
 - today: ${temporal.today}
 - yesterday: ${temporal.yesterday}
 - tomorrow: ${temporal.tomorrow}
+- this week (Mon-Sun): ${temporal.thisWeekStart} to ${temporal.thisWeekEnd}
+- last week (Mon-Sun): ${temporal.lastWeekStart} to ${temporal.lastWeekEnd}
 - local time: ${temporal.localTime}
 - timezone: ${temporal.timezone}
 - city: ${temporal.city || "unknown"}
@@ -161,7 +192,9 @@ Rules:
 - If \`selectedText\` is present in the request, treat it as the user's current focus.
 - If \`conversationHistory\` is present in the request, treat it as the current chat thread and answer follow-up questions in that context.
 - For information requests, search first and only read the most relevant notes.
-- Read at most 5 notes unless the user explicitly names dates.
+- For week-based or contiguous date-range questions, use \`run_philo\` with \`note read-range --from YYYY-MM-DD --to YYYY-MM-DD --json\`.
+- Interpret "last week" as ${temporal.lastWeekStart} through ${temporal.lastWeekEnd}, and "this week" as ${temporal.thisWeekStart} through ${temporal.thisWeekEnd}, unless the user gives a different date range.
+- Read at most 5 notes unless the user explicitly names dates or asks about a specific contiguous range like last week.
 - Cite note dates in your final answer when making claims.
 - Use \`run_philo\` first. Use \`run_safe_shell\` only when \`run_philo\` cannot answer the request.
 - Never apply note edits directly. If the user wants a note changed, read it, prepare the full replacement markdown, and call \`run_philo\` with \`note update --dry-run\`.
@@ -338,7 +371,7 @@ function extractNoteSnippet(markdown: string,) {
   return cleaned.slice(0, 180,);
 }
 
-function addCitation(citations: Map<string, AssistantCitation>, note: z.infer<typeof noteEnvelopeSchema>["note"],) {
+function addCitation(citations: Map<string, AssistantCitation>, note: z.infer<typeof noteRecordSchema>,) {
   citations.set(note.date, {
     date: note.date,
     title: extractNoteTitle(note.markdown, note.date,),
@@ -360,6 +393,11 @@ async function executePhiloTool(
   if (output.code === 0) {
     if (input.argv[0] === "note" && input.argv[1] === "read") {
       addCitation(citations, noteEnvelopeSchema.parse(JSON.parse(output.stdout,),).note,);
+    } else if (input.argv[0] === "note" && input.argv[1] === "read-range") {
+      const parsed = noteRangeEnvelopeSchema.parse(JSON.parse(output.stdout,),);
+      for (const note of parsed.notes) {
+        addCitation(citations, note,);
+      }
     } else if (input.argv[0] === "note" && input.argv[1] === "search") {
       searchEnvelopeSchema.parse(JSON.parse(output.stdout,),);
     } else if (input.argv[0] === "note" && input.argv[1] === "update" && input.argv.includes("--dry-run",)) {

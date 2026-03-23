@@ -1,3 +1,4 @@
+use chrono::{Duration, NaiveDate};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
@@ -47,6 +48,12 @@ struct NoteEnvelope {
 #[serde(rename_all = "camelCase")]
 struct SearchEnvelope {
     hits: Vec<SearchHit>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ReadRangeEnvelope {
+    notes: Vec<NoteRecord>,
 }
 
 #[derive(Serialize)]
@@ -113,6 +120,7 @@ pub enum ToolCommand {
 enum ParsedCommand {
     Search { query: String, limit: usize },
     Read { date: String },
+    ReadRange { from: String, to: String },
     Create { date: String },
     Update { date: String, apply: bool },
     Delete { date: String },
@@ -347,6 +355,39 @@ fn read_note(context: &NoteContext, date: &str) -> Result<Option<NoteRecord>, St
         markdown,
         path: path.to_string_lossy().to_string(),
     }))
+}
+
+fn parse_iso_date(date: &str) -> Result<NaiveDate, String> {
+    NaiveDate::parse_from_str(date, "%Y-%m-%d").map_err(|_| format!("Invalid date: {}", date))
+}
+
+fn read_notes_in_range(
+    context: &NoteContext,
+    from: &str,
+    to: &str,
+) -> Result<Vec<NoteRecord>, String> {
+    let from_date = parse_iso_date(from)?;
+    let to_date = parse_iso_date(to)?;
+    if from_date > to_date {
+        return Err("--from must be on or before --to.".to_string());
+    }
+
+    let span_days = (to_date - from_date).num_days();
+    if span_days > 31 {
+        return Err("Date range cannot exceed 31 days.".to_string());
+    }
+
+    let mut notes = Vec::new();
+    let mut cursor = from_date;
+    while cursor <= to_date {
+        let date = cursor.format("%Y-%m-%d").to_string();
+        if let Some(note) = read_note(context, &date)? {
+            notes.push(note);
+        }
+        cursor += Duration::days(1);
+    }
+
+    Ok(notes)
 }
 
 fn write_note(path: &Path, content: &str) -> Result<(), String> {
@@ -769,6 +810,31 @@ fn parse_command(argv: &[String]) -> Result<ParsedCommand, String> {
                 date: date.ok_or_else(|| "Missing --date.".to_string())?,
             })
         }
+        "read-range" => {
+            let mut from = None;
+            let mut to = None;
+            let mut index = 2usize;
+            while index < argv.len() {
+                match argv[index].as_str() {
+                    "--from" => {
+                        from = argv.get(index + 1).cloned();
+                        index += 2;
+                    }
+                    "--to" => {
+                        to = argv.get(index + 1).cloned();
+                        index += 2;
+                    }
+                    "--json" => index += 1,
+                    other => {
+                        return Err(format!("Unsupported flag for note read-range: {}", other))
+                    }
+                }
+            }
+            Ok(ParsedCommand::ReadRange {
+                from: from.ok_or_else(|| "Missing --from.".to_string())?,
+                to: to.ok_or_else(|| "Missing --to.".to_string())?,
+            })
+        }
         "create" => {
             let mut date = None;
             let mut index = 2usize;
@@ -852,6 +918,9 @@ pub fn run_philo_command(argv: &[String], stdin: Option<String>) -> Result<Strin
                 .ok_or_else(|| format!("Note {} does not exist.", date))?;
             serde_json::to_string(&NoteEnvelope { note })
         }
+        ParsedCommand::ReadRange { from, to } => serde_json::to_string(&ReadRangeEnvelope {
+            notes: read_notes_in_range(&context, &from, &to)?,
+        }),
         ParsedCommand::Create { date } => serde_json::to_string(&NoteEnvelope {
             note: create_note(&context, &date)?,
         }),
@@ -996,7 +1065,32 @@ pub fn run_sidecar_philo(
 
 #[cfg(test)]
 mod tests {
-    use super::{apply_filename_pattern, build_unified_diff, parse_date_from_relative_path};
+    use super::{
+        apply_filename_pattern, build_unified_diff, parse_date_from_relative_path,
+        read_notes_in_range, NoteContext,
+    };
+    use std::fs;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn make_test_context() -> NoteContext {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let base = std::env::temp_dir().join(format!("philo-tools-test-{unique}"));
+        fs::create_dir_all(&base).unwrap();
+        NoteContext {
+            settings_path: base.join("settings.json"),
+            journal_dir: base.join("notes"),
+            filename_pattern: "{YYYY}-{MM}-{DD}".to_string(),
+        }
+    }
+
+    fn write_test_note(dir: &PathBuf, date: &str, markdown: &str) {
+        fs::create_dir_all(dir).unwrap();
+        fs::write(dir.join(format!("{date}.md")), markdown).unwrap();
+    }
 
     #[test]
     fn applies_filename_pattern() {
@@ -1019,5 +1113,33 @@ mod tests {
         let diff = build_unified_diff("- [ ] one\n", "- [ ] one\n- [ ] two\n");
         assert!(diff.contains("+++ after"));
         assert!(diff.contains("+"));
+    }
+
+    #[test]
+    fn reads_existing_notes_in_date_range() {
+        let context = make_test_context();
+        write_test_note(
+            &context.journal_dir,
+            "2026-03-16",
+            "# Mar 16\n- [x] shipped\n",
+        );
+        write_test_note(
+            &context.journal_dir,
+            "2026-03-18",
+            "# Mar 18\n- [x] fixed\n",
+        );
+        write_test_note(
+            &context.journal_dir,
+            "2026-03-23",
+            "# Mar 23\n- [x] today\n",
+        );
+
+        let notes = read_notes_in_range(&context, "2026-03-16", "2026-03-22").unwrap();
+        let dates = notes
+            .iter()
+            .map(|note| note.date.as_str())
+            .collect::<Vec<_>>();
+
+        assert_eq!(dates, vec!["2026-03-16", "2026-03-18"]);
     }
 }
