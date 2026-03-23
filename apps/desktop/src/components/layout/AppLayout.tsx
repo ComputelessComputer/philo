@@ -860,6 +860,11 @@ export default function AppLayout() {
       startedAt: startedAt.toISOString(),
       endedAt: null,
       participants: [],
+      location: null,
+      executiveSummary: null,
+      sessionKind: null,
+      agenda: [],
+      actionItems: [],
       source: "ad-hoc",
       frontmatter: {
         type: "meeting",

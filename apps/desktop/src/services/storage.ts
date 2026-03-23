@@ -6,6 +6,7 @@ import {
   DailyNote,
   getDaysAgo,
   getToday,
+  type MeetingSessionKind,
   type PageFrontmatter,
   type PageNote,
   type PageType,
@@ -50,6 +51,11 @@ const PAGE_FRONTMATTER_KEYS = new Set([
   "started_at",
   "ended_at",
   "participants",
+  "location",
+  "executive_summary",
+  "session_kind",
+  "agenda",
+  "action_items",
   "source",
 ],);
 
@@ -257,6 +263,10 @@ function toStringArray(value: unknown,): string[] {
     .filter(Boolean,);
 }
 
+function isMeetingSessionKind(value: unknown,): value is MeetingSessionKind {
+  return value === "decision_making" || value === "informative";
+}
+
 function buildPageNote(
   title: string,
   path: string,
@@ -275,6 +285,11 @@ function buildPageNote(
     startedAt: toOptionalString(frontmatter.started_at,),
     endedAt: toOptionalString(frontmatter.ended_at,),
     participants: toStringArray(frontmatter.participants,),
+    location: toOptionalString(frontmatter.location,),
+    executiveSummary: toOptionalString(frontmatter.executive_summary,),
+    sessionKind: isMeetingSessionKind(frontmatter.session_kind,) ? frontmatter.session_kind : null,
+    agenda: toStringArray(frontmatter.agenda,),
+    actionItems: toStringArray(frontmatter.action_items,),
     source: toOptionalString(frontmatter.source,),
     frontmatter,
     hasFrontmatter,
@@ -290,6 +305,11 @@ function buildPageFrontmatter(page: PageNote,): FrontmatterRecord {
     || !!page.startedAt
     || !!page.endedAt
     || page.participants.length > 0
+    || !!page.location
+    || !!page.executiveSummary
+    || !!page.sessionKind
+    || page.agenda.length > 0
+    || page.actionItems.length > 0
     || !!page.source;
 
   if (hasKnownMetadata) {
@@ -298,6 +318,11 @@ function buildPageFrontmatter(page: PageNote,): FrontmatterRecord {
     if (page.startedAt) frontmatter.started_at = page.startedAt;
     if (page.endedAt) frontmatter.ended_at = page.endedAt;
     if (page.participants.length > 0) frontmatter.participants = page.participants;
+    if (page.location) frontmatter.location = page.location;
+    if (page.executiveSummary) frontmatter.executive_summary = page.executiveSummary;
+    if (page.sessionKind) frontmatter.session_kind = page.sessionKind;
+    if (page.agenda.length > 0) frontmatter.agenda = page.agenda;
+    if (page.actionItems.length > 0) frontmatter.action_items = page.actionItems;
     if (page.source) frontmatter.source = page.source;
   }
 

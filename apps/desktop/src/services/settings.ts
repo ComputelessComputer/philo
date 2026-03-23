@@ -8,6 +8,12 @@ export interface Settings {
   openaiApiKey: string;
   googleApiKey: string;
   openrouterApiKey: string;
+  currentSttProvider: SttProvider;
+  currentSttModel: string;
+  sttBaseUrl: string;
+  sttApiKey: string;
+  spokenLanguages: string[];
+  saveRecordings: boolean;
   googleEmailOpenClient: GoogleEmailOpenClient;
   googleCalendarOpenClient: GoogleCalendarOpenClient;
   googleOAuthClientId: string;
@@ -33,16 +39,71 @@ export const SETTINGS_UPDATED_EVENT = "philo:settings-updated";
 export const AI_PROVIDERS = ["anthropic", "openai", "google", "openrouter",] as const;
 export type AiProvider = (typeof AI_PROVIDERS)[number];
 export const DEFAULT_AI_PROVIDER: AiProvider = "anthropic";
+export const STT_PROVIDERS = [
+  "deepgram",
+  "assemblyai",
+  "openai",
+  "gladia",
+  "soniox",
+  "elevenlabs",
+  "mistral",
+  "custom",
+] as const;
+export type SttProvider = (typeof STT_PROVIDERS)[number];
+export const DEFAULT_STT_PROVIDER: SttProvider = "openai";
 export const GOOGLE_EMAIL_OPEN_CLIENTS = ["gmail", "apple_mail",] as const;
 export type GoogleEmailOpenClient = (typeof GOOGLE_EMAIL_OPEN_CLIENTS)[number];
 export const DEFAULT_GOOGLE_EMAIL_OPEN_CLIENT: GoogleEmailOpenClient = "gmail";
 export const GOOGLE_CALENDAR_OPEN_CLIENTS = ["google_calendar", "apple_calendar",] as const;
 export type GoogleCalendarOpenClient = (typeof GOOGLE_CALENDAR_OPEN_CLIENTS)[number];
 export const DEFAULT_GOOGLE_CALENDAR_OPEN_CLIENT: GoogleCalendarOpenClient = "google_calendar";
+const DEFAULT_SPOKEN_LANGUAGES = ["en",] as string[];
+
+const STT_PROVIDER_LABELS: Record<SttProvider, string> = {
+  deepgram: "Deepgram",
+  assemblyai: "AssemblyAI",
+  openai: "OpenAI",
+  gladia: "Gladia",
+  soniox: "Soniox",
+  elevenlabs: "ElevenLabs",
+  mistral: "Mistral",
+  custom: "Custom",
+};
+
+const STT_PROVIDER_DEFAULT_BASE_URLS: Record<SttProvider, string> = {
+  deepgram: "https://api.deepgram.com/v1",
+  assemblyai: "https://api.assemblyai.com",
+  openai: "https://api.openai.com/v1",
+  gladia: "https://api.gladia.io",
+  soniox: "https://api.soniox.com",
+  elevenlabs: "https://api.elevenlabs.io",
+  mistral: "https://api.mistral.ai/v1",
+  custom: "",
+};
+
+const STT_PROVIDER_DEFAULT_MODELS: Record<SttProvider, string> = {
+  deepgram: "nova-2-meeting",
+  assemblyai: "universal",
+  openai: "gpt-4o-transcribe",
+  gladia: "solaria-1",
+  soniox: "stt-v4",
+  elevenlabs: "scribe_v2",
+  mistral: "voxtral-mini-2602",
+  custom: "",
+};
 
 export interface ActiveAiConfig {
   provider: AiProvider;
   apiKey: string;
+}
+
+export interface ActiveSttConfig {
+  provider: SttProvider;
+  model: string;
+  baseUrl: string;
+  apiKey: string;
+  spokenLanguages: string[];
+  saveRecordings: boolean;
 }
 
 export interface GoogleAccount {
@@ -62,6 +123,12 @@ const DEFAULT_SETTINGS: Settings = {
   openaiApiKey: "",
   googleApiKey: "",
   openrouterApiKey: "",
+  currentSttProvider: DEFAULT_STT_PROVIDER,
+  currentSttModel: STT_PROVIDER_DEFAULT_MODELS[DEFAULT_STT_PROVIDER],
+  sttBaseUrl: STT_PROVIDER_DEFAULT_BASE_URLS[DEFAULT_STT_PROVIDER],
+  sttApiKey: "",
+  spokenLanguages: [...DEFAULT_SPOKEN_LANGUAGES,],
+  saveRecordings: true,
   googleEmailOpenClient: DEFAULT_GOOGLE_EMAIL_OPEN_CLIENT,
   googleCalendarOpenClient: DEFAULT_GOOGLE_CALENDAR_OPEN_CLIENT,
   googleOAuthClientId: DEFAULT_GOOGLE_OAUTH_CLIENT_ID,
@@ -85,6 +152,21 @@ function normalizeAiProvider(value: unknown,): AiProvider {
   return typeof value === "string" && AI_PROVIDERS.includes(value as AiProvider,)
     ? value as AiProvider
     : DEFAULT_AI_PROVIDER;
+}
+
+function normalizeSttProvider(value: unknown,): SttProvider {
+  return typeof value === "string" && STT_PROVIDERS.includes(value as SttProvider,)
+    ? value as SttProvider
+    : DEFAULT_STT_PROVIDER;
+}
+
+function normalizeSpokenLanguages(value: unknown,) {
+  if (!Array.isArray(value,)) return [...DEFAULT_SPOKEN_LANGUAGES,];
+  const normalized = value
+    .filter((entry,): entry is string => typeof entry === "string")
+    .map((entry,) => entry.trim().toLowerCase())
+    .filter(Boolean,);
+  return normalized.length > 0 ? normalized : [...DEFAULT_SPOKEN_LANGUAGES,];
 }
 
 function normalizeGoogleEmailOpenClient(value: unknown,): GoogleEmailOpenClient {
@@ -159,6 +241,18 @@ export function getAiProviderLabel(provider: AiProvider,) {
   }
 }
 
+export function getSttProviderLabel(provider: SttProvider,) {
+  return STT_PROVIDER_LABELS[provider];
+}
+
+export function getDefaultSttBaseUrl(provider: SttProvider,) {
+  return STT_PROVIDER_DEFAULT_BASE_URLS[provider];
+}
+
+export function getDefaultSttModel(provider: SttProvider,) {
+  return STT_PROVIDER_DEFAULT_MODELS[provider];
+}
+
 export function getAiProviderApiKey(settings: Settings, provider: AiProvider,) {
   switch (provider) {
     case "anthropic":
@@ -172,11 +266,41 @@ export function getAiProviderApiKey(settings: Settings, provider: AiProvider,) {
   }
 }
 
+export function getSttProviderApiKey(settings: Settings, provider: SttProvider,) {
+  const explicit = settings.sttApiKey.trim();
+  if (explicit) return explicit;
+  if (provider === "openai") {
+    return settings.openaiApiKey.trim();
+  }
+  return "";
+}
+
 export function resolveActiveAiConfig(settings: Settings,): ActiveAiConfig | null {
   const provider = normalizeAiProvider(settings.aiProvider,);
   const apiKey = getAiProviderApiKey(settings, provider,);
   if (!apiKey) return null;
   return { provider, apiKey, };
+}
+
+export function resolveActiveSttConfig(settings: Settings,): ActiveSttConfig | null {
+  const provider = normalizeSttProvider(settings.currentSttProvider,);
+  const model = settings.currentSttModel.trim() || getDefaultSttModel(provider,);
+  const baseUrl = settings.sttBaseUrl.trim() || getDefaultSttBaseUrl(provider,);
+  const apiKey = getSttProviderApiKey(settings, provider,);
+  const spokenLanguages = normalizeSpokenLanguages(settings.spokenLanguages,);
+
+  if (!model || !baseUrl || !apiKey || spokenLanguages.length === 0) {
+    return null;
+  }
+
+  return {
+    provider,
+    model,
+    baseUrl,
+    apiKey,
+    spokenLanguages,
+    saveRecordings: settings.saveRecordings !== false,
+  };
 }
 
 export function hasActiveAiProvider(settings: Settings,) {
@@ -200,6 +324,16 @@ export async function loadSettings(): Promise<Settings> {
       ...DEFAULT_SETTINGS,
       ...parsed,
       aiProvider: normalizeAiProvider(parsed.aiProvider,),
+      currentSttProvider: normalizeSttProvider(parsed.currentSttProvider,),
+      currentSttModel: typeof parsed.currentSttModel === "string"
+        ? parsed.currentSttModel.trim() || getDefaultSttModel(normalizeSttProvider(parsed.currentSttProvider,),)
+        : getDefaultSttModel(normalizeSttProvider(parsed.currentSttProvider,),),
+      sttBaseUrl: typeof parsed.sttBaseUrl === "string"
+        ? parsed.sttBaseUrl.trim() || getDefaultSttBaseUrl(normalizeSttProvider(parsed.currentSttProvider,),)
+        : getDefaultSttBaseUrl(normalizeSttProvider(parsed.currentSttProvider,),),
+      sttApiKey: typeof parsed.sttApiKey === "string" ? parsed.sttApiKey : "",
+      spokenLanguages: normalizeSpokenLanguages(parsed.spokenLanguages,),
+      saveRecordings: parsed.saveRecordings !== false,
       googleEmailOpenClient: normalizeGoogleEmailOpenClient(parsed.googleEmailOpenClient,),
       googleCalendarOpenClient: normalizeGoogleCalendarOpenClient(parsed.googleCalendarOpenClient,),
       googleAccounts: normalizeGoogleAccounts(parsed.googleAccounts, {
@@ -227,6 +361,12 @@ export async function saveSettings(settings: Settings,): Promise<void> {
     JSON.stringify(
       {
         ...settings,
+        currentSttProvider: normalizeSttProvider(settings.currentSttProvider,),
+        currentSttModel: settings.currentSttModel.trim(),
+        sttBaseUrl: settings.sttBaseUrl.trim(),
+        sttApiKey: settings.sttApiKey.trim(),
+        spokenLanguages: normalizeSpokenLanguages(settings.spokenLanguages,),
+        saveRecordings: settings.saveRecordings !== false,
         googleAccounts: normalizeGoogleAccounts(settings.googleAccounts,),
         googleOAuthClientId: DEFAULT_GOOGLE_OAUTH_CLIENT_ID,
       },
@@ -266,6 +406,11 @@ export async function setApiKey(key: string, provider?: AiProvider,): Promise<vo
 export async function getActiveAiConfig(): Promise<ActiveAiConfig | null> {
   const settings = await loadSettings();
   return resolveActiveAiConfig(settings,);
+}
+
+export async function getActiveSttConfig(): Promise<ActiveSttConfig | null> {
+  const settings = await loadSettings();
+  return resolveActiveSttConfig(settings,);
 }
 
 export async function getJournalDirSetting(): Promise<string> {

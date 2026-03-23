@@ -5,6 +5,7 @@ export interface DailyNote {
 }
 
 export type PageType = "page" | "meeting";
+export type MeetingSessionKind = "decision_making" | "informative";
 
 export interface PageFrontmatter {
   type?: string;
@@ -12,6 +13,11 @@ export interface PageFrontmatter {
   started_at?: string;
   ended_at?: string;
   participants?: unknown;
+  location?: string;
+  executive_summary?: string;
+  session_kind?: string;
+  agenda?: unknown;
+  action_items?: unknown;
   source?: string;
   [key: string]: unknown;
 }
@@ -26,6 +32,11 @@ export interface PageNote {
   startedAt: string | null;
   endedAt: string | null;
   participants: string[];
+  location: string | null;
+  executiveSummary: string | null;
+  sessionKind: MeetingSessionKind | null;
+  agenda: string[];
+  actionItems: string[];
   source: string | null;
   frontmatter: PageFrontmatter;
   hasFrontmatter: boolean;

@@ -16,6 +16,9 @@ import {
   type AiProvider,
   DEFAULT_FILENAME_PATTERN,
   getAiProviderLabel,
+  getDefaultSttBaseUrl,
+  getDefaultSttModel,
+  getSttProviderLabel,
   GOOGLE_CALENDAR_OPEN_CLIENTS,
   GOOGLE_EMAIL_OPEN_CLIENTS,
   type GoogleCalendarOpenClient,
@@ -23,6 +26,8 @@ import {
   loadSettings,
   saveSettings,
   type Settings,
+  STT_PROVIDERS,
+  type SttProvider,
 } from "../../services/settings";
 import { getToday, } from "../../types/note";
 import { VaultPathMarquee, } from "../shared/VaultPathMarquee";
@@ -46,6 +51,17 @@ const AI_PROVIDER_ICONS: Record<AiProvider, string> = {
   openai: openaiSymbol,
   google: googleGeminiIcon,
   openrouter: openrouterIcon,
+};
+
+const STT_PROVIDER_HINTS: Record<SttProvider, string> = {
+  deepgram: "BYOK",
+  assemblyai: "BYOK",
+  openai: "Reuse OpenAI key if blank",
+  gladia: "BYOK",
+  soniox: "BYOK",
+  elevenlabs: "BYOK",
+  mistral: "BYOK",
+  custom: "Manual",
 };
 
 const GOOGLE_EMAIL_OPEN_CLIENT_LABELS: Record<GoogleEmailOpenClient, string> = {
@@ -405,6 +421,11 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
       openaiApiKey: current.openaiApiKey.trim(),
       googleApiKey: current.googleApiKey.trim(),
       openrouterApiKey: current.openrouterApiKey.trim(),
+      currentSttModel: current.currentSttModel.trim(),
+      sttBaseUrl: current.sttBaseUrl.trim(),
+      sttApiKey: current.sttApiKey.trim(),
+      spokenLanguages: current.spokenLanguages.map((language,) => language.trim().toLowerCase()).filter(Boolean,),
+      saveRecordings: current.saveRecordings !== false,
       googleOAuthClientId: current.googleOAuthClientId.trim(),
       googleAccounts: current.googleAccounts.map((account,) => ({
         email: account.email.trim(),
@@ -529,6 +550,14 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
       case "openrouter":
         return settings.openrouterApiKey;
     }
+  };
+
+  const handleSttProviderChange = (provider: SttProvider,) => {
+    update({
+      currentSttProvider: provider,
+      currentSttModel: getDefaultSttModel(provider,),
+      sttBaseUrl: getDefaultSttBaseUrl(provider,),
+    },);
   };
 
   const handleConnectGoogle = async () => {
@@ -812,6 +841,118 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
         </div>
 
         {/* Divider */}
+        <div className="my-5 border-t border-gray-100" />
+
+        <div className="space-y-3">
+          <label className="block text-sm text-gray-600" style={mono}>
+            Recording provider
+          </label>
+          <p className="text-xs text-gray-400" style={mono}>
+            Configure BYOK speech-to-text for meeting recording. Char sign-in stays out of scope for this pass.
+          </p>
+          <SharpSelectField
+            label="Provider"
+            options={STT_PROVIDERS.map((provider,) => ({
+              hint: STT_PROVIDER_HINTS[provider],
+              label: getSttProviderLabel(provider,),
+              value: provider,
+            }))}
+            value={settings.currentSttProvider}
+            onChange={handleSttProviderChange}
+          />
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-2">
+              <label className="block text-xs text-gray-500" style={mono}>
+                Model
+              </label>
+              <input
+                type="text"
+                value={settings.currentSttModel}
+                onChange={(e,) => update({ currentSttModel: e.target.value, },)}
+                placeholder={getDefaultSttModel(settings.currentSttProvider,)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+                style={mono}
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="block text-xs text-gray-500" style={mono}>
+                Spoken languages
+              </label>
+              <input
+                type="text"
+                value={settings.spokenLanguages.join(", ",)}
+                onChange={(e,) =>
+                  update({
+                    spokenLanguages: e.target.value
+                      .split(",",)
+                      .map((value,) => value.trim().toLowerCase())
+                      .filter(Boolean,),
+                  },)}
+                placeholder="en, ko"
+                className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+                style={mono}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="block text-xs text-gray-500" style={mono}>
+              Base URL
+            </label>
+            <input
+              type="text"
+              value={settings.sttBaseUrl}
+              onChange={(e,) => update({ sttBaseUrl: e.target.value, },)}
+              placeholder={getDefaultSttBaseUrl(settings.currentSttProvider,) || "https://example.com/v1"}
+              className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+              style={mono}
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="block text-xs text-gray-500" style={mono}>
+              STT API key
+            </label>
+            <input
+              type="password"
+              value={settings.sttApiKey}
+              onChange={(e,) => update({ sttApiKey: e.target.value, },)}
+              placeholder={settings.currentSttProvider === "openai"
+                ? "Leave blank to reuse OpenAI key"
+                : "Enter BYOK STT key"}
+              className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+              style={mono}
+            />
+          </div>
+          <div className="space-y-2 pt-2">
+            <label className="block text-sm text-gray-600" style={mono}>
+              Save raw recordings
+            </label>
+            <button
+              type="button"
+              onClick={() => update({ saveRecordings: !settings.saveRecordings, },)}
+              className={`flex w-full items-center justify-between rounded-none border px-3 py-2 text-left text-sm transition-colors cursor-pointer ${
+                settings.saveRecordings
+                  ? "border-violet-300 bg-violet-50/40 text-violet-700"
+                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+              }`}
+              style={mono}
+            >
+              <span>{settings.saveRecordings ? "Enabled" : "Disabled"}</span>
+              <span
+                className={`inline-flex h-5 w-9 items-center border ${
+                  settings.saveRecordings
+                    ? "border-violet-400 bg-violet-600 justify-end"
+                    : "border-gray-300 bg-gray-200 justify-start"
+                }`}
+              >
+                <span className="mx-0.5 h-3.5 w-3.5 bg-white" />
+              </span>
+            </button>
+            <p className="text-xs text-gray-400" style={mono}>
+              Transcript capture still works without AI. Summary generation uses your existing AI provider separately.
+            </p>
+          </div>
+        </div>
+
         <div className="my-5 border-t border-gray-100" />
 
         <div className="space-y-3">
