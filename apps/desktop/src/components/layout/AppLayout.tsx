@@ -2295,6 +2295,7 @@ export default function AppLayout() {
     aiLastSubmittedPromptRef.current = normalizedPrompt;
     const controller = new AbortController();
     aiAbortControllerRef.current = controller;
+    setAiPrompt("",);
     setAiRunning(true,);
     setAiError(null,);
     setAiResult(null,);
@@ -2308,7 +2309,6 @@ export default function AppLayout() {
         latestResult = slashCommandResult;
         const entry = syncDraftEntry(slashCommandResult, true,);
         setAiResult(slashCommandResult,);
-        setAiPrompt("",);
         setAiLatestChatId(entry.id,);
         setAiActiveChatId(entry.id,);
         return;
@@ -2341,7 +2341,6 @@ export default function AppLayout() {
       latestResult = result;
       const entry = syncDraftEntry(result, true,);
       setAiResult(result,);
-      setAiPrompt("",);
       setAiLatestChatId(entry.id,);
       setAiActiveChatId(entry.id,);
     } catch (error) {

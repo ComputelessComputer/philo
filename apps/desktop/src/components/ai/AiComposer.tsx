@@ -179,14 +179,11 @@ export function AiComposer({
                       <input
                         ref={inputRef}
                         value={prompt}
-                        readOnly={isSubmitting}
                         onChange={(event,) => onPromptChange(event.target.value,)}
                         placeholder="chat with notes."
-                        className={`w-full min-w-0 bg-transparent px-1 text-[15px] text-gray-900 outline-hidden placeholder:text-gray-400 ${
-                          isSubmitting ? "text-transparent caret-transparent" : ""
-                        }`}
+                        className="w-full min-w-0 bg-transparent px-1 text-[15px] text-gray-900 outline-hidden placeholder:text-gray-400"
                       />
-                      {isSubmitting && (
+                      {isSubmitting && !prompt.trim() && (
                         <div className="pointer-events-none absolute inset-0 flex items-center gap-2 px-1 text-[15px] text-slate-500">
                           <LoaderCircle size={14} className="shrink-0 animate-spin" />
                           <span className="truncate">{submittingLabel}</span>
@@ -200,12 +197,26 @@ export function AiComposer({
                       aria-label={isSubmitting
                         ? (canStopSubmitting ? "Stop generating" : "Submitting")
                         : "Send message"}
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-none bg-gray-900 text-white transition-colors disabled:cursor-not-allowed disabled:bg-gray-300"
+                      className="group flex h-11 w-11 shrink-0 items-center justify-center rounded-none bg-gray-900 text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300"
                       style={{ fontFamily: "'IBM Plex Mono', monospace", }}
                     >
                       {isSubmitting
                         ? canStopSubmitting
-                          ? <Square size={14} fill="currentColor" strokeWidth={0} />
+                          ? (
+                            <span className="relative flex size-5 items-center justify-center">
+                              <LoaderCircle
+                                size={18}
+                                className="absolute animate-spin transition-opacity duration-150 group-hover:opacity-0"
+                                strokeWidth={2.25}
+                              />
+                              <Square
+                                size={14}
+                                fill="currentColor"
+                                strokeWidth={0}
+                                className="absolute opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                              />
+                            </span>
+                          )
                           : <LoaderCircle size={18} className="animate-spin" strokeWidth={2.25} />
                         : <ArrowUp size={18} strokeWidth={2.25} />}
                     </button>
