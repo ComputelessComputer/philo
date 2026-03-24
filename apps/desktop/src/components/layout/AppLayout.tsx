@@ -1506,11 +1506,8 @@ export default function AppLayout() {
     if (explicitTodayCity) return explicitTodayCity;
 
     const currentCityName = currentCity.city.trim();
-    if (currentCityName) return currentCityName;
-
-    const timezoneCity = currentCity.timezoneCity.trim();
-    return timezoneCity || null;
-  }, [currentCity.city, currentCity.timezoneCity,],);
+    return currentCityName || null;
+  }, [currentCity.city,],);
 
   const createMeetingPage = useCallback(async (startedAt: string, location: string | null,) => {
     const startedAtDate = new Date(startedAt,);
