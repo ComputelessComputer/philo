@@ -708,39 +708,6 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
     };
   }, [open, settings?.googleAccounts,],);
 
-  if (!open || !settings) return null;
-
-  const effectivePattern = settings.filenamePattern || DEFAULT_FILENAME_PATTERN;
-  const filenamePreview = applyFilenamePattern(effectivePattern, getToday(),) + ".md";
-  const googleConnected = isGoogleAccountConnected(settings,);
-  const googleAccounts = settings.googleAccounts;
-  const isGoogleConnecting = googleAction?.type === "connecting";
-  const refreshingGoogleAccount = googleAction?.type === "refreshing" ? googleAction.email : null;
-  const isGoogleBusy = googleAction !== null;
-  const selectedAiProvider = settings.aiProvider;
-  const selectedAiKey = getAiProviderDraftKey(settings, selectedAiProvider,);
-  const selectedAiHasKey = Boolean(selectedAiKey.trim(),);
-  const trimmedOpenAiApiKey = settings.openaiApiKey.trim();
-  const isReusingOpenAiSttKey = settings.currentSttProvider === "openai"
-    && !settings.sttApiKey.trim()
-    && Boolean(trimmedOpenAiApiKey,);
-  const displayedSttApiKey = isReusingOpenAiSttKey ? settings.openaiApiKey : settings.sttApiKey;
-  const suggestedSttModels = getSuggestedSttModels(settings.currentSttProvider,);
-  const normalizedCurrentSttModel = settings.currentSttModel.trim();
-  const hasPresetSttModel = suggestedSttModels.includes(normalizedCurrentSttModel,);
-  const selectedSttModelValue = hasPresetSttModel ? normalizedCurrentSttModel : CUSTOM_STT_MODEL_VALUE;
-  const showCustomSttModelInput = settings.currentSttProvider === "custom"
-    || selectedSttModelValue === CUSTOM_STT_MODEL_VALUE;
-  const activeSttConfigured = Boolean(
-    (settings.currentSttModel.trim() || getDefaultSttModel(settings.currentSttProvider,))
-      && (settings.sttBaseUrl.trim() || getDefaultSttBaseUrl(settings.currentSttProvider,))
-      && displayedSttApiKey.trim()
-      && settings.spokenLanguages.length > 0,
-  );
-  const activeProviderDescription = providerSettingsTab === "ai"
-    ? "Choose the provider for summaries and chat. Keys stay on this device."
-    : "Choose the speech-to-text provider for recording. Recording auth stays on this device.";
-
   const buildPersistedSettings = async (current: Settings,) => {
     const normalizedVault = current.vaultDir.trim();
     const normalizedDaily = current.dailyLogsFolder.trim();
@@ -848,11 +815,12 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
 
   const persistGooglePatch = async (partial: Partial<Settings>,) => {
     const currentDraft = settingsRef.current ?? settings;
+    if (!currentDraft) return;
     const googlePatch = buildGooglePatch(currentDraft, partial,);
     const persisted = await loadSettings();
     const savedSettings = { ...persisted, ...googlePatch, };
     await saveSettings(savedSettings,);
-    const nextDraft = { ...currentDraft, ...googlePatch, };
+    const nextDraft: Settings = { ...currentDraft, ...googlePatch, };
     settingsRef.current = nextDraft;
     lastSavedSettingsRef.current = savedSettings;
     setSettings(nextDraft,);
@@ -885,8 +853,13 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
   };
 
   const handleSttModelChange = (model: string,) => {
+    const currentSettings = settingsRef.current ?? settings;
+    if (!currentSettings) return;
+    const suggestedModels = getSuggestedSttModels(currentSettings.currentSttProvider,);
+    const hasPresetSttModel = suggestedModels.includes(currentSettings.currentSttModel.trim(),);
+
     if (model === CUSTOM_STT_MODEL_VALUE) {
-      update({ currentSttModel: hasPresetSttModel ? "" : settings.currentSttModel, },);
+      update({ currentSttModel: hasPresetSttModel ? "" : currentSettings.currentSttModel, },);
       requestAnimationFrame(() => {
         sttModelInputRef.current?.focus();
         sttModelInputRef.current?.select();
@@ -988,6 +961,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
   };
 
   const handleChooseVault = async () => {
+    if (!settings) return;
     const defaultPath = (settings.vaultDir || settings.journalDir || defaultJournalDir).trim();
     const selected = await openDialog({
       directory: true,
@@ -1101,6 +1075,39 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
         : void getCurrentWindow().startDragging();
     }
   };
+
+  if (!open || !settings) return null;
+
+  const effectivePattern = settings.filenamePattern || DEFAULT_FILENAME_PATTERN;
+  const filenamePreview = applyFilenamePattern(effectivePattern, getToday(),) + ".md";
+  const googleConnected = isGoogleAccountConnected(settings,);
+  const googleAccounts = settings.googleAccounts;
+  const isGoogleConnecting = googleAction?.type === "connecting";
+  const refreshingGoogleAccount = googleAction?.type === "refreshing" ? googleAction.email : null;
+  const isGoogleBusy = googleAction !== null;
+  const selectedAiProvider = settings.aiProvider;
+  const selectedAiKey = getAiProviderDraftKey(settings, selectedAiProvider,);
+  const selectedAiHasKey = Boolean(selectedAiKey.trim(),);
+  const trimmedOpenAiApiKey = settings.openaiApiKey.trim();
+  const isReusingOpenAiSttKey = settings.currentSttProvider === "openai"
+    && !settings.sttApiKey.trim()
+    && Boolean(trimmedOpenAiApiKey,);
+  const displayedSttApiKey = isReusingOpenAiSttKey ? settings.openaiApiKey : settings.sttApiKey;
+  const suggestedSttModels = getSuggestedSttModels(settings.currentSttProvider,);
+  const normalizedCurrentSttModel = settings.currentSttModel.trim();
+  const hasPresetSttModel = suggestedSttModels.includes(normalizedCurrentSttModel,);
+  const selectedSttModelValue = hasPresetSttModel ? normalizedCurrentSttModel : CUSTOM_STT_MODEL_VALUE;
+  const showCustomSttModelInput = settings.currentSttProvider === "custom"
+    || selectedSttModelValue === CUSTOM_STT_MODEL_VALUE;
+  const activeSttConfigured = Boolean(
+    (settings.currentSttModel.trim() || getDefaultSttModel(settings.currentSttProvider,))
+      && (settings.sttBaseUrl.trim() || getDefaultSttBaseUrl(settings.currentSttProvider,))
+      && displayedSttApiKey.trim()
+      && settings.spokenLanguages.length > 0,
+  );
+  const activeProviderDescription = providerSettingsTab === "ai"
+    ? "Choose the provider for summaries and chat. Keys stay on this device."
+    : "Choose the speech-to-text provider for recording. Recording auth stays on this device.";
 
   return (
     <div
