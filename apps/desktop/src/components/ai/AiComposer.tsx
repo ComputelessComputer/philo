@@ -149,23 +149,15 @@ export function AiComposer({
                               setPromptValue(suggestion.command,);
                               window.setTimeout(() => inputRef.current?.focus(), 0,);
                             }}
-                            className="grid w-full grid-cols-[minmax(0,10rem)_minmax(0,1fr)] items-center gap-4 px-6 py-5 text-left transition-colors hover:bg-gray-50 sm:gap-6 sm:px-8"
+                            className="grid w-full grid-cols-[minmax(0,8.5rem)_minmax(0,1fr)] items-center gap-4 px-6 py-4 text-left transition-colors hover:bg-gray-50 sm:gap-5"
                           >
-                            <div className="min-w-0">
-                              <p
-                                className="text-[11px] uppercase tracking-[0.34em] text-slate-400"
-                                style={{ fontFamily: "'IBM Plex Mono', monospace", }}
-                              >
-                                slash command
-                              </p>
-                              <p
-                                className="mt-2 text-xl leading-none text-slate-900 sm:text-[1.75rem]"
-                                style={{ fontFamily: "'IBM Plex Mono', monospace", }}
-                              >
-                                {suggestion.command}
-                              </p>
-                            </div>
-                            <p className="min-w-0 text-base leading-snug tracking-[-0.03em] text-slate-500 sm:text-[1.4rem] sm:leading-tight">
+                            <p
+                              className="min-w-0 text-lg leading-none text-slate-900 sm:text-[1.3rem]"
+                              style={{ fontFamily: "'IBM Plex Mono', monospace", }}
+                            >
+                              {suggestion.command}
+                            </p>
+                            <p className="min-w-0 text-sm leading-6 tracking-[-0.02em] text-slate-500 sm:text-[1.05rem] sm:leading-[1.45]">
                               {suggestion.description}
                             </p>
                           </button>
