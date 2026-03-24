@@ -265,46 +265,13 @@ function ProviderModeTabs(
 function ProviderConfigurationPanel(
   {
     children,
-    description,
-    eyebrow,
-    status,
-    statusTone = "muted",
-    title,
   }: {
     children: React.ReactNode;
-    description: string;
-    eyebrow: string;
-    status: string;
-    statusTone?: "accent" | "muted";
-    title: string;
   },
 ) {
   return (
     <div className="rounded-none border border-gray-200 bg-gray-50/60 p-3">
-      <div className="flex flex-col gap-2 border-b border-gray-200 pb-3 md:flex-row md:items-start md:justify-between">
-        <div className="space-y-1">
-          <p className="text-[10px] uppercase tracking-[0.18em] text-gray-400" style={mono}>
-            {eyebrow}
-          </p>
-          <h3 className="text-[13px] text-gray-900" style={mono}>
-            {title}
-          </h3>
-          <p className="text-[11px] leading-4 text-gray-400" style={mono}>
-            {description}
-          </p>
-        </div>
-        <span
-          className={`inline-flex items-center self-start rounded-none border px-2 py-1 text-[9px] uppercase tracking-[0.18em] ${
-            statusTone === "accent"
-              ? "border-violet-200 bg-violet-50 text-violet-700"
-              : "border-gray-200 bg-white text-gray-500"
-          }`}
-          style={mono}
-        >
-          {status}
-        </span>
-      </div>
-      <div className="mt-3 space-y-4">
+      <div className="space-y-4">
         {children}
       </div>
     </div>
@@ -904,7 +871,6 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
   const isGoogleBusy = googleAction !== null;
   const selectedAiProvider = settings.aiProvider;
   const selectedAiKey = getAiProviderDraftKey(settings, selectedAiProvider,);
-  const selectedAiHasKey = Boolean(selectedAiKey.trim(),);
   const trimmedOpenAiApiKey = settings.openaiApiKey.trim();
   const isReusingOpenAiSttKey = settings.currentSttProvider === "openai"
     && !settings.sttApiKey.trim()
@@ -916,12 +882,6 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
   const selectedSttModelValue = hasPresetSttModel ? normalizedCurrentSttModel : CUSTOM_STT_MODEL_VALUE;
   const showCustomSttModelInput = settings.currentSttProvider === "custom"
     || selectedSttModelValue === CUSTOM_STT_MODEL_VALUE;
-  const activeSttConfigured = Boolean(
-    (settings.currentSttModel.trim() || getDefaultSttModel(settings.currentSttProvider,))
-      && (settings.sttBaseUrl.trim() || getDefaultSttBaseUrl(settings.currentSttProvider,))
-      && displayedSttApiKey.trim()
-      && settings.spokenLanguages.length > 0,
-  );
   const activeProviderDescription = providerSettingsTab === "ai"
     ? "Choose the provider for summaries and chat. Keys stay on this device."
     : "Choose the speech-to-text provider for recording. Recording auth stays on this device.";
@@ -981,13 +941,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
               {providerSettingsTab === "ai"
                 ? (
                   <>
-                    <ProviderConfigurationPanel
-                      eyebrow="Active provider"
-                      title={getAiProviderLabel(selectedAiProvider,)}
-                      description="Philo uses the selected provider for summaries and chat."
-                      status={selectedAiHasKey ? "Configured" : "Missing API key"}
-                      statusTone={selectedAiHasKey ? "accent" : "muted"}
-                    >
+                    <ProviderConfigurationPanel>
                       <div className="space-y-2">
                         <SharpSelectField
                           label="Provider"
@@ -1025,17 +979,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
                 )
                 : (
                   <>
-                    <ProviderConfigurationPanel
-                      eyebrow="Active provider"
-                      title={getSttProviderLabel(settings.currentSttProvider,)}
-                      description="Recording uses this provider. Summaries continue to use the AI provider above."
-                      status={isReusingOpenAiSttKey
-                        ? "Reusing OpenAI key"
-                        : activeSttConfigured
-                        ? "Configured"
-                        : "Needs setup"}
-                      statusTone={isReusingOpenAiSttKey || activeSttConfigured ? "accent" : "muted"}
-                    >
+                    <ProviderConfigurationPanel>
                       <div className="space-y-2">
                         <SharpSelectField
                           label="Provider"
