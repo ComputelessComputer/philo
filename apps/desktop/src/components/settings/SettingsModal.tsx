@@ -1181,7 +1181,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
                         )}
                         <div className="space-y-2">
                           <label className="block text-xs text-gray-500" style={mono}>
-                            STT API key
+                            API key
                           </label>
                           <input
                             ref={sttApiKeyInputRef}
