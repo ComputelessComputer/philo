@@ -12,6 +12,7 @@ use std::time::UNIX_EPOCH;
 const DEFAULT_FILENAME_PATTERN: &str = "{YYYY}-{MM}-{DD}";
 
 #[derive(Clone, Debug, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct PhiloSettings {
     #[serde(default)]
     pub journal_dir: String,
@@ -1141,5 +1142,23 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert_eq!(dates, vec!["2026-03-16", "2026-03-18"]);
+    }
+
+    #[test]
+    fn deserializes_camel_case_settings() {
+        let settings: super::PhiloSettings = serde_json::from_str(
+            r#"{
+                "journalDir": "/tmp/journal",
+                "filenamePattern": "{YYYY}_{MM}_{DD}",
+                "vaultDir": "/tmp/vault",
+                "dailyLogsFolder": "journals"
+            }"#,
+        )
+        .unwrap();
+
+        assert_eq!(settings.journal_dir, "/tmp/journal");
+        assert_eq!(settings.filename_pattern, "{YYYY}_{MM}_{DD}");
+        assert_eq!(settings.vault_dir, "/tmp/vault");
+        assert_eq!(settings.daily_logs_folder, "journals");
     }
 }
