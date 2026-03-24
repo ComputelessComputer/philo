@@ -996,6 +996,10 @@ export default function AppLayout() {
   const currentViewKey = currentView.kind === "page" ? `page:${currentView.title}` : "home";
   const canGoBack = viewState.index > 0;
   const canGoForward = viewState.index < viewState.history.length - 1;
+  const focusedFutureDate = focusedDate && focusedDate !== today && !pastDates.includes(focusedDate,)
+    ? focusedDate
+    : null;
+  const hasFocusedFutureDate = focusedFutureDate !== null;
   const [viewTransitionStyle, setViewTransitionStyle,] = useState<{
     opacity: number;
     transform: string;
@@ -2839,11 +2843,13 @@ export default function AppLayout() {
                     className="w-full max-w-3xl overflow-x-hidden will-change-transform"
                     style={viewTransitionStyle}
                   >
-                    {focusedDate && focusedDate !== today && !pastDates.includes(focusedDate,) && (
-                      <div key={`${focusedDate}-${storageRevision}-${pagesRevision}`} data-note-date={focusedDate}>
-                        <div className="mx-6 border-t border-gray-200 dark:border-gray-700" />
+                    {hasFocusedFutureDate && (
+                      <div
+                        key={`${focusedFutureDate}-${storageRevision}-${pagesRevision}`}
+                        data-note-date={focusedFutureDate}
+                      >
                         <LazyNote
-                          date={focusedDate}
+                          date={focusedFutureDate}
                           pagesRevision={pagesRevision}
                           onOpenDate={scrollToDate}
                           onOpenPage={openPageView}
@@ -2852,7 +2858,7 @@ export default function AppLayout() {
                           onChatSelection={openAiComposer}
                           onSelectionChange={handleAiSelectionChange}
                           onSelectionBlur={handleAiSelectionBlur}
-                          persistentSelectionRange={aiSelectionHighlight?.noteDate === focusedDate
+                          persistentSelectionRange={aiSelectionHighlight?.noteDate === focusedFutureDate
                             ? { from: aiSelectionHighlight.from, to: aiSelectionHighlight.to, }
                             : null}
                         />
@@ -2865,7 +2871,8 @@ export default function AppLayout() {
                       className="min-h-[400px]"
                       onClick={() => todayEditorRef.current?.focus()}
                     >
-                      <div className="px-6 pt-6 pb-4">
+                      {hasFocusedFutureDate && <div className="mx-6 border-t border-gray-200 dark:border-gray-700" />}
+                      <div className={`px-6 pb-4 ${hasFocusedFutureDate ? "pt-12" : "pt-6"}`}>
                         <DateHeader
                           date={today}
                           city={todayCity}
