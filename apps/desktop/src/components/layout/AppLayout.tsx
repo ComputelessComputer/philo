@@ -2971,7 +2971,6 @@ export default function AppLayout() {
         hasAiConfigured={hasAiConfigured}
         isSubmitting={widgetEditSession ? widgetEditSubmitting : aiRunning}
         canStopSubmitting={!widgetEditSession}
-        submittingLabel={widgetEditSession ? "Building new widget version..." : undefined}
         error={aiError}
         onPromptChange={setAiPrompt}
         onClose={closeAiComposer}
