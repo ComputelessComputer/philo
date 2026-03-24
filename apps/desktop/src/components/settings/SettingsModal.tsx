@@ -287,7 +287,7 @@ function SelectableProviderCard(
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-none border p-3 text-left transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500/30 ${
+      className={`rounded-none border p-2.5 text-left transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500/30 ${
         selected
           ? "border-violet-300 bg-violet-50/40 ring-1 ring-violet-200"
           : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
@@ -295,7 +295,7 @@ function SelectableProviderCard(
     >
       <span className="flex items-start gap-3">
         <span
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-none border bg-white ${
+          className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-none border bg-white ${
             selected ? "border-violet-200 text-violet-700" : "border-gray-200 text-gray-500"
           }`}
         >
@@ -303,12 +303,12 @@ function SelectableProviderCard(
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-gray-900" style={mono}>
+            <span className="text-[13px] text-gray-900" style={mono}>
               {title}
             </span>
             {badge && (
               <span
-                className={`inline-flex items-center rounded-none border px-1.5 py-0.5 text-[10px] uppercase tracking-[0.18em] ${
+                className={`inline-flex items-center rounded-none border px-1.5 py-0.5 text-[9px] uppercase tracking-[0.18em] ${
                   selected
                     ? "border-violet-200 bg-violet-50 text-violet-700"
                     : "border-gray-200 bg-gray-50 text-gray-500"
@@ -320,7 +320,7 @@ function SelectableProviderCard(
             )}
           </span>
           <span
-            className={`mt-1 block text-xs leading-5 ${selected ? "text-gray-600" : "text-gray-400"}`}
+            className={`mt-1 block text-[11px] leading-4 ${selected ? "text-gray-600" : "text-gray-400"}`}
             style={mono}
           >
             {description}
@@ -356,7 +356,7 @@ function ProviderModeTabs(
             role="tab"
             aria-selected={isSelected}
             onClick={() => onChange(tab.value,)}
-            className={`min-w-[120px] rounded-none border px-4 py-2 text-left transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500/30 ${
+            className={`min-w-[104px] rounded-none border px-3 py-1.5 text-[13px] text-left transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500/30 ${
               isSelected
                 ? "border-violet-300 bg-violet-50 text-violet-700"
                 : "border-gray-200 bg-white text-gray-500 hover:bg-gray-50"
@@ -414,7 +414,7 @@ function ProviderCarousel<T extends string,>(
         <button
           type="button"
           onClick={() => scrollRail(-1,)}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-none border border-gray-200 bg-white text-gray-500 transition-colors cursor-pointer hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-none border border-gray-200 bg-white text-gray-500 transition-colors cursor-pointer hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
           aria-label={`Scroll ${ariaLabel} left`}
         >
           <ChevronLeft className="h-4 w-4" strokeWidth={1.75} />
@@ -422,7 +422,7 @@ function ProviderCarousel<T extends string,>(
         <button
           type="button"
           onClick={() => scrollRail(1,)}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-none border border-gray-200 bg-white text-gray-500 transition-colors cursor-pointer hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+          className="inline-flex h-7 w-7 items-center justify-center rounded-none border border-gray-200 bg-white text-gray-500 transition-colors cursor-pointer hover:bg-gray-50 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
           aria-label={`Scroll ${ariaLabel} right`}
         >
           <ChevronRight className="h-4 w-4" strokeWidth={1.75} />
@@ -435,7 +435,7 @@ function ProviderCarousel<T extends string,>(
         className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 pr-6 scroll-smooth"
       >
         {orderedItems.map((item,) => (
-          <div key={item.value} role="listitem" className="w-[280px] shrink-0 snap-start">
+          <div key={item.value} role="listitem" className="w-[240px] shrink-0 snap-start">
             <SelectableProviderCard
               badge={item.badge}
               className="h-full w-full"
@@ -470,21 +470,21 @@ function ProviderConfigurationPanel(
   },
 ) {
   return (
-    <div className="rounded-none border border-gray-200 bg-gray-50/60 p-4">
-      <div className="flex flex-col gap-3 border-b border-gray-200 pb-4 md:flex-row md:items-start md:justify-between">
+    <div className="rounded-none border border-gray-200 bg-gray-50/60 p-3">
+      <div className="flex flex-col gap-2 border-b border-gray-200 pb-3 md:flex-row md:items-start md:justify-between">
         <div className="space-y-1">
           <p className="text-[10px] uppercase tracking-[0.18em] text-gray-400" style={mono}>
             {eyebrow}
           </p>
-          <h3 className="text-sm text-gray-900" style={mono}>
+          <h3 className="text-[13px] text-gray-900" style={mono}>
             {title}
           </h3>
-          <p className="text-xs text-gray-400" style={mono}>
+          <p className="text-[11px] leading-4 text-gray-400" style={mono}>
             {description}
           </p>
         </div>
         <span
-          className={`inline-flex items-center self-start rounded-none border px-2 py-1 text-[10px] uppercase tracking-[0.18em] ${
+          className={`inline-flex items-center self-start rounded-none border px-2 py-1 text-[9px] uppercase tracking-[0.18em] ${
             statusTone === "accent"
               ? "border-violet-200 bg-violet-50 text-violet-700"
               : "border-gray-200 bg-white text-gray-500"
@@ -494,7 +494,7 @@ function ProviderConfigurationPanel(
           {status}
         </span>
       </div>
-      <div className="mt-4 space-y-4">
+      <div className="mt-3 space-y-4">
         {children}
       </div>
     </div>
@@ -1146,7 +1146,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
                 selected={providerSettingsTab}
                 onChange={setProviderSettingsTab}
               />
-              <p className="text-xs text-gray-400" style={mono}>
+              <p className="text-[11px] leading-4 text-gray-400" style={mono}>
                 {activeProviderDescription}
               </p>
               {providerSettingsTab === "ai"
