@@ -34,7 +34,9 @@ import { syncGoogleImports, } from "../../services/google-imports";
 import type { LibraryItem, } from "../../services/library";
 import { cleanupLegacyLibraryState, } from "../../services/library";
 import {
+  getListenerState,
   type ListenerSessionDataEvent,
+  type ListenerSessionErrorEvent,
   type ListenerSessionLifecycleEvent,
   type ListenerStreamResponse,
   listenToListenerSessionData,
@@ -153,6 +155,7 @@ interface ActiveMeetingSession {
   startedAt: string;
   baseDoc: JSONContent;
   transcriptState: MeetingTranscriptState;
+  failureReason: string | null;
 }
 
 function getNodeText(node: JSONContent | undefined,): string {
@@ -474,6 +477,35 @@ function getTranscriptText(state: MeetingTranscriptState, includePartial = true,
   return includePartial
     ? [state.fallbackFinalText, state.fallbackPartialText,].filter(Boolean,).join("\n\n",).trim()
     : state.fallbackFinalText.trim();
+}
+
+function formatMeetingLifecycleError(
+  error: NonNullable<Extract<ListenerSessionLifecycleEvent, { type: "active"; }>["error"]>,
+): string {
+  switch (error.type) {
+    case "authentication_failed":
+      return error.provider
+        ? `Recording provider authentication failed for ${error.provider}.`
+        : "Recording provider authentication failed.";
+    case "upstream_unavailable":
+      return error.message || "Recording provider is unavailable.";
+    case "connection_timeout":
+      return "Recording provider connection timed out.";
+    case "stream_error":
+      return error.message || "Recording provider stream failed.";
+  }
+
+  return "Recording provider failed.";
+}
+
+function formatMeetingSessionError(event: ListenerSessionErrorEvent,) {
+  if (event.type === "connection_error") {
+    return event.error || "Recording provider connection failed.";
+  }
+
+  return event.device
+    ? `${event.error} (${event.device})`
+    : event.error || "Audio capture failed.";
 }
 
 function getDocPlainText(doc: JSONContent,) {
@@ -958,6 +990,7 @@ function PageView({
   title,
   pagesRevision,
   pageOverride,
+  meetingRecordingError,
   onOpenDate,
   onOpenPage,
   onAskAiPrompt,
@@ -969,6 +1002,7 @@ function PageView({
   title: string;
   pagesRevision: number;
   pageOverride?: PageNote | null;
+  meetingRecordingError?: string | null;
   onOpenDate?: (date: string,) => void;
   onOpenPage?: (title: string,) => void;
   onAskAiPrompt?: (prompt: string,) => void;
@@ -1037,6 +1071,14 @@ function PageView({
             </span>
           )}
         </div>
+        {page.type === "meeting" && meetingRecordingError && (
+          <p
+            className="mt-3 text-xs text-red-500"
+            style={{ fontFamily: "'IBM Plex Mono', monospace", }}
+          >
+            {meetingRecordingError}
+          </p>
+        )}
         {pageIsUrlSummary && page.source && (
           <div className="mt-3 space-y-2">
             <button
@@ -1123,6 +1165,7 @@ export default function AppLayout() {
   const [isPinned, setIsPinned,] = useState(false,);
   const [isWindowFocused, setIsWindowFocused,] = useState(() => document.hasFocus());
   const [isMeetingRecording, setIsMeetingRecording,] = useState(false,);
+  const [meetingRecordingError, setMeetingRecordingError,] = useState<string | null>(null,);
   const [globalSearchOpen, setGlobalSearchOpen,] = useState(false,);
   const [globalSearchQuery, setGlobalSearchQuery,] = useState("",);
   const [globalSearchResults, setGlobalSearchResults,] = useState<GlobalSearchResult[]>([],);
@@ -1204,6 +1247,7 @@ export default function AppLayout() {
   useEffect(() => {
     setMeetingSummaryError(null,);
     setMeetingSummaryTargetTitle(null,);
+    setMeetingRecordingError(null,);
   }, [activePage?.title,],);
 
   const handleCurrentPageChange = useCallback((page: PageNote | null,) => {
@@ -1821,6 +1865,7 @@ export default function AppLayout() {
     finalizeTranscriptState(activeSession.transcriptState,);
     const transcript = getTranscriptText(activeSession.transcriptState, false,);
     const finalizedAt = endedAt ?? new Date().toISOString();
+    const failureReason = errorMessage ?? activeSession.failureReason;
 
     try {
       await updateMeetingPage({
@@ -1835,9 +1880,10 @@ export default function AppLayout() {
     clearMeetingListeners();
     activeMeetingSessionRef.current = null;
     setIsMeetingRecording(false,);
+    setMeetingRecordingError(failureReason,);
 
-    if (errorMessage) {
-      console.error("Meeting recording stopped:", errorMessage,);
+    if (failureReason) {
+      console.error("Meeting recording stopped:", failureReason,);
     }
 
     if (!transcript) {
@@ -1873,6 +1919,7 @@ export default function AppLayout() {
     closeGlobalSearch();
     setMeetingSummaryTargetTitle(null,);
     setMeetingSummaryError(null,);
+    setMeetingRecordingError(null,);
 
     const settings = await loadSettings();
     const sttConfig = resolveActiveSttConfig(settings,);
@@ -1916,6 +1963,7 @@ export default function AppLayout() {
       startedAt: preparedPage.startedAt ?? startedAt,
       baseDoc,
       transcriptState: createMeetingTranscriptState(),
+      failureReason: null,
     };
 
     const sessionListeners: UnlistenFn[] = [];
@@ -1943,6 +1991,12 @@ export default function AppLayout() {
         await listenToListenerSessionLifecycle(async (event: ListenerSessionLifecycleEvent,) => {
           const activeSession = activeMeetingSessionRef.current;
           if (!activeSession || event.session_id !== activeSession.sessionId) return;
+          if (event.type === "active" && event.error) {
+            activeSession.failureReason = formatMeetingLifecycleError(event.error,);
+            setMeetingRecordingError(activeSession.failureReason,);
+            await stopMeetingRecording();
+            return;
+          }
           if (event.type === "inactive") {
             await finalizeMeetingRecording(new Date().toISOString(), event.error,);
           }
@@ -1952,14 +2006,19 @@ export default function AppLayout() {
         await listenToListenerSessionError((event,) => {
           const activeSession = activeMeetingSessionRef.current;
           if (!activeSession || event.session_id !== activeSession.sessionId) return;
-          console.error("Meeting recording error:", event.error,);
+          const message = formatMeetingSessionError(event,);
+          activeSession.failureReason = message;
+          console.error("Meeting recording error:", message,);
+          if (event.type === "connection_error" || event.is_fatal) {
+            setMeetingRecordingError(message,);
+            void stopMeetingRecording();
+          }
         },),
       );
       sessionListeners.push(
         await listenToListenerSessionProgress(() => undefined),
       );
       meetingListenerUnsubscribersRef.current = sessionListeners;
-      setIsMeetingRecording(true,);
       await startListenerSession({
         session_id: sessionId,
         languages: sttConfig.spokenLanguages,
@@ -1970,10 +2029,15 @@ export default function AppLayout() {
         api_key: sttConfig.apiKey,
         keywords: [],
       },);
+      const listenerState = await getListenerState().catch(() => "inactive");
+      if (activeMeetingSessionRef.current?.sessionId === sessionId) {
+        setIsMeetingRecording(listenerState === "active",);
+      }
     } catch (error) {
       clearMeetingListeners();
       activeMeetingSessionRef.current = null;
       setIsMeetingRecording(false,);
+      setMeetingRecordingError(error instanceof Error ? error.message : "Could not start meeting recording.",);
       console.error("Could not start meeting recording:", error,);
     }
   }, [
@@ -1984,6 +2048,7 @@ export default function AppLayout() {
     currentView.kind,
     currentPageTitle,
     finalizeMeetingRecording,
+    getListenerState,
     getMeetingLocationHint,
     isMeetingRecording,
     openPageView,
@@ -2870,14 +2935,18 @@ export default function AppLayout() {
             onClick={() => {
               void handleMeetingRecordClick();
             }}
-            className={`h-4 w-4 rounded-full transition-all ${
-              isMeetingRecording
-                ? "bg-red-500 shadow-[0_0_0_4px_rgba(239,68,68,0.14)]"
-                : "bg-red-500/92 hover:bg-red-500"
-            }`}
+            className="flex h-5 w-5 items-center justify-center"
             title={isMeetingRecording ? "Stop meeting recording" : "Start meeting recording"}
             aria-label={isMeetingRecording ? "Stop meeting recording" : "Start meeting recording"}
-          />
+          >
+            <span
+              className={`h-3.5 w-3.5 rounded-full transition-all ${
+                isMeetingRecording
+                  ? "bg-red-500 shadow-[0_0_0_3px_rgba(239,68,68,0.14)]"
+                  : "bg-red-500/92 hover:bg-red-500"
+              }`}
+            />
+          </button>
 
           <button
             onClick={async () => {
@@ -3017,6 +3086,7 @@ export default function AppLayout() {
                     title={currentView.title}
                     pagesRevision={pagesRevision}
                     pageOverride={activePage}
+                    meetingRecordingError={meetingRecordingError}
                     onOpenDate={scrollToDate}
                     onOpenPage={openPageView}
                     onAskAiPrompt={openAiComposerWithPrompt}
