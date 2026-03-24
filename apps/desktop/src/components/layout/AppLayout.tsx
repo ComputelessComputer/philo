@@ -2030,9 +2030,23 @@ export default function AppLayout() {
         keywords: [],
       },);
       const listenerState = await getListenerState().catch(() => "inactive");
-      if (activeMeetingSessionRef.current?.sessionId === sessionId) {
-        setIsMeetingRecording(listenerState === "active",);
+      const activeSession = activeMeetingSessionRef.current;
+      if (!activeSession || activeSession.sessionId !== sessionId) {
+        return;
       }
+
+      if (listenerState !== "active") {
+        const message = activeSession.failureReason
+          || "Could not start meeting recording. Check microphone permissions and recording provider settings.";
+        clearMeetingListeners();
+        activeMeetingSessionRef.current = null;
+        setIsMeetingRecording(false,);
+        setMeetingRecordingError(message,);
+        console.error("Could not start meeting recording:", message,);
+        return;
+      }
+
+      setIsMeetingRecording(true,);
     } catch (error) {
       clearMeetingListeners();
       activeMeetingSessionRef.current = null;
