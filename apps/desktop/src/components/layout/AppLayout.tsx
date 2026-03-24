@@ -118,10 +118,6 @@ function noteChanged(current: DailyNote | null, incoming: DailyNote,): boolean {
   return current.content !== incoming.content || current.city !== incoming.city;
 }
 
-function resolveCurrentCityName(currentCity: { city: string; timezoneCity: string; },): string {
-  return currentCity.city.trim() || currentCity.timezoneCity.trim();
-}
-
 interface GlobalSearchResult {
   kind: "daily" | "page";
   path: string;
@@ -1153,7 +1149,7 @@ export default function AppLayout() {
   const currentCity = useCurrentCity();
   const [todayNote, setTodayNote,] = useState<DailyNote | null>(null,);
   const todayCity = todayNote?.city;
-  const fallbackTodayCity = resolveCurrentCityName(currentCity,);
+  const fallbackTodayCity = currentCity.city.trim();
   const pastDates = useMemo(() => Array.from({ length: 30, }, (_, i,) => getDaysAgo(i + 1,),), [today,],);
   const [settingsOpen, setSettingsOpen,] = useState(false,);
   const [libraryOpen, setLibraryOpen,] = useState(false,);
@@ -2408,7 +2404,7 @@ export default function AppLayout() {
 
   useEffect(() => {
     const note = todayNoteRef.current;
-    const nextCity = resolveCurrentCityName(currentCity,);
+    const nextCity = currentCity.city.trim();
     const timezoneCity = currentCity.timezoneCity.trim();
     if (!note || !nextCity) return;
 
