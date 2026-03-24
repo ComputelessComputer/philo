@@ -60,7 +60,7 @@ const AI_PROVIDER_ICONS: Record<AiProvider, string> = {
 const STT_PROVIDER_HINTS: Record<SttProvider, string> = {
   deepgram: "BYOK",
   assemblyai: "BYOK",
-  openai: "Reuse OpenAI key if blank",
+  openai: "Reuse AI key",
   gladia: "BYOK",
   soniox: "BYOK",
   elevenlabs: "BYOK",
@@ -263,68 +263,78 @@ function FilenamePatternFieldValue({ value, muted = false, }: { value: string; m
   );
 }
 
-function SelectableProviderCard(
+function ProviderTabs<T extends string,>(
   {
-    badge,
-    description,
-    icon,
+    ariaLabel,
+    items,
     onClick,
     selected,
-    title,
   }: {
-    badge?: string;
-    description: string;
-    icon: React.ReactNode;
-    onClick: () => void;
-    selected: boolean;
-    title: string;
+    ariaLabel: string;
+    items: Array<{
+      badge?: string;
+      icon: React.ReactNode;
+      label: string;
+      value: T;
+    }>;
+    onClick: (value: T,) => void;
+    selected: T;
   },
 ) {
+  const orderedItems = [...items,];
+  const selectedIndex = orderedItems.findIndex((item,) => item.value === selected);
+  if (selectedIndex > 0) {
+    const [activeItem,] = orderedItems.splice(selectedIndex, 1,);
+    orderedItems.unshift(activeItem,);
+  }
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-none border p-3 text-left transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500/30 ${
-        selected
-          ? "border-violet-300 bg-violet-50/40 ring-1 ring-violet-200"
-          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
-      }`}
-    >
-      <span className="flex items-start gap-3">
-        <span
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-none border bg-white ${
-            selected ? "border-violet-200 text-violet-700" : "border-gray-200 text-gray-500"
-          }`}
-        >
-          {icon}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-gray-900" style={mono}>
-              {title}
-            </span>
-            {badge && (
-              <span
-                className={`inline-flex items-center rounded-none border px-1.5 py-0.5 text-[10px] uppercase tracking-[0.18em] ${
-                  selected
-                    ? "border-violet-200 bg-violet-50 text-violet-700"
-                    : "border-gray-200 bg-gray-50 text-gray-500"
-                }`}
-                style={mono}
-              >
-                {badge}
-              </span>
-            )}
-          </span>
-          <span
-            className={`mt-1 block text-xs leading-5 ${selected ? "text-gray-600" : "text-gray-400"}`}
-            style={mono}
+    <div role="tablist" aria-label={ariaLabel} className="flex flex-wrap gap-2">
+      {orderedItems.map((item,) => {
+        const isSelected = item.value === selected;
+        return (
+          <button
+            key={item.value}
+            type="button"
+            role="tab"
+            aria-selected={isSelected}
+            onClick={() => onClick(item.value,)}
+            className={`min-w-[140px] rounded-none border px-3 py-2 text-left transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500/30 ${
+              isSelected
+                ? "border-violet-300 bg-violet-50/40 ring-1 ring-violet-200"
+                : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+            }`}
           >
-            {description}
-          </span>
-        </span>
-      </span>
-    </button>
+            <span className="flex items-start gap-3">
+              <span
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-none border bg-white ${
+                  isSelected ? "border-violet-200 text-violet-700" : "border-gray-200 text-gray-500"
+                }`}
+              >
+                {item.icon}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className={`block text-sm ${isSelected ? "text-violet-700" : "text-gray-900"}`} style={mono}>
+                  {item.label}
+                </span>
+                {item.badge && (
+                  <span
+                    className={`mt-1 inline-flex items-center rounded-none border px-1.5 py-0.5 text-[10px] uppercase tracking-[0.18em] ${
+                      isSelected
+                        ? "border-violet-200 bg-violet-50 text-violet-700"
+                        : "border-gray-200 bg-gray-50 text-gray-500"
+                    }`}
+                    style={mono}
+                  >
+                    {item.badge}
+                  </span>
+                )}
+              </span>
+            </span>
+          </button>
+        );
+      },)}
+    </div>
   );
 }
 
@@ -1019,35 +1029,30 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
               <p className="text-xs text-gray-400" style={mono}>
                 Choose the provider for summaries and chat. Keys stay on this device.
               </p>
-              <div className="grid gap-3 md:grid-cols-2">
-                {AI_PROVIDERS.map((provider,) => {
-                  const hasKey = Boolean(getAiProviderDraftKey(settings, provider,).trim(),);
-                  return (
-                    <SelectableProviderCard
-                      key={provider}
-                      selected={settings.aiProvider === provider}
-                      onClick={() => update({ aiProvider: provider, },)}
-                      title={getAiProviderLabel(provider,)}
-                      description={getAiProviderCardDescription(provider, hasKey,)}
-                      badge={hasKey ? "Saved" : undefined}
-                      icon={
-                        <span className="flex h-4 w-4 items-center justify-center">
-                          <img
-                            src={AI_PROVIDER_ICONS[provider]}
-                            alt=""
-                            className="h-4 w-4 object-contain"
-                            aria-hidden="true"
-                          />
-                        </span>
-                      }
-                    />
-                  );
-                },)}
-              </div>
+              <ProviderTabs
+                ariaLabel="AI providers"
+                items={AI_PROVIDERS.map((provider,) => ({
+                  badge: getAiProviderDraftKey(settings, provider,).trim() ? "Saved" : undefined,
+                  icon: (
+                    <span className="flex h-4 w-4 items-center justify-center">
+                      <img
+                        src={AI_PROVIDER_ICONS[provider]}
+                        alt=""
+                        className="h-4 w-4 object-contain"
+                        aria-hidden="true"
+                      />
+                    </span>
+                  ),
+                  label: getAiProviderLabel(provider,),
+                  value: provider,
+                }))}
+                selected={settings.aiProvider}
+                onClick={(provider,) => update({ aiProvider: provider, },)}
+              />
               <ProviderConfigurationPanel
                 eyebrow="Active provider"
                 title={getAiProviderLabel(selectedAiProvider,)}
-                description="Philo uses the selected provider for summaries and chat."
+                description={getAiProviderCardDescription(selectedAiProvider, selectedAiHasKey,)}
                 status={selectedAiHasKey ? "Configured" : "Missing API key"}
                 statusTone={selectedAiHasKey ? "accent" : "muted"}
               >
@@ -1077,27 +1082,25 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
               <p className="text-xs text-gray-400" style={mono}>
                 Choose the speech-to-text provider for recording. Recording auth stays on this device.
               </p>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {STT_PROVIDERS.map((provider,) => (
-                  <SelectableProviderCard
-                    key={provider}
-                    selected={settings.currentSttProvider === provider}
-                    onClick={() => handleSttProviderChange(provider,)}
-                    title={getSttProviderLabel(provider,)}
-                    description={getSttProviderCardDescription(provider,)}
-                    badge={STT_PROVIDER_HINTS[provider]}
-                    icon={
-                      <span className="text-[11px] leading-none" style={mono}>
-                        {STT_PROVIDER_MARKS[provider]}
-                      </span>
-                    }
-                  />
-                ))}
-              </div>
+              <ProviderTabs
+                ariaLabel="Recording providers"
+                items={STT_PROVIDERS.map((provider,) => ({
+                  badge: STT_PROVIDER_HINTS[provider],
+                  icon: (
+                    <span className="text-[11px] leading-none" style={mono}>
+                      {STT_PROVIDER_MARKS[provider]}
+                    </span>
+                  ),
+                  label: getSttProviderLabel(provider,),
+                  value: provider,
+                }))}
+                selected={settings.currentSttProvider}
+                onClick={handleSttProviderChange}
+              />
               <ProviderConfigurationPanel
                 eyebrow="Active provider"
                 title={getSttProviderLabel(settings.currentSttProvider,)}
-                description="Recording uses this provider. Summaries continue to use the AI provider above."
+                description={getSttProviderCardDescription(settings.currentSttProvider,)}
                 status={isReusingOpenAiSttKey
                   ? "Reusing OpenAI key"
                   : activeSttConfigured
