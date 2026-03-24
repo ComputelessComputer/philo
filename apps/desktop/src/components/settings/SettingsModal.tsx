@@ -13,6 +13,7 @@ import {
   type AiProvider,
   DEFAULT_FILENAME_PATTERN,
   getAiProviderLabel,
+  getDefaultAiModel,
   getDefaultSttBaseUrl,
   getDefaultSttModel,
   getSttModelLabel,
@@ -499,6 +500,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
     const normalizedSttApiKey = current.sttApiKey.trim();
     return {
       ...current,
+      aiModel: current.aiModel.trim(),
       anthropicApiKey: current.anthropicApiKey.trim(),
       openaiApiKey: normalizedOpenAiApiKey,
       googleApiKey: current.googleApiKey.trim(),
@@ -959,6 +961,22 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
                             },);
                           }}
                         />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-xs text-gray-500" style={mono}>
+                          Model
+                        </label>
+                        <input
+                          type="text"
+                          value={settings.aiModel}
+                          onChange={(e,) => update({ aiModel: e.target.value, },)}
+                          placeholder={getDefaultAiModel(selectedAiProvider, "assistant",)}
+                          className="w-full border border-gray-200 bg-white px-3 py-2 text-sm transition-all focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                          style={mono}
+                        />
+                        <p className="text-[11px] text-gray-400" style={mono}>
+                          Leave blank to use the provider default.
+                        </p>
                       </div>
                       <div className="space-y-2">
                         <label className="block text-xs text-gray-500" style={mono}>

@@ -4,7 +4,7 @@ import { createOpenAI, } from "@ai-sdk/openai";
 import { createOpenAICompatible, } from "@ai-sdk/openai-compatible";
 import { Channel, invoke, } from "@tauri-apps/api/core";
 import type { LanguageModel, } from "ai";
-import type { ActiveAiConfig, AiProvider, } from "./settings";
+import { type ActiveAiConfig, getDefaultAiModel, } from "./settings";
 
 interface StreamHttpInput {
   requestId: string;
@@ -160,24 +160,15 @@ export async function tauriStreamFetch(input: RequestInfo | URL, init?: RequestI
   },);
 }
 
-function getModelId(provider: AiProvider, purpose: "assistant" | "widget",) {
-  switch (provider) {
-    case "anthropic":
-      return purpose === "assistant" ? "claude-sonnet-4-5" : "claude-opus-4-6";
-    case "openai":
-      return "gpt-4.1";
-    case "google":
-      return "gemini-2.0-flash";
-    case "openrouter":
-      return "openai/gpt-4.1";
-  }
+function getModelId(config: ActiveAiConfig, purpose: "assistant" | "widget",) {
+  return config.model.trim() || getDefaultAiModel(config.provider, purpose,);
 }
 
 export function getAiSdkModel(
   config: ActiveAiConfig,
   purpose: "assistant" | "widget",
 ): LanguageModel {
-  const modelId = getModelId(config.provider, purpose,);
+  const modelId = getModelId(config, purpose,);
 
   switch (config.provider) {
     case "anthropic":

@@ -1,5 +1,5 @@
 import { invoke, } from "@tauri-apps/api/core";
-import { type ActiveAiConfig, type AiProvider, getAiProviderLabel, } from "./settings";
+import { type ActiveAiConfig, type AiProvider, getAiProviderLabel, getDefaultAiModel, } from "./settings";
 
 export const API_KEY_MISSING = "API_KEY_MISSING";
 
@@ -62,17 +62,8 @@ type NativeJsonRequest = {
   body: unknown;
 };
 
-function getModel(provider: AiProvider, purpose: "assistant" | "widget",) {
-  switch (provider) {
-    case "anthropic":
-      return purpose === "assistant" ? "claude-sonnet-4-5" : "claude-opus-4-6";
-    case "openai":
-      return "gpt-4.1";
-    case "google":
-      return "gemini-2.0-flash";
-    case "openrouter":
-      return "openai/gpt-4.1";
-  }
+function getModel(config: ActiveAiConfig, purpose: "assistant" | "widget",) {
+  return config.model.trim() || getDefaultAiModel(config.provider, purpose,);
 }
 
 function getProviderUrl(provider: AiProvider,) {
@@ -284,7 +275,7 @@ async function callAnthropicText(config: ActiveAiConfig, system: string, prompt:
       "anthropic-version": "2023-06-01",
     },
     body: {
-      model: getModel("anthropic", "widget",),
+      model: getModel(config, "widget",),
       max_tokens: 8192,
       system,
       messages: [{ role: "user", content: prompt, },],
@@ -312,7 +303,7 @@ async function callOpenAiCompatibleText(config: ActiveAiConfig, system: string, 
         : {}),
     },
     body: {
-      model: getModel(config.provider, "widget",),
+      model: getModel(config, "widget",),
       messages: [
         { role: "system", content: system, },
         { role: "user", content: prompt, },
@@ -335,7 +326,7 @@ async function callOpenAiCompatibleText(config: ActiveAiConfig, system: string, 
 
 async function callGoogleText(config: ActiveAiConfig, system: string, prompt: string, signal?: AbortSignal,) {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${
-    getModel("google", "widget",)
+    getModel(config, "widget",)
   }:generateContent?key=${config.apiKey}`;
   const data = await postJson({
     url,
@@ -398,7 +389,7 @@ async function callAnthropicTools(
       "anthropic-version": "2023-06-01",
     },
     body: {
-      model: getModel("anthropic", "assistant",),
+      model: getModel(config, "assistant",),
       max_tokens: 8192,
       system,
       tool_choice: { type: "auto", },
@@ -451,7 +442,7 @@ async function callOpenAiCompatibleTools(
         : {}),
     },
     body: {
-      model: getModel(config.provider, "assistant",),
+      model: getModel(config, "assistant",),
       messages: toOpenAiMessages(system, messages,),
       tools: toOpenAiTools(tools,),
       tool_choice: "auto",
@@ -510,7 +501,7 @@ async function callGoogleTools(
   signal?: AbortSignal,
 ): Promise<AiContentBlock[]> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${
-    getModel("google", "assistant",)
+    getModel(config, "assistant",)
   }:generateContent?key=${config.apiKey}`;
   const data = await postJson({
     url,

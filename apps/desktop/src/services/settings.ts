@@ -4,6 +4,7 @@ import { getBaseDir, } from "./paths";
 
 export interface Settings {
   aiProvider: AiProvider;
+  aiModel: string;
   anthropicApiKey: string;
   openaiApiKey: string;
   googleApiKey: string;
@@ -105,6 +106,7 @@ const STT_PROVIDER_SUGGESTED_MODELS: Record<SttProvider, string[]> = {
 
 export interface ActiveAiConfig {
   provider: AiProvider;
+  model: string;
   apiKey: string;
 }
 
@@ -130,6 +132,7 @@ export const DEFAULT_GOOGLE_OAUTH_CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_
 
 const DEFAULT_SETTINGS: Settings = {
   aiProvider: DEFAULT_AI_PROVIDER,
+  aiModel: "",
   anthropicApiKey: "",
   openaiApiKey: "",
   googleApiKey: "",
@@ -256,6 +259,19 @@ export function getAiProviderLabel(provider: AiProvider,) {
   }
 }
 
+export function getDefaultAiModel(provider: AiProvider, purpose: "assistant" | "widget",) {
+  switch (provider) {
+    case "anthropic":
+      return purpose === "assistant" ? "claude-sonnet-4-5" : "claude-opus-4-6";
+    case "openai":
+      return "gpt-4.1";
+    case "google":
+      return "gemini-2.0-flash";
+    case "openrouter":
+      return "openai/gpt-4.1";
+  }
+}
+
 export function getSttProviderLabel(provider: SttProvider,) {
   return STT_PROVIDER_LABELS[provider];
 }
@@ -328,8 +344,11 @@ export function getSttProviderApiKey(settings: Settings, provider: SttProvider,)
 export function resolveActiveAiConfig(settings: Settings,): ActiveAiConfig | null {
   const provider = normalizeAiProvider(settings.aiProvider,);
   const apiKey = getAiProviderApiKey(settings, provider,);
+  const model = typeof settings.aiModel === "string" && settings.aiModel.trim()
+    ? settings.aiModel.trim()
+    : getDefaultAiModel(provider, "assistant",);
   if (!apiKey) return null;
-  return { provider, apiKey, };
+  return { provider, model, apiKey, };
 }
 
 export function resolveActiveSttConfig(settings: Settings,): ActiveSttConfig | null {
@@ -374,6 +393,7 @@ export async function loadSettings(): Promise<Settings> {
       ...DEFAULT_SETTINGS,
       ...parsed,
       aiProvider: normalizeAiProvider(parsed.aiProvider,),
+      aiModel: typeof parsed.aiModel === "string" ? parsed.aiModel.trim() : "",
       currentSttProvider: normalizeSttProvider(parsed.currentSttProvider,),
       currentSttModel: typeof parsed.currentSttModel === "string"
         ? parsed.currentSttModel.trim() || getDefaultSttModel(normalizeSttProvider(parsed.currentSttProvider,),)
@@ -411,6 +431,7 @@ export async function saveSettings(settings: Settings,): Promise<void> {
     JSON.stringify(
       {
         ...settings,
+        aiModel: settings.aiModel.trim(),
         currentSttProvider: normalizeSttProvider(settings.currentSttProvider,),
         currentSttModel: settings.currentSttModel.trim(),
         sttBaseUrl: settings.sttBaseUrl.trim(),
