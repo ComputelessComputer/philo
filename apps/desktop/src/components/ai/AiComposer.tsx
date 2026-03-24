@@ -54,6 +54,7 @@ export function AiComposer({
   onDiscardChange,
 }: AiComposerProps,) {
   const inputRef = useRef<HTMLTextAreaElement>(null,);
+  const slashSuggestionRefs = useRef<Array<HTMLButtonElement | null>>([],);
   const visibleSelectedLabel = selectedLabel ?? (selectedText ? formatSelectedLabel(selectedText,) : null);
   const widgetEditLabel = parseWidgetEditLabel(visibleSelectedLabel,);
   const hasPanel = !widgetEditLabel && (chatHistory.length > 0 || Boolean(title,) || Boolean(activeChatId,));
@@ -141,15 +142,30 @@ export function AiComposer({
                   {slashSuggestions.length > 0 && !error && (
                     <div className="absolute right-0 bottom-full left-0 mb-3">
                       <div className="overflow-hidden border border-gray-200 bg-white shadow-[0_-14px_36px_rgba(15,23,42,0.12)]">
-                        {slashSuggestions.map((suggestion,) => (
+                        {slashSuggestions.map((suggestion, index,) => (
                           <button
                             key={suggestion.command}
+                            ref={(element,) => {
+                              slashSuggestionRefs.current[index] = element;
+                            }}
                             type="button"
                             onClick={() => {
                               setPromptValue(suggestion.command,);
                               window.setTimeout(() => inputRef.current?.focus(), 0,);
                             }}
-                            className="w-full px-6 py-4 text-left transition-colors hover:bg-gray-50"
+                            onKeyDown={(event,) => {
+                              if (event.key === "ArrowDown") {
+                                event.preventDefault();
+                                inputRef.current?.focus();
+                                return;
+                              }
+
+                              if (event.key !== "ArrowUp") return;
+                              event.preventDefault();
+                              if (index <= 0) return;
+                              slashSuggestionRefs.current[index - 1]?.focus();
+                            }}
+                            className="w-full px-6 py-4 text-left transition-colors hover:bg-gray-50 focus:bg-gray-50 focus:outline-hidden"
                           >
                             <p className="min-w-0 text-sm leading-6 text-slate-600 sm:text-[1.02rem]">
                               <span
@@ -183,6 +199,12 @@ export function AiComposer({
                         onChange={(event,) => setPromptValue(event.target.value,)}
                         onInput={(event,) => resizeComposerInput(event.currentTarget,)}
                         onKeyDown={(event,) => {
+                          if (event.key === "ArrowUp" && slashSuggestions.length > 0 && !error) {
+                            event.preventDefault();
+                            slashSuggestionRefs.current[slashSuggestions.length - 1]?.focus();
+                            return;
+                          }
+
                           if (event.key !== "Enter" || event.shiftKey || isSubmitting) return;
                           event.preventDefault();
                           onSubmit();
