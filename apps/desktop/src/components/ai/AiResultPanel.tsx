@@ -44,7 +44,7 @@ export function AiResultPanel({
   const panelTitle = title || activeChat?.title || "New chat";
   const quickActions = [
     "Help me figure out what to do today",
-    "/todo organize",
+    "/triage",
     "Find any overdue tasks in my notes",
     "Summarize the most relevant notes from the last week",
   ];
