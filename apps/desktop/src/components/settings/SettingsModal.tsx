@@ -781,8 +781,8 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
           className="border-b border-gray-100"
           onMouseDown={handleHeaderMouseDown}
         >
-          <div className="flex h-[38px] w-full items-center justify-between gap-4 px-3 pl-16">
-            <h2 className="text-lg font-medium text-gray-900" style={mono}>
+          <div className="flex h-[38px] w-full items-center justify-between gap-4 px-3 pl-24">
+            <h2 className="text-base font-medium text-gray-900" style={mono}>
               Settings
             </h2>
             <button
