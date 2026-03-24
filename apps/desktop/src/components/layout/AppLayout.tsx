@@ -118,6 +118,10 @@ function noteChanged(current: DailyNote | null, incoming: DailyNote,): boolean {
   return current.content !== incoming.content || current.city !== incoming.city;
 }
 
+function resolveCurrentCityName(currentCity: { city: string; timezoneCity: string; },): string {
+  return currentCity.city.trim() || currentCity.timezoneCity.trim();
+}
+
 interface GlobalSearchResult {
   kind: "daily" | "page";
   path: string;
@@ -1148,11 +1152,8 @@ export default function AppLayout() {
   const today = useCurrentDate();
   const currentCity = useCurrentCity();
   const [todayNote, setTodayNote,] = useState<DailyNote | null>(null,);
-  const todayCity = currentCity.source === "timezone"
-      && todayNote?.city?.trim()
-      && todayNote.city.trim() === currentCity.timezoneCity.trim()
-    ? null
-    : todayNote?.city;
+  const todayCity = todayNote?.city;
+  const fallbackTodayCity = resolveCurrentCityName(currentCity,);
   const pastDates = useMemo(() => Array.from({ length: 30, }, (_, i,) => getDaysAgo(i + 1,),), [today,],);
   const [settingsOpen, setSettingsOpen,] = useState(false,);
   const [libraryOpen, setLibraryOpen,] = useState(false,);
@@ -2407,22 +2408,24 @@ export default function AppLayout() {
 
   useEffect(() => {
     const note = todayNoteRef.current;
-    const confirmedCity = currentCity.city.trim();
+    const nextCity = resolveCurrentCityName(currentCity,);
     const timezoneCity = currentCity.timezoneCity.trim();
-    if (!note || currentCity.source !== "geolocation" || !confirmedCity) return;
+    if (!note || !nextCity) return;
 
     const existingCity = note.city?.trim() || "";
     const shouldReplaceTimezoneFallback = Boolean(
       existingCity
         && timezoneCity
         && existingCity === timezoneCity
-        && existingCity !== confirmedCity,
+        && existingCity !== nextCity
+        && currentCity.source !== "timezone",
     );
 
     if (existingCity && !shouldReplaceTimezoneFallback) return;
 
-    const updated = { ...note, city: confirmedCity, };
+    const updated = { ...note, city: nextCity, };
     suppressWatcherUntilRef.current = Date.now() + LOCAL_SAVE_WATCH_SUPPRESSION_MS;
+    todayNoteRef.current = updated;
     setTodayNote(updated,);
     saveDailyNote(updated,).catch(console.error,);
   }, [currentCity, todayNote,],);
@@ -3150,7 +3153,7 @@ export default function AppLayout() {
                         <DateHeader
                           date={today}
                           city={todayCity}
-                          fallbackCity={currentCity.city}
+                          fallbackCity={fallbackTodayCity}
                           onCityChange={todayNote ? handleTodayCityChange : undefined}
                         />
                       </div>
