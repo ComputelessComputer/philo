@@ -68,6 +68,17 @@ const STT_PROVIDER_HINTS: Record<SttProvider, string> = {
   custom: "Manual",
 };
 
+const STT_PROVIDER_MARKS: Record<SttProvider, string> = {
+  deepgram: "DG",
+  assemblyai: "AA",
+  openai: "OA",
+  gladia: "GL",
+  soniox: "SX",
+  elevenlabs: "11",
+  mistral: "MS",
+  custom: "//",
+};
+
 const CUSTOM_STT_MODEL_VALUE = "__philo_custom_stt_model__";
 
 const GOOGLE_EMAIL_OPEN_CLIENT_LABELS: Record<GoogleEmailOpenClient, string> = {
@@ -132,6 +143,39 @@ function getSttModelHint(model: string,) {
       return "Legacy";
     default:
       return "Default";
+  }
+}
+
+function getAiProviderCardDescription(provider: AiProvider, hasKey: boolean,) {
+  if (hasKey) {
+    return "API key saved on this device.";
+  }
+
+  return `Add your ${getAiProviderLabel(provider,)} API key.`;
+}
+
+function getSttProviderCardDescription(provider: SttProvider,) {
+  if (provider === "openai") {
+    return "Reuse your OpenAI key or set a separate STT key.";
+  }
+
+  if (provider === "custom") {
+    return "Manual base URL, model, and auth.";
+  }
+
+  return `Default model: ${getDefaultSttModel(provider,)}`;
+}
+
+function getAiProviderDraftKey(settings: Settings, provider: AiProvider,) {
+  switch (provider) {
+    case "anthropic":
+      return settings.anthropicApiKey;
+    case "openai":
+      return settings.openaiApiKey;
+    case "google":
+      return settings.googleApiKey;
+    case "openrouter":
+      return settings.openrouterApiKey;
   }
 }
 
@@ -215,6 +259,120 @@ function FilenamePatternFieldValue({ value, muted = false, }: { value: string; m
           </span>
         );
       },)}
+    </div>
+  );
+}
+
+function SelectableProviderCard(
+  {
+    badge,
+    description,
+    icon,
+    onClick,
+    selected,
+    title,
+  }: {
+    badge?: string;
+    description: string;
+    icon: React.ReactNode;
+    onClick: () => void;
+    selected: boolean;
+    title: string;
+  },
+) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`rounded-none border p-3 text-left transition-all cursor-pointer focus:outline-none focus:ring-2 focus:ring-violet-500/30 ${
+        selected
+          ? "border-violet-300 bg-violet-50/40 ring-1 ring-violet-200"
+          : "border-gray-200 bg-white hover:border-gray-300 hover:bg-gray-50"
+      }`}
+    >
+      <span className="flex items-start gap-3">
+        <span
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-none border bg-white ${
+            selected ? "border-violet-200 text-violet-700" : "border-gray-200 text-gray-500"
+          }`}
+        >
+          {icon}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-gray-900" style={mono}>
+              {title}
+            </span>
+            {badge && (
+              <span
+                className={`inline-flex items-center rounded-none border px-1.5 py-0.5 text-[10px] uppercase tracking-[0.18em] ${
+                  selected
+                    ? "border-violet-200 bg-violet-50 text-violet-700"
+                    : "border-gray-200 bg-gray-50 text-gray-500"
+                }`}
+                style={mono}
+              >
+                {badge}
+              </span>
+            )}
+          </span>
+          <span
+            className={`mt-1 block text-xs leading-5 ${selected ? "text-gray-600" : "text-gray-400"}`}
+            style={mono}
+          >
+            {description}
+          </span>
+        </span>
+      </span>
+    </button>
+  );
+}
+
+function ProviderConfigurationPanel(
+  {
+    children,
+    description,
+    eyebrow,
+    status,
+    statusTone = "muted",
+    title,
+  }: {
+    children: React.ReactNode;
+    description: string;
+    eyebrow: string;
+    status: string;
+    statusTone?: "accent" | "muted";
+    title: string;
+  },
+) {
+  return (
+    <div className="rounded-none border border-gray-200 bg-gray-50/60 p-4">
+      <div className="flex flex-col gap-3 border-b border-gray-200 pb-4 md:flex-row md:items-start md:justify-between">
+        <div className="space-y-1">
+          <p className="text-[10px] uppercase tracking-[0.18em] text-gray-400" style={mono}>
+            {eyebrow}
+          </p>
+          <h3 className="text-sm text-gray-900" style={mono}>
+            {title}
+          </h3>
+          <p className="text-xs text-gray-400" style={mono}>
+            {description}
+          </p>
+        </div>
+        <span
+          className={`inline-flex items-center self-start rounded-none border px-2 py-1 text-[10px] uppercase tracking-[0.18em] ${
+            statusTone === "accent"
+              ? "border-violet-200 bg-violet-50 text-violet-700"
+              : "border-gray-200 bg-white text-gray-500"
+          }`}
+          style={mono}
+        >
+          {status}
+        </span>
+      </div>
+      <div className="mt-4 space-y-4">
+        {children}
+      </div>
     </div>
   );
 }
@@ -439,6 +597,9 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
   const isGoogleConnecting = googleAction?.type === "connecting";
   const refreshingGoogleAccount = googleAction?.type === "refreshing" ? googleAction.email : null;
   const isGoogleBusy = googleAction !== null;
+  const selectedAiProvider = settings.aiProvider;
+  const selectedAiKey = getAiProviderDraftKey(settings, selectedAiProvider,);
+  const selectedAiHasKey = Boolean(selectedAiKey.trim(),);
   const trimmedOpenAiApiKey = settings.openaiApiKey.trim();
   const isReusingOpenAiSttKey = settings.currentSttProvider === "openai"
     && !settings.sttApiKey.trim()
@@ -450,6 +611,12 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
   const selectedSttModelValue = hasPresetSttModel ? normalizedCurrentSttModel : CUSTOM_STT_MODEL_VALUE;
   const showCustomSttModelInput = settings.currentSttProvider === "custom"
     || selectedSttModelValue === CUSTOM_STT_MODEL_VALUE;
+  const activeSttConfigured = Boolean(
+    (settings.currentSttModel.trim() || getDefaultSttModel(settings.currentSttProvider,))
+      && (settings.sttBaseUrl.trim() || getDefaultSttBaseUrl(settings.currentSttProvider,))
+      && displayedSttApiKey.trim()
+      && settings.spokenLanguages.length > 0,
+  );
 
   const buildPersistedSettings = async (current: Settings,) => {
     const normalizedVault = current.vaultDir.trim();
@@ -583,19 +750,6 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
       case "openrouter":
         update({ aiProvider: provider, openrouterApiKey: value, },);
         break;
-    }
-  };
-
-  const getAiKey = (provider: AiProvider,) => {
-    switch (provider) {
-      case "anthropic":
-        return settings.anthropicApiKey;
-      case "openai":
-        return settings.openaiApiKey;
-      case "google":
-        return settings.googleApiKey;
-      case "openrouter":
-        return settings.openrouterApiKey;
     }
   };
 
@@ -863,27 +1017,21 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
                 AI Provider
               </label>
               <p className="text-xs text-gray-400" style={mono}>
-                Click a card to select the active provider. Keys stay on this device.
+                Choose the provider for summaries and chat. Keys stay on this device.
               </p>
-              <div className="space-y-3">
+              <div className="grid gap-3 md:grid-cols-2">
                 {AI_PROVIDERS.map((provider,) => {
-                  const selected = settings.aiProvider === provider;
+                  const hasKey = Boolean(getAiProviderDraftKey(settings, provider,).trim(),);
                   return (
-                    <div
+                    <SelectableProviderCard
                       key={provider}
+                      selected={settings.aiProvider === provider}
                       onClick={() => update({ aiProvider: provider, },)}
-                      className={`rounded-none border p-3 transition-colors cursor-pointer ${
-                        selected
-                          ? "border-violet-300 bg-violet-50/50 ring-1 ring-violet-300"
-                          : "border-gray-200 hover:border-gray-300"
-                      }`}
-                    >
-                      <label className="mb-2 flex items-center gap-2 text-sm cursor-pointer" style={mono}>
-                        <span
-                          className={`flex h-6 w-6 items-center justify-center rounded-none border bg-white ${
-                            selected ? "border-violet-200" : "border-gray-200"
-                          }`}
-                        >
+                      title={getAiProviderLabel(provider,)}
+                      description={getAiProviderCardDescription(provider, hasKey,)}
+                      badge={hasKey ? "Saved" : undefined}
+                      icon={
+                        <span className="flex h-4 w-4 items-center justify-center">
                           <img
                             src={AI_PROVIDER_ICONS[provider]}
                             alt=""
@@ -891,196 +1039,223 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
                             aria-hidden="true"
                           />
                         </span>
-                        <span className={selected ? "text-violet-700" : "text-gray-600"}>
-                          {getAiProviderLabel(provider,)}
-                        </span>
-                      </label>
-                      <input
-                        ref={selected ? inputRef : undefined}
-                        type="password"
-                        value={getAiKey(provider,)}
-                        onChange={(e,) => updateAiKey(provider, e.target.value,)}
-                        onClick={(e,) => e.stopPropagation()}
-                        onFocus={() => update({ aiProvider: provider, },)}
-                        placeholder={AI_PROVIDER_PLACEHOLDERS[provider]}
-                        className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all bg-white"
-                        style={mono}
-                      />
-                    </div>
+                      }
+                    />
                   );
                 },)}
               </div>
+              <ProviderConfigurationPanel
+                eyebrow="Active provider"
+                title={getAiProviderLabel(selectedAiProvider,)}
+                description="Philo uses the selected provider for summaries and chat."
+                status={selectedAiHasKey ? "Configured" : "Missing API key"}
+                statusTone={selectedAiHasKey ? "accent" : "muted"}
+              >
+                <div className="space-y-2">
+                  <label className="block text-xs text-gray-500" style={mono}>
+                    API key
+                  </label>
+                  <input
+                    ref={inputRef}
+                    type="password"
+                    value={selectedAiKey}
+                    onChange={(e,) => updateAiKey(selectedAiProvider, e.target.value,)}
+                    placeholder={AI_PROVIDER_PLACEHOLDERS[selectedAiProvider]}
+                    className="w-full border border-gray-200 bg-white px-3 py-2 text-sm transition-all focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                    style={mono}
+                  />
+                </div>
+              </ProviderConfigurationPanel>
             </div>
 
             <div className="my-5 border-t border-gray-100" />
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               <label className="block text-sm text-gray-600" style={mono}>
                 Recording provider
               </label>
               <p className="text-xs text-gray-400" style={mono}>
-                Configure BYOK speech-to-text for meeting recording. Char sign-in stays out of scope for this pass.
+                Choose the speech-to-text provider for recording. Recording auth stays on this device.
               </p>
-              <SharpSelectField
-                label="Provider"
-                options={STT_PROVIDERS.map((provider,) => ({
-                  hint: STT_PROVIDER_HINTS[provider],
-                  label: getSttProviderLabel(provider,),
-                  value: provider,
-                }))}
-                value={settings.currentSttProvider}
-                onChange={handleSttProviderChange}
-              />
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="space-y-2">
-                  {settings.currentSttProvider === "custom"
-                    ? (
-                      <>
-                        <label className="block text-xs text-gray-500" style={mono}>
-                          Model
-                        </label>
-                        <input
-                          ref={sttModelInputRef}
-                          type="text"
-                          value={settings.currentSttModel}
-                          onChange={(e,) => update({ currentSttModel: e.target.value, },)}
-                          placeholder="Enter model ID"
-                          className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
-                          style={mono}
-                        />
-                        <p className="text-[11px] text-gray-400" style={mono}>
-                          Paste the upstream model ID your API expects.
-                        </p>
-                      </>
-                    )
-                    : (
-                      <>
-                        <SharpSelectField
-                          label="Model"
-                          options={[
-                            ...suggestedSttModels.map((model,) => ({
-                              hint: getSttModelHint(model,),
-                              label: getSttModelLabel(model,),
-                              value: model,
-                            })),
-                            {
-                              hint: "Manual",
-                              label: "Custom model ID",
-                              value: CUSTOM_STT_MODEL_VALUE,
-                            },
-                          ]}
-                          value={selectedSttModelValue}
-                          onChange={handleSttModelChange}
-                        />
-                        {showCustomSttModelInput && (
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {STT_PROVIDERS.map((provider,) => (
+                  <SelectableProviderCard
+                    key={provider}
+                    selected={settings.currentSttProvider === provider}
+                    onClick={() => handleSttProviderChange(provider,)}
+                    title={getSttProviderLabel(provider,)}
+                    description={getSttProviderCardDescription(provider,)}
+                    badge={STT_PROVIDER_HINTS[provider]}
+                    icon={
+                      <span className="text-[11px] leading-none" style={mono}>
+                        {STT_PROVIDER_MARKS[provider]}
+                      </span>
+                    }
+                  />
+                ))}
+              </div>
+              <ProviderConfigurationPanel
+                eyebrow="Active provider"
+                title={getSttProviderLabel(settings.currentSttProvider,)}
+                description="Recording uses this provider. Summaries continue to use the AI provider above."
+                status={isReusingOpenAiSttKey
+                  ? "Reusing OpenAI key"
+                  : activeSttConfigured
+                  ? "Configured"
+                  : "Needs setup"}
+                statusTone={isReusingOpenAiSttKey || activeSttConfigured ? "accent" : "muted"}
+              >
+                <div className="grid gap-3 md:grid-cols-2">
+                  <div className="space-y-2">
+                    {settings.currentSttProvider === "custom"
+                      ? (
+                        <>
+                          <label className="block text-xs text-gray-500" style={mono}>
+                            Model
+                          </label>
                           <input
                             ref={sttModelInputRef}
                             type="text"
                             value={settings.currentSttModel}
                             onChange={(e,) => update({ currentSttModel: e.target.value, },)}
-                            placeholder={getDefaultSttModel(settings.currentSttProvider,)}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+                            placeholder="Enter model ID"
+                            className="w-full border border-gray-200 bg-white px-3 py-2 text-sm transition-all focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
                             style={mono}
                           />
-                        )}
-                        <p className="text-[11px] text-gray-400" style={mono}>
-                          {showCustomSttModelInput
-                            ? "Use a manual model ID if your provider needs something outside the presets."
-                            : `Model ID: ${settings.currentSttModel}`}
-                        </p>
-                      </>
+                          <p className="text-[11px] text-gray-400" style={mono}>
+                            Paste the upstream model ID your API expects.
+                          </p>
+                        </>
+                      )
+                      : (
+                        <>
+                          <SharpSelectField
+                            label="Model"
+                            options={[
+                              ...suggestedSttModels.map((model,) => ({
+                                hint: getSttModelHint(model,),
+                                label: getSttModelLabel(model,),
+                                value: model,
+                              })),
+                              {
+                                hint: "Manual",
+                                label: "Custom model ID",
+                                value: CUSTOM_STT_MODEL_VALUE,
+                              },
+                            ]}
+                            value={selectedSttModelValue}
+                            onChange={handleSttModelChange}
+                          />
+                          {showCustomSttModelInput && (
+                            <input
+                              ref={sttModelInputRef}
+                              type="text"
+                              value={settings.currentSttModel}
+                              onChange={(e,) => update({ currentSttModel: e.target.value, },)}
+                              placeholder={getDefaultSttModel(settings.currentSttProvider,)}
+                              className="w-full border border-gray-200 bg-white px-3 py-2 text-sm transition-all focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                              style={mono}
+                            />
+                          )}
+                          <p className="text-[11px] text-gray-400" style={mono}>
+                            {showCustomSttModelInput
+                              ? "Use a manual model ID if your provider needs something outside the presets."
+                              : `Model ID: ${settings.currentSttModel}`}
+                          </p>
+                        </>
+                      )}
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-xs text-gray-500" style={mono}>
+                      Spoken languages
+                    </label>
+                    <SpokenLanguagesField
+                      value={settings.spokenLanguages}
+                      onChange={(spokenLanguages,) => update({ spokenLanguages, },)}
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                  <div className="space-y-2">
+                    <label className="block text-xs text-gray-500" style={mono}>
+                      Base URL
+                    </label>
+                    <input
+                      type="text"
+                      value={settings.sttBaseUrl}
+                      onChange={(e,) => update({ sttBaseUrl: e.target.value, },)}
+                      placeholder={getDefaultSttBaseUrl(settings.currentSttProvider,) || "https://example.com/v1"}
+                      className="w-full border border-gray-200 bg-white px-3 py-2 text-sm transition-all focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                      style={mono}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="block text-xs text-gray-500" style={mono}>
+                      STT API key
+                    </label>
+                    <input
+                      ref={sttApiKeyInputRef}
+                      type="password"
+                      value={displayedSttApiKey}
+                      onChange={(e,) => update({ sttApiKey: e.target.value, },)}
+                      placeholder={settings.currentSttProvider === "openai"
+                        ? "Leave blank to reuse OpenAI key"
+                        : "Enter BYOK STT key"}
+                      readOnly={isReusingOpenAiSttKey}
+                      className="w-full border border-gray-200 bg-white px-3 py-2 text-sm transition-all focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                      style={mono}
+                    />
+                    {isReusingOpenAiSttKey && (
+                      <div className="flex items-center justify-between gap-3 text-[11px] text-gray-400" style={mono}>
+                        <span>Using your OpenAI key above.</span>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            update({ sttApiKey: settings.openaiApiKey, },);
+                            requestAnimationFrame(() => {
+                              sttApiKeyInputRef.current?.focus();
+                              sttApiKeyInputRef.current?.select();
+                            },);
+                          }}
+                          className="text-violet-600 transition-colors cursor-pointer hover:text-violet-700"
+                        >
+                          Use separate key
+                        </button>
+                      </div>
                     )}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <label className="block text-xs text-gray-500" style={mono}>
-                    Spoken languages
+                <div className="space-y-2 pt-1">
+                  <label className="block text-sm text-gray-600" style={mono}>
+                    Save raw recordings
                   </label>
-                  <SpokenLanguagesField
-                    value={settings.spokenLanguages}
-                    onChange={(spokenLanguages,) => update({ spokenLanguages, },)}
-                  />
-                </div>
-              </div>
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                <div className="space-y-2">
-                  <label className="block text-xs text-gray-500" style={mono}>
-                    Base URL
-                  </label>
-                  <input
-                    type="text"
-                    value={settings.sttBaseUrl}
-                    onChange={(e,) => update({ sttBaseUrl: e.target.value, },)}
-                    placeholder={getDefaultSttBaseUrl(settings.currentSttProvider,) || "https://example.com/v1"}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
-                    style={mono}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <label className="block text-xs text-gray-500" style={mono}>
-                    STT API key
-                  </label>
-                  <input
-                    ref={sttApiKeyInputRef}
-                    type="password"
-                    value={displayedSttApiKey}
-                    onChange={(e,) => update({ sttApiKey: e.target.value, },)}
-                    placeholder={settings.currentSttProvider === "openai"
-                      ? "Leave blank to reuse OpenAI key"
-                      : "Enter BYOK STT key"}
-                    readOnly={isReusingOpenAiSttKey}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
-                    style={mono}
-                  />
-                  {isReusingOpenAiSttKey && (
-                    <div className="flex items-center justify-between gap-3 text-[11px] text-gray-400" style={mono}>
-                      <span>Using your OpenAI key above.</span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          update({ sttApiKey: settings.openaiApiKey, },);
-                          requestAnimationFrame(() => {
-                            sttApiKeyInputRef.current?.focus();
-                            sttApiKeyInputRef.current?.select();
-                          },);
-                        }}
-                        className="text-violet-600 transition-colors cursor-pointer hover:text-violet-700"
-                      >
-                        Use separate key
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-              <div className="space-y-2 pt-2">
-                <label className="block text-sm text-gray-600" style={mono}>
-                  Save raw recordings
-                </label>
-                <button
-                  type="button"
-                  onClick={() => update({ saveRecordings: !settings.saveRecordings, },)}
-                  className={`flex w-full items-center justify-between rounded-none border px-3 py-2 text-left text-sm transition-colors cursor-pointer ${
-                    settings.saveRecordings
-                      ? "border-violet-300 bg-violet-50/40 text-violet-700"
-                      : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-                  }`}
-                  style={mono}
-                >
-                  <span>{settings.saveRecordings ? "Enabled" : "Disabled"}</span>
-                  <span
-                    className={`inline-flex h-5 w-9 items-center border ${
+                  <button
+                    type="button"
+                    onClick={() => update({ saveRecordings: !settings.saveRecordings, },)}
+                    className={`flex w-full items-center justify-between rounded-none border px-3 py-2 text-left text-sm transition-colors cursor-pointer ${
                       settings.saveRecordings
-                        ? "border-violet-400 bg-violet-600 justify-end"
-                        : "border-gray-300 bg-gray-200 justify-start"
+                        ? "border-violet-300 bg-violet-50/40 text-violet-700"
+                        : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
                     }`}
+                    style={mono}
                   >
-                    <span className="mx-0.5 h-3.5 w-3.5 bg-white" />
-                  </span>
-                </button>
-                <p className="text-xs text-gray-400" style={mono}>
-                  Transcript capture still works without AI. Summary generation uses your existing AI provider
-                  separately.
-                </p>
-              </div>
+                    <span>{settings.saveRecordings ? "Enabled" : "Disabled"}</span>
+                    <span
+                      className={`inline-flex h-5 w-9 items-center border ${
+                        settings.saveRecordings
+                          ? "border-violet-400 bg-violet-600 justify-end"
+                          : "border-gray-300 bg-gray-200 justify-start"
+                      }`}
+                    >
+                      <span className="mx-0.5 h-3.5 w-3.5 bg-white" />
+                    </span>
+                  </button>
+                  <p className="text-xs text-gray-400" style={mono}>
+                    Transcript capture still works without AI. Summary generation uses your existing AI provider
+                    separately.
+                  </p>
+                </div>
+              </ProviderConfigurationPanel>
             </div>
 
             <div className="my-5 border-t border-gray-100" />
