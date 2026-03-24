@@ -747,7 +747,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center"
+      className="fixed inset-0 z-[100]"
       onClick={() => void handleRequestClose()}
       onKeyDown={handleKeyDown}
     >
@@ -761,521 +761,533 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
         `}
       </style>
       <div
-        className="absolute top-0 left-0 right-0 h-[38px] z-[1]"
-        data-tauri-drag-region
-        onClick={(e,) => e.stopPropagation()}
-      />
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" />
-
-      {/* Modal */}
-      <div
         ref={modalRef}
-        className="modal-scroll relative bg-white rounded-none shadow-2xl w-full max-w-lg mx-4 p-6 max-h-[80vh] overflow-y-auto overflow-x-hidden"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Settings"
+        className="relative flex h-full w-full flex-col bg-white"
         onClick={(e,) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between mb-5">
-          <h2 className="text-lg font-medium text-gray-900" style={mono}>
-            Settings
-          </h2>
-          <button
-            onClick={() => void handleRequestClose()}
-            className="text-gray-400 hover:text-gray-600 transition-colors text-lg cursor-pointer"
-          >
-            ✕
-          </button>
+        <div
+          className="absolute top-0 left-0 right-0 z-[1] h-[38px]"
+          data-tauri-drag-region
+          onClick={(e,) => e.stopPropagation()}
+        />
+        <div className="border-b border-gray-100 px-6 pb-4 pt-[52px]">
+          <div className="mx-auto flex w-full max-w-4xl items-center justify-between gap-4">
+            <h2 className="text-lg font-medium text-gray-900" style={mono}>
+              Settings
+            </h2>
+            <button
+              onClick={() => void handleRequestClose()}
+              className="text-gray-400 transition-colors text-lg cursor-pointer hover:text-gray-600"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
-        <div className="space-y-4">
-          <label className="block text-sm text-gray-600" style={mono}>
-            AI Provider
-          </label>
-          <p className="text-xs text-gray-400" style={mono}>
-            Click a card to select the active provider. Keys stay on this device.
-          </p>
-          <div className="space-y-3">
-            {AI_PROVIDERS.map((provider,) => {
-              const selected = settings.aiProvider === provider;
-              return (
-                <div
-                  key={provider}
-                  onClick={() => update({ aiProvider: provider, },)}
-                  className={`rounded-none border p-3 transition-colors cursor-pointer ${
-                    selected
-                      ? "border-violet-300 bg-violet-50/50 ring-1 ring-violet-300"
-                      : "border-gray-200 hover:border-gray-300"
-                  }`}
-                >
-                  <label className="mb-2 flex items-center gap-2 text-sm cursor-pointer" style={mono}>
-                    <span
-                      className={`flex h-6 w-6 items-center justify-center rounded-none border bg-white ${
-                        selected ? "border-violet-200" : "border-gray-200"
+        <div className="modal-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="mx-auto flex w-full max-w-4xl flex-col px-6 py-6">
+            <div className="space-y-4">
+              <label className="block text-sm text-gray-600" style={mono}>
+                AI Provider
+              </label>
+              <p className="text-xs text-gray-400" style={mono}>
+                Click a card to select the active provider. Keys stay on this device.
+              </p>
+              <div className="space-y-3">
+                {AI_PROVIDERS.map((provider,) => {
+                  const selected = settings.aiProvider === provider;
+                  return (
+                    <div
+                      key={provider}
+                      onClick={() => update({ aiProvider: provider, },)}
+                      className={`rounded-none border p-3 transition-colors cursor-pointer ${
+                        selected
+                          ? "border-violet-300 bg-violet-50/50 ring-1 ring-violet-300"
+                          : "border-gray-200 hover:border-gray-300"
                       }`}
                     >
-                      <img
-                        src={AI_PROVIDER_ICONS[provider]}
-                        alt=""
-                        className="h-4 w-4 object-contain"
-                        aria-hidden="true"
-                      />
-                    </span>
-                    <span className={selected ? "text-violet-700" : "text-gray-600"}>
-                      {getAiProviderLabel(provider,)}
-                    </span>
-                  </label>
-                  <input
-                    ref={selected ? inputRef : undefined}
-                    type="password"
-                    value={getAiKey(provider,)}
-                    onChange={(e,) => updateAiKey(provider, e.target.value,)}
-                    onClick={(e,) => e.stopPropagation()}
-                    onFocus={() => update({ aiProvider: provider, },)}
-                    placeholder={AI_PROVIDER_PLACEHOLDERS[provider]}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all bg-white"
-                    style={mono}
-                  />
-                </div>
-              );
-            },)}
-          </div>
-        </div>
-
-        {/* Divider */}
-        <div className="my-5 border-t border-gray-100" />
-
-        <div className="space-y-3">
-          <label className="block text-sm text-gray-600" style={mono}>
-            Recording provider
-          </label>
-          <p className="text-xs text-gray-400" style={mono}>
-            Configure BYOK speech-to-text for meeting recording. Char sign-in stays out of scope for this pass.
-          </p>
-          <SharpSelectField
-            label="Provider"
-            options={STT_PROVIDERS.map((provider,) => ({
-              hint: STT_PROVIDER_HINTS[provider],
-              label: getSttProviderLabel(provider,),
-              value: provider,
-            }))}
-            value={settings.currentSttProvider}
-            onChange={handleSttProviderChange}
-          />
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="space-y-2">
-              <label className="block text-xs text-gray-500" style={mono}>
-                Model
-              </label>
-              <input
-                type="text"
-                value={settings.currentSttModel}
-                onChange={(e,) => update({ currentSttModel: e.target.value, },)}
-                placeholder={getDefaultSttModel(settings.currentSttProvider,)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
-                style={mono}
-              />
-            </div>
-            <div className="space-y-2">
-              <label className="block text-xs text-gray-500" style={mono}>
-                Spoken languages
-              </label>
-              <input
-                type="text"
-                value={settings.spokenLanguages.join(", ",)}
-                onChange={(e,) =>
-                  update({
-                    spokenLanguages: e.target.value
-                      .split(",",)
-                      .map((value,) => value.trim().toLowerCase())
-                      .filter(Boolean,),
-                  },)}
-                placeholder="en, ko"
-                className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
-                style={mono}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <label className="block text-xs text-gray-500" style={mono}>
-              Base URL
-            </label>
-            <input
-              type="text"
-              value={settings.sttBaseUrl}
-              onChange={(e,) => update({ sttBaseUrl: e.target.value, },)}
-              placeholder={getDefaultSttBaseUrl(settings.currentSttProvider,) || "https://example.com/v1"}
-              className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
-              style={mono}
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="block text-xs text-gray-500" style={mono}>
-              STT API key
-            </label>
-            <input
-              type="password"
-              value={settings.sttApiKey}
-              onChange={(e,) => update({ sttApiKey: e.target.value, },)}
-              placeholder={settings.currentSttProvider === "openai"
-                ? "Leave blank to reuse OpenAI key"
-                : "Enter BYOK STT key"}
-              className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
-              style={mono}
-            />
-          </div>
-          <div className="space-y-2 pt-2">
-            <label className="block text-sm text-gray-600" style={mono}>
-              Save raw recordings
-            </label>
-            <button
-              type="button"
-              onClick={() => update({ saveRecordings: !settings.saveRecordings, },)}
-              className={`flex w-full items-center justify-between rounded-none border px-3 py-2 text-left text-sm transition-colors cursor-pointer ${
-                settings.saveRecordings
-                  ? "border-violet-300 bg-violet-50/40 text-violet-700"
-                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-              }`}
-              style={mono}
-            >
-              <span>{settings.saveRecordings ? "Enabled" : "Disabled"}</span>
-              <span
-                className={`inline-flex h-5 w-9 items-center border ${
-                  settings.saveRecordings
-                    ? "border-violet-400 bg-violet-600 justify-end"
-                    : "border-gray-300 bg-gray-200 justify-start"
-                }`}
-              >
-                <span className="mx-0.5 h-3.5 w-3.5 bg-white" />
-              </span>
-            </button>
-            <p className="text-xs text-gray-400" style={mono}>
-              Transcript capture still works without AI. Summary generation uses your existing AI provider separately.
-            </p>
-          </div>
-        </div>
-
-        <div className="my-5 border-t border-gray-100" />
-
-        <div className="space-y-3">
-          <label className="block text-sm text-gray-600" style={mono}>
-            Google Account
-          </label>
-          <p className="text-xs text-gray-400" style={mono}>
-            Connect your account to get summaries
-          </p>
-          {googleConnected
-            ? (
-              <div className="space-y-1.5">
-                {googleAccounts.map((account,) => {
-                  const isRefreshing = refreshingGoogleAccount === account.email;
-                  const isDisconnecting = googleAction?.type === "disconnecting"
-                    && googleAction.email === account.email;
-                  const hasSecureSession = googleSessionAccounts.includes(account.email.trim().toLowerCase(),);
-                  const isRefreshDisabled = isGoogleBusy && !isRefreshing;
-                  return (
-                    <div key={account.email} className="flex min-w-0 items-start gap-1">
-                      <div className="min-w-0 flex-1">
-                        <p
-                          className="min-w-0 truncate text-xs text-gray-500"
-                          style={mono}
-                          title={account.email}
+                      <label className="mb-2 flex items-center gap-2 text-sm cursor-pointer" style={mono}>
+                        <span
+                          className={`flex h-6 w-6 items-center justify-center rounded-none border bg-white ${
+                            selected ? "border-violet-200" : "border-gray-200"
+                          }`}
                         >
-                          {account.email}
-                        </p>
-                        {!hasSecureSession && (
-                          <p className="mt-0.5 text-[10px] uppercase tracking-[0.18em] text-amber-600" style={mono}>
-                            Reconnect required
-                          </p>
-                        )}
-                      </div>
-                      <button
-                        onClick={() => {
-                          if (isRefreshing) {
-                            cancelGoogleConnect();
-                            return;
-                          }
-                          void handleRefreshGoogle(account.email,);
-                        }}
-                        disabled={isRefreshDisabled}
-                        className={`group relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-none transition-colors cursor-pointer focus:outline-none focus:ring-2 disabled:cursor-default disabled:opacity-60 ${
-                          hasSecureSession
-                            ? "text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 focus:ring-emerald-300/40"
-                            : "text-amber-600 hover:bg-amber-50 hover:text-amber-700 focus:ring-amber-300/40"
-                        }`}
-                        title={isRefreshing
-                          ? `Cancel reconnect for ${account.email}`
-                          : `${hasSecureSession ? "Refresh" : "Reconnect"} ${account.email}`}
-                        aria-label={isRefreshing
-                          ? `Cancel reconnect for ${account.email}`
-                          : `${hasSecureSession ? "Refresh" : "Reconnect"} ${account.email}`}
-                      >
-                        {isRefreshing
-                          ? <X className="h-3.5 w-3.5" strokeWidth={2.1} />
-                          : (
-                            <>
-                              {hasSecureSession
-                                ? (
-                                  <Check
-                                    className="h-3.5 w-3.5 transition-opacity group-hover:opacity-0"
-                                    strokeWidth={2.25}
-                                  />
-                                )
-                                : (
-                                  <AlertTriangle
-                                    className="h-3.5 w-3.5 transition-opacity group-hover:opacity-0"
-                                    strokeWidth={2.1}
-                                  />
-                                )}
-                              <RefreshCw
-                                className="absolute h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100"
-                                strokeWidth={2}
-                              />
-                            </>
-                          )}
-                      </button>
-                      <button
-                        onClick={() => handleDisconnectGoogle(account.email,)}
-                        disabled={isGoogleBusy}
-                        className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-none text-gray-400 transition-colors cursor-pointer hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300/40 disabled:cursor-default disabled:opacity-60"
-                        title={`Disconnect ${account.email}`}
-                        aria-label={`Disconnect ${account.email}`}
-                      >
-                        <X className={`h-3.5 w-3.5 ${isDisconnecting ? "opacity-60" : ""}`} strokeWidth={2} />
-                      </button>
+                          <img
+                            src={AI_PROVIDER_ICONS[provider]}
+                            alt=""
+                            className="h-4 w-4 object-contain"
+                            aria-hidden="true"
+                          />
+                        </span>
+                        <span className={selected ? "text-violet-700" : "text-gray-600"}>
+                          {getAiProviderLabel(provider,)}
+                        </span>
+                      </label>
+                      <input
+                        ref={selected ? inputRef : undefined}
+                        type="password"
+                        value={getAiKey(provider,)}
+                        onChange={(e,) => updateAiKey(provider, e.target.value,)}
+                        onClick={(e,) => e.stopPropagation()}
+                        onFocus={() => update({ aiProvider: provider, },)}
+                        placeholder={AI_PROVIDER_PLACEHOLDERS[provider]}
+                        className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all bg-white"
+                        style={mono}
+                      />
                     </div>
                   );
                 },)}
               </div>
-            )
-            : (
-              <p className="text-xs text-gray-500" style={mono}>
-                No Google account connected yet.
+            </div>
+
+            <div className="my-5 border-t border-gray-100" />
+
+            <div className="space-y-3">
+              <label className="block text-sm text-gray-600" style={mono}>
+                Recording provider
+              </label>
+              <p className="text-xs text-gray-400" style={mono}>
+                Configure BYOK speech-to-text for meeting recording. Char sign-in stays out of scope for this pass.
               </p>
-            )}
-          {googleError && (
-            <p className="text-xs text-red-600" style={mono}>
-              {googleError}
-            </p>
-          )}
-          <div className="flex flex-wrap items-center gap-2">
-            <button
-              onClick={() => {
-                if (isGoogleConnecting) {
-                  cancelGoogleConnect();
-                  return;
-                }
-                void handleConnectGoogle();
-              }}
-              disabled={isGoogleBusy && !isGoogleConnecting}
-              className="inline-flex min-h-10 items-center gap-3 rounded-none border px-3 pr-4 text-[14px] leading-5 font-medium text-[#1f1f1f] transition-colors cursor-pointer hover:bg-[#e8eaed] focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/20 disabled:cursor-default disabled:opacity-60"
-              style={{
-                ...googleButtonText,
-                backgroundColor: "#f2f2f2",
-                borderColor: "#d2d2d2",
-              }}
-            >
-              <GoogleMark />
-              <span>
-                {isGoogleConnecting
-                  ? "Cancel"
-                  : googleConnected
-                  ? "Connect more"
-                  : "Continue with Google"}
-              </span>
-            </button>
-          </div>
-          <div className="grid gap-3 pt-2 md:grid-cols-2">
-            <SharpSelectField
-              label="Email opens in"
-              options={GOOGLE_EMAIL_OPEN_CLIENTS.map((client,) => ({
-                hint: GOOGLE_EMAIL_OPEN_CLIENT_HINTS[client],
-                label: GOOGLE_EMAIL_OPEN_CLIENT_LABELS[client],
-                value: client,
-              }))}
-              value={settings.googleEmailOpenClient}
-              onChange={(value,) => update({ googleEmailOpenClient: value, },)}
-            />
-            <SharpSelectField
-              label="Calendar opens in"
-              options={GOOGLE_CALENDAR_OPEN_CLIENTS.map((client,) => ({
-                hint: GOOGLE_CALENDAR_OPEN_CLIENT_HINTS[client],
-                label: GOOGLE_CALENDAR_OPEN_CLIENT_LABELS[client],
-                value: client,
-              }))}
-              value={settings.googleCalendarOpenClient}
-              onChange={(value,) => update({ googleCalendarOpenClient: value, },)}
-            />
-          </div>
-        </div>
-
-        <div className="my-5 border-t border-gray-100" />
-
-        {/* Vault Settings */}
-        <div className="space-y-3">
-          <label className="block text-sm text-gray-600" style={mono}>
-            Vault Location
-          </label>
-          <div className="flex items-center gap-2">
-            <div
-              className="flex-1 min-w-0 px-3 py-2 border border-gray-200 rounded-none text-sm text-gray-500 bg-gray-50"
-              style={mono}
-              title={settings.vaultDir || settings.journalDir || defaultJournalDir}
-            >
-              <VaultPathMarquee
-                path={settings.vaultDir || settings.journalDir || defaultJournalDir || "..."}
-                icon={isObsidianVault ? "obsidian" : "folder"}
+              <SharpSelectField
+                label="Provider"
+                options={STT_PROVIDERS.map((provider,) => ({
+                  hint: STT_PROVIDER_HINTS[provider],
+                  label: getSttProviderLabel(provider,),
+                  value: provider,
+                }))}
+                value={settings.currentSttProvider}
+                onChange={handleSttProviderChange}
               />
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <label className="block text-xs text-gray-500" style={mono}>
+                    Model
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.currentSttModel}
+                    onChange={(e,) => update({ currentSttModel: e.target.value, },)}
+                    placeholder={getDefaultSttModel(settings.currentSttProvider,)}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+                    style={mono}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-xs text-gray-500" style={mono}>
+                    Spoken languages
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.spokenLanguages.join(", ",)}
+                    onChange={(e,) =>
+                      update({
+                        spokenLanguages: e.target.value
+                          .split(",",)
+                          .map((value,) => value.trim().toLowerCase())
+                          .filter(Boolean,),
+                      },)}
+                    placeholder="en, ko"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+                    style={mono}
+                  />
+                </div>
+              </div>
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+                <div className="space-y-2">
+                  <label className="block text-xs text-gray-500" style={mono}>
+                    Base URL
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.sttBaseUrl}
+                    onChange={(e,) => update({ sttBaseUrl: e.target.value, },)}
+                    placeholder={getDefaultSttBaseUrl(settings.currentSttProvider,) || "https://example.com/v1"}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+                    style={mono}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-xs text-gray-500" style={mono}>
+                    STT API key
+                  </label>
+                  <input
+                    type="password"
+                    value={settings.sttApiKey}
+                    onChange={(e,) => update({ sttApiKey: e.target.value, },)}
+                    placeholder={settings.currentSttProvider === "openai"
+                      ? "Leave blank to reuse OpenAI key"
+                      : "Enter BYOK STT key"}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+                    style={mono}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2 pt-2">
+                <label className="block text-sm text-gray-600" style={mono}>
+                  Save raw recordings
+                </label>
+                <button
+                  type="button"
+                  onClick={() => update({ saveRecordings: !settings.saveRecordings, },)}
+                  className={`flex w-full items-center justify-between rounded-none border px-3 py-2 text-left text-sm transition-colors cursor-pointer ${
+                    settings.saveRecordings
+                      ? "border-violet-300 bg-violet-50/40 text-violet-700"
+                      : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                  }`}
+                  style={mono}
+                >
+                  <span>{settings.saveRecordings ? "Enabled" : "Disabled"}</span>
+                  <span
+                    className={`inline-flex h-5 w-9 items-center border ${
+                      settings.saveRecordings
+                        ? "border-violet-400 bg-violet-600 justify-end"
+                        : "border-gray-300 bg-gray-200 justify-start"
+                    }`}
+                  >
+                    <span className="mx-0.5 h-3.5 w-3.5 bg-white" />
+                  </span>
+                </button>
+                <p className="text-xs text-gray-400" style={mono}>
+                  Transcript capture still works without AI. Summary generation uses your existing AI provider
+                  separately.
+                </p>
+              </div>
             </div>
-            <button
-              onClick={handleChooseVault}
-              className="shrink-0 px-3 py-2 text-sm border border-gray-200 rounded-none hover:bg-gray-50 transition-colors cursor-pointer text-gray-700"
-              style={mono}
-            >
-              Choose…
-            </button>
-          </div>
-          {settings.vaultDir && (
-            <button
-              onClick={() => update({ vaultDir: "", },)}
-              className="text-xs text-violet-600 hover:text-violet-800 transition-colors cursor-pointer"
-              style={mono}
-            >
-              Reset to default
-            </button>
-          )}
-          <label className="block text-sm text-gray-600 pt-2" style={mono}>
-            Daily logs folder
-          </label>
-          <input
-            type="text"
-            value={settings.dailyLogsFolder}
-            onChange={(e,) => update({ dailyLogsFolder: e.target.value, },)}
-            placeholder="Daily Notes"
-            className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
-            style={mono}
-          />
-          <label className="block text-sm text-gray-600 pt-2" style={mono}>
-            Excalidraw folder (optional)
-          </label>
-          <input
-            type="text"
-            value={settings.excalidrawFolder}
-            onChange={(e,) => update({ excalidrawFolder: e.target.value, },)}
-            placeholder="Excalidraw"
-            className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
-            style={mono}
-          />
-          <label className="block text-sm text-gray-600 pt-2" style={mono}>
-            Assets folder (optional)
-          </label>
-          <input
-            type="text"
-            value={settings.assetsFolder}
-            onChange={(e,) => update({ assetsFolder: e.target.value, },)}
-            placeholder="assets"
-            className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
-            style={mono}
-          />
-          <div className="space-y-2 pt-2">
-            <label className="block text-sm text-gray-600" style={mono}>
-              Widget Git history
-            </label>
-            <button
-              type="button"
-              onClick={() => update({ widgetGitHistoryEnabled: !settings.widgetGitHistoryEnabled, },)}
-              className={`flex w-full items-center justify-between rounded-none border px-3 py-2 text-left text-sm transition-colors cursor-pointer ${
-                settings.widgetGitHistoryEnabled
-                  ? "border-violet-300 bg-violet-50/40 text-violet-700"
-                  : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+
+            <div className="my-5 border-t border-gray-100" />
+
+            <div className="space-y-3">
+              <label className="block text-sm text-gray-600" style={mono}>
+                Google Account
+              </label>
+              <p className="text-xs text-gray-400" style={mono}>
+                Connect your account to get summaries
+              </p>
+              {googleConnected
+                ? (
+                  <div className="space-y-1.5">
+                    {googleAccounts.map((account,) => {
+                      const isRefreshing = refreshingGoogleAccount === account.email;
+                      const isDisconnecting = googleAction?.type === "disconnecting"
+                        && googleAction.email === account.email;
+                      const hasSecureSession = googleSessionAccounts.includes(account.email.trim().toLowerCase(),);
+                      const isRefreshDisabled = isGoogleBusy && !isRefreshing;
+                      return (
+                        <div key={account.email} className="flex min-w-0 items-start gap-1">
+                          <div className="min-w-0 flex-1">
+                            <p
+                              className="min-w-0 truncate text-xs text-gray-500"
+                              style={mono}
+                              title={account.email}
+                            >
+                              {account.email}
+                            </p>
+                            {!hasSecureSession && (
+                              <p className="mt-0.5 text-[10px] uppercase tracking-[0.18em] text-amber-600" style={mono}>
+                                Reconnect required
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => {
+                              if (isRefreshing) {
+                                cancelGoogleConnect();
+                                return;
+                              }
+                              void handleRefreshGoogle(account.email,);
+                            }}
+                            disabled={isRefreshDisabled}
+                            className={`group relative inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-none transition-colors cursor-pointer focus:outline-none focus:ring-2 disabled:cursor-default disabled:opacity-60 ${
+                              hasSecureSession
+                                ? "text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 focus:ring-emerald-300/40"
+                                : "text-amber-600 hover:bg-amber-50 hover:text-amber-700 focus:ring-amber-300/40"
+                            }`}
+                            title={isRefreshing
+                              ? `Cancel reconnect for ${account.email}`
+                              : `${hasSecureSession ? "Refresh" : "Reconnect"} ${account.email}`}
+                            aria-label={isRefreshing
+                              ? `Cancel reconnect for ${account.email}`
+                              : `${hasSecureSession ? "Refresh" : "Reconnect"} ${account.email}`}
+                          >
+                            {isRefreshing
+                              ? <X className="h-3.5 w-3.5" strokeWidth={2.1} />
+                              : (
+                                <>
+                                  {hasSecureSession
+                                    ? (
+                                      <Check
+                                        className="h-3.5 w-3.5 transition-opacity group-hover:opacity-0"
+                                        strokeWidth={2.25}
+                                      />
+                                    )
+                                    : (
+                                      <AlertTriangle
+                                        className="h-3.5 w-3.5 transition-opacity group-hover:opacity-0"
+                                        strokeWidth={2.1}
+                                      />
+                                    )}
+                                  <RefreshCw
+                                    className="absolute h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100"
+                                    strokeWidth={2}
+                                  />
+                                </>
+                              )}
+                          </button>
+                          <button
+                            onClick={() => handleDisconnectGoogle(account.email,)}
+                            disabled={isGoogleBusy}
+                            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-none text-gray-400 transition-colors cursor-pointer hover:bg-gray-100 hover:text-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300/40 disabled:cursor-default disabled:opacity-60"
+                            title={`Disconnect ${account.email}`}
+                            aria-label={`Disconnect ${account.email}`}
+                          >
+                            <X className={`h-3.5 w-3.5 ${isDisconnecting ? "opacity-60" : ""}`} strokeWidth={2} />
+                          </button>
+                        </div>
+                      );
+                    },)}
+                  </div>
+                )
+                : (
+                  <p className="text-xs text-gray-500" style={mono}>
+                    No Google account connected yet.
+                  </p>
+                )}
+              {googleError && (
+                <p className="text-xs text-red-600" style={mono}>
+                  {googleError}
+                </p>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => {
+                    if (isGoogleConnecting) {
+                      cancelGoogleConnect();
+                      return;
+                    }
+                    void handleConnectGoogle();
+                  }}
+                  disabled={isGoogleBusy && !isGoogleConnecting}
+                  className="inline-flex min-h-10 items-center gap-3 rounded-none border px-3 pr-4 text-[14px] leading-5 font-medium text-[#1f1f1f] transition-colors cursor-pointer hover:bg-[#e8eaed] focus:outline-none focus:ring-2 focus:ring-[#1a73e8]/20 disabled:cursor-default disabled:opacity-60"
+                  style={{
+                    ...googleButtonText,
+                    backgroundColor: "#f2f2f2",
+                    borderColor: "#d2d2d2",
+                  }}
+                >
+                  <GoogleMark />
+                  <span>
+                    {isGoogleConnecting
+                      ? "Cancel"
+                      : googleConnected
+                      ? "Connect more"
+                      : "Continue with Google"}
+                  </span>
+                </button>
+              </div>
+              <div className="grid gap-3 pt-2 md:grid-cols-2">
+                <SharpSelectField
+                  label="Email opens in"
+                  options={GOOGLE_EMAIL_OPEN_CLIENTS.map((client,) => ({
+                    hint: GOOGLE_EMAIL_OPEN_CLIENT_HINTS[client],
+                    label: GOOGLE_EMAIL_OPEN_CLIENT_LABELS[client],
+                    value: client,
+                  }))}
+                  value={settings.googleEmailOpenClient}
+                  onChange={(value,) => update({ googleEmailOpenClient: value, },)}
+                />
+                <SharpSelectField
+                  label="Calendar opens in"
+                  options={GOOGLE_CALENDAR_OPEN_CLIENTS.map((client,) => ({
+                    hint: GOOGLE_CALENDAR_OPEN_CLIENT_HINTS[client],
+                    label: GOOGLE_CALENDAR_OPEN_CLIENT_LABELS[client],
+                    value: client,
+                  }))}
+                  value={settings.googleCalendarOpenClient}
+                  onChange={(value,) => update({ googleCalendarOpenClient: value, },)}
+                />
+              </div>
+            </div>
+
+            <div className="my-5 border-t border-gray-100" />
+
+            <div className="space-y-3">
+              <label className="block text-sm text-gray-600" style={mono}>
+                Vault Location
+              </label>
+              <div className="flex items-center gap-2">
+                <div
+                  className="flex-1 min-w-0 px-3 py-2 border border-gray-200 rounded-none text-sm text-gray-500 bg-gray-50"
+                  style={mono}
+                  title={settings.vaultDir || settings.journalDir || defaultJournalDir}
+                >
+                  <VaultPathMarquee
+                    path={settings.vaultDir || settings.journalDir || defaultJournalDir || "..."}
+                    icon={isObsidianVault ? "obsidian" : "folder"}
+                  />
+                </div>
+                <button
+                  onClick={handleChooseVault}
+                  className="shrink-0 px-3 py-2 text-sm border border-gray-200 rounded-none hover:bg-gray-50 transition-colors cursor-pointer text-gray-700"
+                  style={mono}
+                >
+                  Choose…
+                </button>
+              </div>
+              {settings.vaultDir && (
+                <button
+                  onClick={() => update({ vaultDir: "", },)}
+                  className="text-xs text-violet-600 hover:text-violet-800 transition-colors cursor-pointer"
+                  style={mono}
+                >
+                  Reset to default
+                </button>
+              )}
+              <div className="grid gap-3 lg:grid-cols-3">
+                <div className="space-y-2 lg:col-span-1">
+                  <label className="block text-sm text-gray-600 pt-2" style={mono}>
+                    Daily logs folder
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.dailyLogsFolder}
+                    onChange={(e,) => update({ dailyLogsFolder: e.target.value, },)}
+                    placeholder="Daily Notes"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+                    style={mono}
+                  />
+                </div>
+                <div className="space-y-2 lg:col-span-1">
+                  <label className="block text-sm text-gray-600 pt-2" style={mono}>
+                    Excalidraw folder (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.excalidrawFolder}
+                    onChange={(e,) => update({ excalidrawFolder: e.target.value, },)}
+                    placeholder="Excalidraw"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+                    style={mono}
+                  />
+                </div>
+                <div className="space-y-2 lg:col-span-1">
+                  <label className="block text-sm text-gray-600 pt-2" style={mono}>
+                    Assets folder (optional)
+                  </label>
+                  <input
+                    type="text"
+                    value={settings.assetsFolder}
+                    onChange={(e,) => update({ assetsFolder: e.target.value, },)}
+                    placeholder="assets"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+                    style={mono}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2 pt-2">
+                <label className="block text-sm text-gray-600" style={mono}>
+                  Widget Git history
+                </label>
+                <button
+                  type="button"
+                  onClick={() => update({ widgetGitHistoryEnabled: !settings.widgetGitHistoryEnabled, },)}
+                  className={`flex w-full items-center justify-between rounded-none border px-3 py-2 text-left text-sm transition-colors cursor-pointer ${
+                    settings.widgetGitHistoryEnabled
+                      ? "border-violet-300 bg-violet-50/40 text-violet-700"
+                      : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                  }`}
+                  style={mono}
+                >
+                  <span>{settings.widgetGitHistoryEnabled ? "Enabled by default" : "Disabled"}</span>
+                  <span
+                    className={`inline-flex h-5 w-9 items-center border ${
+                      settings.widgetGitHistoryEnabled
+                        ? "border-violet-400 bg-violet-600 justify-end"
+                        : "border-gray-300 bg-gray-200 justify-start"
+                    }`}
+                  >
+                    <span className="mx-0.5 h-3.5 w-3.5 bg-white" />
+                  </span>
+                </button>
+                <p className="text-xs text-gray-400" style={mono}>
+                  Keeps an app-managed Git history for widget snapshots. Widget databases are not versioned.
+                </p>
+              </div>
+            </div>
+
+            <div className="my-5 border-t border-gray-100" />
+
+            <div ref={filenamePatternSectionRef} className="space-y-3">
+              <label className="block text-sm text-gray-600" style={mono}>
+                Filename Pattern
+              </label>
+              <div className="relative">
+                <div
+                  className={`pointer-events-none absolute inset-0 flex items-center overflow-hidden px-3 py-2 ${
+                    isFilenamePatternFocused ? "opacity-0" : "opacity-100"
+                  }`}
+                >
+                  <FilenamePatternFieldValue
+                    value={settings.filenamePattern || DEFAULT_FILENAME_PATTERN}
+                    muted={!settings.filenamePattern}
+                  />
+                </div>
+                <input
+                  ref={filenamePatternInputRef}
+                  type="text"
+                  value={settings.filenamePattern}
+                  onChange={(e,) => update({ filenamePattern: e.target.value, },)}
+                  onFocus={() => setIsFilenamePatternFocused(true,)}
+                  onBlur={() => setIsFilenamePatternFocused(false,)}
+                  placeholder={DEFAULT_FILENAME_PATTERN}
+                  className={`w-full px-3 py-2 border rounded-none text-sm caret-gray-900 focus:outline-none focus:ring-2 transition-all ${
+                    isFilenamePatternFocused
+                      ? "text-gray-900 placeholder:text-gray-400"
+                      : "text-transparent placeholder:text-transparent"
+                  } ${
+                    validationErrors.filenamePattern
+                      ? "border-red-300 bg-red-50/40 focus:ring-red-500/20 focus:border-red-400"
+                      : "border-gray-200 focus:ring-violet-500/30 focus:border-violet-400"
+                  }`}
+                  style={mono}
+                />
+              </div>
+              {validationErrors.filenamePattern && (
+                <p className="text-xs text-red-600" style={mono}>
+                  {validationErrors.filenamePattern}
+                </p>
+              )}
+              <p className="text-xs text-gray-400" style={mono}>
+                Preview: <span className="text-gray-600">{filenamePreview}</span>
+              </p>
+              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+                <span style={mono}>
+                  Use <span className="text-gray-600">/</span> for subdirectories.
+                </span>
+              </div>
+            </div>
+
+            <p
+              className={`mt-6 text-xs ${
+                validationErrors.filenamePattern || saveState === "error"
+                  ? "text-red-600"
+                  : "text-gray-400"
               }`}
               style={mono}
             >
-              <span>{settings.widgetGitHistoryEnabled ? "Enabled by default" : "Disabled"}</span>
-              <span
-                className={`inline-flex h-5 w-9 items-center border ${
-                  settings.widgetGitHistoryEnabled
-                    ? "border-violet-400 bg-violet-600 justify-end"
-                    : "border-gray-300 bg-gray-200 justify-start"
-                }`}
-              >
-                <span className="mx-0.5 h-3.5 w-3.5 bg-white" />
-              </span>
-            </button>
-            <p className="text-xs text-gray-400" style={mono}>
-              Keeps an app-managed Git history for widget snapshots. Widget databases are not versioned.
+              {validationErrors.filenamePattern
+                ? "Fix the highlighted setting before closing."
+                : saveState === "saving"
+                ? "Saving changes..."
+                : saveState === "error"
+                ? "Could not save changes."
+                : ""}
             </p>
           </div>
         </div>
-
-        {/* Divider */}
-        <div className="my-5 border-t border-gray-100" />
-
-        {/* Filename Pattern */}
-        <div ref={filenamePatternSectionRef} className="space-y-3">
-          <label className="block text-sm text-gray-600" style={mono}>
-            Filename Pattern
-          </label>
-          <div className="relative">
-            <div
-              className={`pointer-events-none absolute inset-0 flex items-center overflow-hidden px-3 py-2 ${
-                isFilenamePatternFocused ? "opacity-0" : "opacity-100"
-              }`}
-            >
-              <FilenamePatternFieldValue
-                value={settings.filenamePattern || DEFAULT_FILENAME_PATTERN}
-                muted={!settings.filenamePattern}
-              />
-            </div>
-            <input
-              ref={filenamePatternInputRef}
-              type="text"
-              value={settings.filenamePattern}
-              onChange={(e,) => update({ filenamePattern: e.target.value, },)}
-              onFocus={() => setIsFilenamePatternFocused(true,)}
-              onBlur={() => setIsFilenamePatternFocused(false,)}
-              placeholder={DEFAULT_FILENAME_PATTERN}
-              className={`w-full px-3 py-2 border rounded-none text-sm caret-gray-900 focus:outline-none focus:ring-2 transition-all ${
-                isFilenamePatternFocused
-                  ? "text-gray-900 placeholder:text-gray-400"
-                  : "text-transparent placeholder:text-transparent"
-              } ${
-                validationErrors.filenamePattern
-                  ? "border-red-300 bg-red-50/40 focus:ring-red-500/20 focus:border-red-400"
-                  : "border-gray-200 focus:ring-violet-500/30 focus:border-violet-400"
-              }`}
-              style={mono}
-            />
-          </div>
-          {validationErrors.filenamePattern && (
-            <p className="text-xs text-red-600" style={mono}>
-              {validationErrors.filenamePattern}
-            </p>
-          )}
-          <p className="text-xs text-gray-400" style={mono}>
-            Preview: <span className="text-gray-600">{filenamePreview}</span>
-          </p>
-          <div className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
-            <span style={mono}>
-              Use <span className="text-gray-600">/</span> for subdirectories.
-            </span>
-          </div>
-        </div>
-
-        <p
-          className={`mt-6 text-xs ${
-            validationErrors.filenamePattern || saveState === "error"
-              ? "text-red-600"
-              : "text-gray-400"
-          }`}
-          style={mono}
-        >
-          {validationErrors.filenamePattern
-            ? "Fix the highlighted setting before closing."
-            : saveState === "saving"
-            ? "Saving changes..."
-            : saveState === "error"
-            ? "Could not save changes."
-            : ""}
-        </p>
       </div>
     </div>
   );
