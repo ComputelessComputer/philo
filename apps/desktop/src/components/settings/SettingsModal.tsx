@@ -326,6 +326,7 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
   const modalRef = useRef<HTMLDivElement>(null,);
   const filenamePatternSectionRef = useRef<HTMLDivElement>(null,);
   const filenamePatternInputRef = useRef<HTMLInputElement>(null,);
+  const sttApiKeyInputRef = useRef<HTMLInputElement>(null,);
   const settingsRef = useRef<Settings | null>(null,);
   const lastSavedSettingsRef = useRef<Settings | null>(null,);
   const activeSaveRef = useRef<Promise<void> | null>(null,);
@@ -413,19 +414,28 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
   const isGoogleConnecting = googleAction?.type === "connecting";
   const refreshingGoogleAccount = googleAction?.type === "refreshing" ? googleAction.email : null;
   const isGoogleBusy = googleAction !== null;
+  const trimmedOpenAiApiKey = settings.openaiApiKey.trim();
+  const isReusingOpenAiSttKey = settings.currentSttProvider === "openai"
+    && !settings.sttApiKey.trim()
+    && Boolean(trimmedOpenAiApiKey,);
+  const displayedSttApiKey = isReusingOpenAiSttKey ? settings.openaiApiKey : settings.sttApiKey;
 
   const buildPersistedSettings = async (current: Settings,) => {
     const normalizedVault = current.vaultDir.trim();
     const normalizedDaily = current.dailyLogsFolder.trim();
+    const normalizedOpenAiApiKey = current.openaiApiKey.trim();
+    const normalizedSttApiKey = current.sttApiKey.trim();
     return {
       ...current,
       anthropicApiKey: current.anthropicApiKey.trim(),
-      openaiApiKey: current.openaiApiKey.trim(),
+      openaiApiKey: normalizedOpenAiApiKey,
       googleApiKey: current.googleApiKey.trim(),
       openrouterApiKey: current.openrouterApiKey.trim(),
       currentSttModel: current.currentSttModel.trim(),
       sttBaseUrl: current.sttBaseUrl.trim(),
-      sttApiKey: current.sttApiKey.trim(),
+      sttApiKey: current.currentSttProvider === "openai" && normalizedSttApiKey === normalizedOpenAiApiKey
+        ? ""
+        : normalizedSttApiKey,
       spokenLanguages: [
         ...new Set(
           current.spokenLanguages.map((language,) => language.trim().toLowerCase()).filter(Boolean,),
@@ -920,15 +930,35 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
                     STT API key
                   </label>
                   <input
+                    ref={sttApiKeyInputRef}
                     type="password"
-                    value={settings.sttApiKey}
+                    value={displayedSttApiKey}
                     onChange={(e,) => update({ sttApiKey: e.target.value, },)}
                     placeholder={settings.currentSttProvider === "openai"
                       ? "Leave blank to reuse OpenAI key"
                       : "Enter BYOK STT key"}
+                    readOnly={isReusingOpenAiSttKey}
                     className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
                     style={mono}
                   />
+                  {isReusingOpenAiSttKey && (
+                    <div className="flex items-center justify-between gap-3 text-[11px] text-gray-400" style={mono}>
+                      <span>Using your OpenAI key above.</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          update({ sttApiKey: settings.openaiApiKey, },);
+                          requestAnimationFrame(() => {
+                            sttApiKeyInputRef.current?.focus();
+                            sttApiKeyInputRef.current?.select();
+                          },);
+                        }}
+                        className="text-violet-600 transition-colors cursor-pointer hover:text-violet-700"
+                      >
+                        Use separate key
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="space-y-2 pt-2">
