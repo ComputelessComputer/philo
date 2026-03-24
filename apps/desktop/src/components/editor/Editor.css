@@ -329,6 +329,13 @@
   backdrop-filter: blur(12px);
   box-sizing: border-box;
   overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.mention-menu::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 
 .mention-menu-items {
