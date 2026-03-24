@@ -391,13 +391,6 @@ function ProviderCarousel<T extends string,>(
   },
 ) {
   const railRef = useRef<HTMLDivElement>(null,);
-  const orderedItems = [...items,];
-  const selectedIndex = orderedItems.findIndex((item,) => item.value === selected);
-
-  if (selectedIndex > 0) {
-    const [activeItem,] = orderedItems.splice(selectedIndex, 1,);
-    orderedItems.unshift(activeItem,);
-  }
 
   const scrollRail = (direction: -1 | 1,) => {
     const rail = railRef.current;
@@ -434,7 +427,7 @@ function ProviderCarousel<T extends string,>(
         aria-label={ariaLabel}
         className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 pr-6 scroll-smooth"
       >
-        {orderedItems.map((item,) => (
+        {items.map((item,) => (
           <div key={item.value} role="listitem" className="w-[240px] shrink-0 snap-start">
             <SelectableProviderCard
               badge={item.badge}
