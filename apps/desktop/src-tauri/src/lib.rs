@@ -1555,7 +1555,7 @@ fn show_path_in_folder(path: String) -> Result<(), String> {
             .status()
             .map_err(|e| format!("Could not show item in Finder: {e}"))?;
         if !status.success() {
-            return Err("Finder failed to reveal the item.".to_string());
+            return Err("Finder failed to show the item.".to_string());
         }
     }
 
@@ -1566,7 +1566,7 @@ fn show_path_in_folder(path: String) -> Result<(), String> {
             .status()
             .map_err(|e| format!("Could not show item in File Explorer: {e}"))?;
         if !status.success() {
-            return Err("File Explorer failed to reveal the item.".to_string());
+            return Err("File Explorer failed to show the item.".to_string());
         }
     }
 
