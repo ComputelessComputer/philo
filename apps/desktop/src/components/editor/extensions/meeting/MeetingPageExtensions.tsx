@@ -78,6 +78,16 @@ function createHeading(level: number, text: string,): JSONContent {
   };
 }
 
+const MEETING_CAPTURE_HEADINGS = new Set(["Summary", "Decisions", "Action Items", "Key Takeaways", "Transcript",],);
+
+function getHeadingLabel(node: JSONContent,) {
+  return node.type === "heading" ? getNodeText(node,).trim() : "";
+}
+
+function isMeetingCaptureHeading(node: JSONContent,) {
+  return MEETING_CAPTURE_HEADINGS.has(getHeadingLabel(node,),);
+}
+
 function isMeetingPage(note: unknown,): note is PageNote {
   return !!note
     && typeof note === "object"
@@ -117,20 +127,45 @@ export function decorateMeetingPageDoc(
   if (!isMeetingPage(note,)) return doc;
 
   const source = normalizeDoc(doc,).filter((node,) => node.type !== "meetingMeta" && node.type !== "meetingTranscript");
-  const transcriptHeadingIndex = source.findIndex((node,) =>
-    node.type === "heading" && getNodeText(node,).trim() === "Transcript"
-  );
+  const transcriptHeadingIndices = source
+    .map((node, index,) => getHeadingLabel(node,) === "Transcript" ? index : -1)
+    .filter((index,) => index >= 0);
+
+  const staleTranscriptIndexes = new Set<number>();
+  for (const transcriptIndex of transcriptHeadingIndices.slice(0, -1,)) {
+    let endIndex = source.length;
+    for (let index = transcriptIndex + 1; index < source.length; index += 1) {
+      if (isMeetingCaptureHeading(source[index],)) {
+        endIndex = index;
+        break;
+      }
+    }
+
+    for (let index = transcriptIndex; index < endIndex; index += 1) {
+      staleTranscriptIndexes.add(index,);
+    }
+  }
+
+  const normalizedSource = source.filter((_, index,) => !staleTranscriptIndexes.has(index,));
+
+  let transcriptHeadingIndex = -1;
+  for (let index = normalizedSource.length - 1; index >= 0; index -= 1) {
+    if (getHeadingLabel(normalizedSource[index],) === "Transcript") {
+      transcriptHeadingIndex = index;
+      break;
+    }
+  }
 
   const content = transcriptHeadingIndex === -1
-    ? [...source,]
+    ? [...normalizedSource,]
     : [
-      ...source.slice(0, transcriptHeadingIndex,),
+      ...normalizedSource.slice(0, transcriptHeadingIndex,),
       {
         type: "meetingTranscript",
         attrs: {
           readOnly: options?.transcriptReadOnly === true,
         },
-        content: source.slice(transcriptHeadingIndex + 1,),
+        content: normalizedSource.slice(transcriptHeadingIndex + 1,),
       } satisfies JSONContent,
     ];
 
