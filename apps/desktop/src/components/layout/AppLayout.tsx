@@ -109,6 +109,7 @@ import EditableNote, { type EditableNoteHandle, type EditableNoteSelection, } fr
 import { LibraryDrawer, } from "../library/LibraryDrawer";
 import { OnboardingModal, } from "../onboarding/OnboardingModal";
 import { SettingsModal, } from "../settings/SettingsModal";
+import { ScrollFadeOverlay, } from "../shared/scroll-fade";
 import { UpdateBanner, } from "../UpdateBanner";
 
 const LOCAL_SAVE_WATCH_SUPPRESSION_MS = 1000;
@@ -2901,7 +2902,7 @@ export default function AppLayout() {
     >
       {/* Titlebar: drag region + pin button */}
       <div
-        className="sticky top-0 z-50 h-[38px] w-full flex items-center justify-between shrink-0 px-3"
+        className="sticky top-0 z-50 h-[38px] w-full shrink-0 px-3 relative overflow-hidden flex items-center justify-between"
         onMouseDown={(e,) => {
           if (e.buttons === 1 && !(e.target as HTMLElement).closest("button, input",)) {
             e.detail === 2
@@ -2910,6 +2911,9 @@ export default function AppLayout() {
           }
         }}
       >
+        <ScrollFadeOverlay position="left" />
+        <ScrollFadeOverlay position="right" />
+
         <div className="flex items-center gap-1 pl-16">
           <button
             type="button"
@@ -2963,10 +2967,10 @@ export default function AppLayout() {
             aria-label={isMeetingRecording ? "Stop meeting recording" : "Start meeting recording"}
           >
             <span
-              className={`h-3.5 w-3.5 rounded-full transition-all ${
+              className={`h-3.5 w-3.5 transition-all ${
                 isMeetingRecording
-                  ? "bg-red-500 shadow-[0_0_0_3px_rgba(239,68,68,0.14)]"
-                  : "bg-red-500/92 hover:bg-red-500"
+                  ? "rounded-[2px] bg-red-500 shadow-[0_0_0_3px_rgba(239,68,68,0.14)]"
+                  : "rounded-full bg-red-500/92 hover:bg-red-500"
               }`}
             />
           </button>
