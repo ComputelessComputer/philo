@@ -990,6 +990,7 @@ function PageView({
   title,
   pagesRevision,
   pageOverride,
+  transcriptReadOnly,
   meetingRecordingError,
   onOpenDate,
   onOpenPage,
@@ -1002,6 +1003,7 @@ function PageView({
   title: string;
   pagesRevision: number;
   pageOverride?: PageNote | null;
+  transcriptReadOnly?: boolean;
   meetingRecordingError?: string | null;
   onOpenDate?: (date: string,) => void;
   onOpenPage?: (title: string,) => void;
@@ -1113,6 +1115,7 @@ function PageView({
       <EditableNote
         ref={editorRef}
         note={page}
+        transcriptReadOnly={transcriptReadOnly}
         onSave={handleSave}
         onOpenDate={onOpenDate}
         onOpenPage={onOpenPage}
@@ -3096,6 +3099,8 @@ export default function AppLayout() {
                     title={currentView.title}
                     pagesRevision={pagesRevision}
                     pageOverride={activePage}
+                    transcriptReadOnly={isMeetingRecording
+                      && activeMeetingSessionRef.current?.pageTitle === currentView.title}
                     meetingRecordingError={meetingRecordingError}
                     onOpenDate={scrollToDate}
                     onOpenPage={openPageView}

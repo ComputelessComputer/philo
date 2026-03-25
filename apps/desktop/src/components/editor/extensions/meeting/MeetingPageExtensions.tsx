@@ -1,5 +1,6 @@
 import { mergeAttributes, Node, } from "@tiptap/core";
 import type { JSONContent, } from "@tiptap/core";
+import { Plugin, } from "@tiptap/pm/state";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer, } from "@tiptap/react";
 import type { NodeViewProps, } from "@tiptap/react";
 import type { MeetingSessionKind, PageNote, } from "../../../../types/note";
@@ -108,7 +109,11 @@ function normalizeDoc(doc: JSONContent,) {
   return doc.type === "doc" && Array.isArray(doc.content,) ? doc.content : [];
 }
 
-export function decorateMeetingPageDoc(note: PageNote | unknown, doc: JSONContent,) {
+export function decorateMeetingPageDoc(
+  note: PageNote | unknown,
+  doc: JSONContent,
+  options?: { transcriptReadOnly?: boolean; },
+) {
   if (!isMeetingPage(note,)) return doc;
 
   const source = normalizeDoc(doc,).filter((node,) => node.type !== "meetingMeta" && node.type !== "meetingTranscript");
@@ -122,6 +127,9 @@ export function decorateMeetingPageDoc(note: PageNote | unknown, doc: JSONConten
       ...source.slice(0, transcriptHeadingIndex,),
       {
         type: "meetingTranscript",
+        attrs: {
+          readOnly: options?.transcriptReadOnly === true,
+        },
         content: source.slice(transcriptHeadingIndex + 1,),
       } satisfies JSONContent,
     ];
@@ -184,15 +192,41 @@ function MeetingMetaView({ node, }: NodeViewProps,) {
   );
 }
 
-function MeetingTranscriptView() {
+function MeetingTranscriptView({ node, }: NodeViewProps,) {
+  const readOnly = node.attrs.readOnly === true;
   return (
-    <NodeViewWrapper className="meeting-transcript-node">
+    <NodeViewWrapper className={`meeting-transcript-node ${readOnly ? "meeting-transcript-node--readonly" : ""}`}>
       <div className="meeting-transcript-node__label" contentEditable={false}>
         Transcript
       </div>
       <NodeViewContent className="meeting-transcript-node__content" />
     </NodeViewWrapper>
   );
+}
+
+function transactionTouchesReadOnlyTranscript(
+  oldDoc: import("@tiptap/pm/model").Node,
+  newDoc: import("@tiptap/pm/model").Node,
+  mapping: import("@tiptap/pm/transform").Mapping,
+) {
+  let blocked = false;
+
+  oldDoc.descendants((node, pos,) => {
+    if (blocked || node.type.name !== "meetingTranscript" || node.attrs.readOnly !== true) {
+      return !blocked;
+    }
+
+    const mappedPos = mapping.map(pos, -1,);
+    const nextNode = newDoc.nodeAt(mappedPos,);
+    if (!nextNode || !node.eq(nextNode,)) {
+      blocked = true;
+      return false;
+    }
+
+    return true;
+  },);
+
+  return blocked;
 }
 
 export const MeetingMetaExtension = Node.create({
@@ -276,5 +310,26 @@ export const MeetingTranscriptExtension = Node.create({
 
   addNodeView() {
     return ReactNodeViewRenderer(MeetingTranscriptView,);
+  },
+
+  addAttributes() {
+    return {
+      readOnly: {
+        default: false,
+        rendered: false,
+        parseHTML: (element: HTMLElement,) => element.getAttribute("data-read-only",) === "true",
+      },
+    };
+  },
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        filterTransaction: (transaction, state,) => {
+          if (!transaction.docChanged) return true;
+          return !transactionTouchesReadOnlyTranscript(state.doc, transaction.doc, transaction.mapping,);
+        },
+      },),
+    ];
   },
 },);

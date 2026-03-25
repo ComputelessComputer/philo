@@ -79,6 +79,7 @@ export interface EditableNoteSelection {
 
 interface EditableNoteProps {
   note: DailyNote | PageNote;
+  transcriptReadOnly?: boolean;
   placeholder?: string;
   onSave?: (note: DailyNote | PageNote,) => void;
   onOpenDate?: (date: string,) => void;
@@ -105,13 +106,13 @@ function getReferenceDate(note: DailyNote | PageNote,) {
   return note.attachedTo ?? getToday();
 }
 
-function getEditorNoteContent(note: DailyNote | PageNote,) {
+function getEditorNoteContent(note: DailyNote | PageNote, transcriptReadOnly = false,) {
   return "date" in note
     ? parseJsonContent(note.content,)
-    : decorateMeetingPageDoc(note, parseJsonContent(note.content,),);
+    : decorateMeetingPageDoc(note, parseJsonContent(note.content,), { transcriptReadOnly, },);
 }
 
-function getMeetingDecorationKey(note: DailyNote | PageNote,) {
+function getMeetingDecorationKey(note: DailyNote | PageNote, transcriptReadOnly: boolean,) {
   if ("date" in note || note.type !== "meeting") return "";
   return JSON.stringify({
     endedAt: note.endedAt,
@@ -119,6 +120,7 @@ function getMeetingDecorationKey(note: DailyNote | PageNote,) {
     participants: note.participants,
     sessionKind: note.sessionKind,
     startedAt: note.startedAt,
+    transcriptReadOnly,
   },);
 }
 
@@ -373,6 +375,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
   function EditableNote(
     {
       note,
+      transcriptReadOnly = false,
       placeholder = "Start writing...",
       onSave,
       onOpenDate,
@@ -399,7 +402,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
     onCreatePageRef.current = onCreatePage;
 
     const selfUpdateRef = useRef(false,);
-    const meetingDecorationKey = getMeetingDecorationKey(note,);
+    const meetingDecorationKey = getMeetingDecorationKey(note, transcriptReadOnly,);
     const [editingDateChip, setEditingDateChip,] = useState<EditableDateChipState | null>(null,);
     const dateChipPopoverRef = useRef<HTMLDivElement | null>(null,);
     const editingDateChipRef = useRef<EditableDateChipState | null>(null,);
@@ -641,7 +644,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
           },
         },),
       ],
-      content: getEditorNoteContent(note,),
+      content: getEditorNoteContent(note, transcriptReadOnly,),
       editable: true,
       immediatelyRender: false,
       editorProps: {
@@ -795,9 +798,9 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
         selfUpdateRef.current = false;
         return;
       }
-      const incoming = getEditorNoteContent(note,);
+      const incoming = getEditorNoteContent(note, transcriptReadOnly,);
       editor.commands.setContent(incoming, { emitUpdate: false, },);
-    }, [meetingDecorationKey, note.content,],);
+    }, [meetingDecorationKey, note.content, transcriptReadOnly,],);
 
     useEffect(() => {
       if (!editor || !onSelectionChange) return;
