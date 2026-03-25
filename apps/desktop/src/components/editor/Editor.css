@@ -257,6 +257,15 @@
   margin-bottom: 0;
 }
 
+.tiptap .meeting-transcript-node--readonly {
+  cursor: default;
+}
+
+.tiptap .meeting-transcript-node--readonly .meeting-transcript-node__content {
+  pointer-events: none;
+  caret-color: transparent;
+}
+
 .ai-diff-preview .tiptap {
   font-family: "IBM Plex Mono", monospace;
   font-size: 12px;

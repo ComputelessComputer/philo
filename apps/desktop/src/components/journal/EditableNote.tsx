@@ -100,6 +100,11 @@ interface EditableDateChipState {
   recurrence: DatePickerRecurrence;
 }
 
+type ReadOnlyTranscriptRange = {
+  from: number;
+  to: number;
+};
+
 const IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp",];
 
 function getReferenceDate(note: DailyNote | PageNote,) {
@@ -125,8 +130,8 @@ function getMeetingDecorationKey(note: DailyNote | PageNote, transcriptReadOnly:
   },);
 }
 
-function findReadOnlyTranscriptRange(doc: ProseMirrorNode,) {
-  let range: { from: number; to: number; } | null = null;
+function findReadOnlyTranscriptRange(doc: ProseMirrorNode,): ReadOnlyTranscriptRange | null {
+  let range: ReadOnlyTranscriptRange | null = null;
 
   doc.descendants((node, pos,) => {
     if (node.type.name !== "meetingTranscript" || node.attrs.readOnly !== true) {
@@ -143,7 +148,7 @@ function findReadOnlyTranscriptRange(doc: ProseMirrorNode,) {
   return range;
 }
 
-function selectionTouchesRange(selection: Selection, range: { from: number; to: number; },) {
+function selectionTouchesRange(selection: Selection, range: ReadOnlyTranscriptRange,) {
   return selection.from < range.to && selection.to > range.from;
 }
 
@@ -162,11 +167,12 @@ function getSelectionOutsideReadOnlyTranscript(
     return selection;
   }
 
+  const transcriptRange = readOnlyTranscriptRange;
   try {
-    return getSelectionNear(doc, readOnlyTranscriptRange.from, -1,);
+    return getSelectionNear(doc, transcriptRange.from, -1,);
   } catch {
     try {
-      return getSelectionNear(doc, readOnlyTranscriptRange.to, 1,);
+      return getSelectionNear(doc, transcriptRange.to, 1,);
     } catch {
       return Selection.atStart(doc,);
     }
