@@ -13,6 +13,8 @@ type MeetingMetaAttributes = {
   participants: string[];
 };
 
+export const ALLOW_READ_ONLY_TRANSCRIPT_UPDATE_META = "allowReadOnlyTranscriptUpdate";
+
 function formatDateTime(value: string,) {
   const date = new Date(value,);
   if (Number.isNaN(date.getTime(),)) return value;
@@ -362,6 +364,9 @@ export const MeetingTranscriptExtension = Node.create({
       new Plugin({
         filterTransaction: (transaction, state,) => {
           if (!transaction.docChanged) return true;
+          if (transaction.getMeta(ALLOW_READ_ONLY_TRANSCRIPT_UPDATE_META,) === true) {
+            return true;
+          }
           return !transactionTouchesReadOnlyTranscript(state.doc, transaction.doc, transaction.mapping,);
         },
       },),

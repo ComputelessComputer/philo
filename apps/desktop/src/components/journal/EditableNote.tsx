@@ -45,6 +45,7 @@ import { ExcalidrawExtension, } from "../editor/extensions/excalidraw/Excalidraw
 import { HashtagExtension, } from "../editor/extensions/hashtag/HashtagExtension";
 import { CustomListKeymap, } from "../editor/extensions/list-keymap";
 import {
+  ALLOW_READ_ONLY_TRANSCRIPT_UPDATE_META,
   decorateMeetingPageDoc,
   MeetingMetaExtension,
   MeetingTranscriptExtension,
@@ -799,7 +800,14 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
         return;
       }
       const incoming = getEditorNoteContent(note, transcriptReadOnly,);
-      editor.commands.setContent(incoming, { emitUpdate: false, },);
+      editor
+        .chain()
+        .command(({ tr, },) => {
+          tr.setMeta(ALLOW_READ_ONLY_TRANSCRIPT_UPDATE_META, true,);
+          return true;
+        },)
+        .setContent(incoming, { emitUpdate: false, },)
+        .run();
     }, [meetingDecorationKey, note.content, transcriptReadOnly,],);
 
     useEffect(() => {
