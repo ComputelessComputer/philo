@@ -257,6 +257,10 @@
   margin-bottom: 0;
 }
 
+.tiptap .meeting-transcript-node__content p {
+  margin: 0;
+}
+
 .tiptap .meeting-transcript-node__content p:has(> strong:only-child) {
   color: #64748b;
   font-family: "IBM Plex Mono", monospace;
@@ -267,6 +271,14 @@
 
 .tiptap .meeting-transcript-node__content p:has(> strong:only-child) strong {
   font-weight: 600;
+}
+
+.tiptap .meeting-transcript-node__content p:has(> strong:only-child) + p {
+  margin-top: 0.5rem;
+}
+
+.tiptap .meeting-transcript-node__content p + p:has(> strong:only-child) {
+  margin-top: 1rem;
 }
 
 .tiptap .meeting-transcript-node--readonly {
