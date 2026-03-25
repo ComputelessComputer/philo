@@ -257,6 +257,18 @@
   margin-bottom: 0;
 }
 
+.tiptap .meeting-transcript-node__content p:has(> strong:only-child) {
+  color: #64748b;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.02em;
+  line-height: 1.4;
+}
+
+.tiptap .meeting-transcript-node__content p:has(> strong:only-child) strong {
+  font-weight: 600;
+}
+
 .tiptap .meeting-transcript-node--readonly {
   cursor: default;
 }
