@@ -1176,34 +1176,37 @@ export function SettingsModal({ open, onClose, }: SettingsModalProps,) {
                         </div>
                       </div>
                     </ProviderConfigurationPanel>
-                    <div className="space-y-2">
-                      <label className="block text-sm text-gray-600" style={mono}>
-                        Save raw recordings
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => update({ saveRecordings: !settings.saveRecordings, },)}
-                        className={`flex w-full items-center justify-between rounded-none border px-3 py-2 text-left text-sm transition-colors cursor-pointer ${
-                          settings.saveRecordings
-                            ? "border-violet-300 bg-violet-50/40 text-violet-700"
-                            : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
-                        }`}
-                        style={mono}
-                      >
-                        <span>{settings.saveRecordings ? "Enabled" : "Disabled"}</span>
-                        <span
-                          className={`inline-flex h-5 w-9 items-center border ${
-                            settings.saveRecordings
-                              ? "border-violet-400 bg-violet-600 justify-end"
-                              : "border-gray-300 bg-gray-200 justify-start"
-                          }`}
-                        >
-                          <span className="mx-0.5 h-3.5 w-3.5 bg-white" />
-                        </span>
-                      </button>
-                    </div>
                   </>
                 )}
+            </div>
+
+            <div className="my-5 border-t border-gray-100" />
+
+            <div className="space-y-2">
+              <label className="block text-sm text-gray-600" style={mono}>
+                Save raw recordings
+              </label>
+              <button
+                type="button"
+                onClick={() => update({ saveRecordings: !settings.saveRecordings, },)}
+                className={`flex w-full items-center justify-between rounded-none border px-3 py-2 text-left text-sm transition-colors cursor-pointer ${
+                  settings.saveRecordings
+                    ? "border-violet-300 bg-violet-50/40 text-violet-700"
+                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+                style={mono}
+              >
+                <span>{settings.saveRecordings ? "Enabled" : "Disabled"}</span>
+                <span
+                  className={`inline-flex h-5 w-9 items-center border ${
+                    settings.saveRecordings
+                      ? "border-violet-400 bg-violet-600 justify-end"
+                      : "border-gray-300 bg-gray-200 justify-start"
+                  }`}
+                >
+                  <span className="mx-0.5 h-3.5 w-3.5 bg-white" />
+                </span>
+              </button>
             </div>
 
             <div className="my-5 border-t border-gray-100" />
