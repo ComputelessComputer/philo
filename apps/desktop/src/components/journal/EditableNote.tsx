@@ -1,4 +1,5 @@
 import { autoUpdate, computePosition, flip, limitShift, offset, shift, size, } from "@floating-ui/dom";
+import { invoke, } from "@tauri-apps/api/core";
 import { openUrl, } from "@tauri-apps/plugin-opener";
 import type { Editor as TiptapEditor, } from "@tiptap/core";
 import FileHandler from "@tiptap/extension-file-handler";
@@ -29,7 +30,7 @@ import {
   getMentionChipRecurringIntervalDays,
   type MentionKind,
 } from "../../services/mentions";
-import { buildPageLinkTarget, parsePageTitleFromLinkTarget, } from "../../services/paths";
+import { buildPageLinkTarget, getPagePath, parsePageTitleFromLinkTarget, } from "../../services/paths";
 import { saveDailyNote, } from "../../services/storage";
 import { ensureUrlSummaryPage, } from "../../services/url-summary";
 import { type DailyNote, getToday, type PageNote, } from "../../types/note";
@@ -107,6 +108,10 @@ type ReadOnlyTranscriptRange = {
 };
 
 const IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp",];
+
+async function showPathInFinder(path: string,) {
+  await invoke("show_path_in_folder", { path, },);
+}
 
 function getReferenceDate(note: DailyNote | PageNote,) {
   if ("date" in note) return note.date;
@@ -479,6 +484,8 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
 
     const onOpenDateRef = useRef(onOpenDate,);
     onOpenDateRef.current = onOpenDate;
+    const onOpenPageRef = useRef(onOpenPage,);
+    onOpenPageRef.current = onOpenPage;
 
     const onSaveRef = useRef(onSave,);
     onSaveRef.current = onSave;
@@ -537,14 +544,54 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
       return true;
     };
 
-    const showDateChipContextMenuRef = useRef<
+    const showPageContextMenuRef = useRef<
+      (
+        _event: MouseEvent,
+        _pageTitle: string,
+        _label: string,
+      ) => boolean
+    >((_event, _pageTitle, _label,) => false);
+    showPageContextMenuRef.current = (event, pageTitle, label,) => {
+      setEditingDateChip(null,);
+
+      const pagePathPromise = getPagePath(pageTitle,);
+      void showNativeContextMenu([
+        {
+          id: `show-page-in-finder-${pageTitle}`,
+          text: "Show in Finder",
+          action: () => {
+            void pagePathPromise
+              .then((path,) => showPathInFinder(path,))
+              .catch(console.error,);
+          },
+        },
+        { separator: true, },
+        {
+          id: `open-page-${pageTitle}`,
+          text: `Open ${label}`,
+          action: () => onOpenPageRef.current?.(pageTitle,),
+          disabled: !onOpenPageRef.current,
+        },
+      ], event,);
+      return true;
+    };
+
+    const showMentionChipContextMenuRef = useRef<
       (
         _event: MouseEvent,
         _chipElement: HTMLElement,
       ) => boolean
     >((_event, _chipElement,) => false);
-    showDateChipContextMenuRef.current = (event, chipElement,) => {
+    showMentionChipContextMenuRef.current = (event, chipElement,) => {
       const chipData = getMentionChipDataFromElement(chipElement,);
+      if (chipData.kind === "page") {
+        const pageTitle = parsePageTitleFromLinkTarget(chipData.id,);
+        if (!pageTitle) return false;
+
+        const label = getMentionChipLabel(chipData, getReferenceDate(noteRef.current,),);
+        return showPageContextMenuRef.current(event, pageTitle, label,);
+      }
+
       if (!isDateChipKind(chipData.kind,)) return false;
 
       const date = getMentionChipDate(chipData, getReferenceDate(noteRef.current,),);
@@ -818,9 +865,19 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
             if (!(target instanceof HTMLElement)) return false;
 
             const chip = target.closest("[data-mention-chip]",);
-            if (!(chip instanceof HTMLElement)) return false;
+            if (chip instanceof HTMLElement) {
+              return showMentionChipContextMenuRef.current(event as MouseEvent, chip,);
+            }
 
-            return showDateChipContextMenuRef.current(event as MouseEvent, chip,);
+            const anchor = target.closest("a",);
+            const pageTitle = parsePageTitleFromLinkTarget(anchor?.getAttribute("href",) ?? "",);
+            if (!pageTitle) return false;
+
+            return showPageContextMenuRef.current(
+              event as MouseEvent,
+              pageTitle,
+              anchor?.textContent?.trim() || pageTitle,
+            );
           },
         },
       },

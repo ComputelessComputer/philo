@@ -1536,6 +1536,58 @@ fn open_in_apple_calendar(event_uid: String) -> Result<bool, String> {
 }
 
 #[tauri::command]
+fn show_path_in_folder(path: String) -> Result<(), String> {
+    let normalized = path.trim();
+    if normalized.is_empty() {
+        return Err("Path is required.".to_string());
+    }
+
+    let target = PathBuf::from(normalized);
+    if !target.exists() {
+        return Err(format!("Path does not exist: {}", target.display()));
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let status = Command::new("/usr/bin/open")
+            .arg("-R")
+            .arg(&target)
+            .status()
+            .map_err(|e| format!("Could not show item in Finder: {e}"))?;
+        if !status.success() {
+            return Err("Finder failed to reveal the item.".to_string());
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        let status = Command::new("explorer.exe")
+            .arg(format!("/select,{}", target.display()))
+            .status()
+            .map_err(|e| format!("Could not show item in File Explorer: {e}"))?;
+        if !status.success() {
+            return Err("File Explorer failed to reveal the item.".to_string());
+        }
+    }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        let parent = target
+            .parent()
+            .ok_or("Path does not have a parent directory.".to_string())?;
+        let status = Command::new("xdg-open")
+            .arg(parent)
+            .status()
+            .map_err(|e| format!("Could not open parent directory: {e}"))?;
+        if !status.success() {
+            return Err("The file manager failed to open the parent directory.".to_string());
+        }
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
 fn run_ai_tool(
     command: String,
     argv: Vec<String>,
@@ -3577,6 +3629,7 @@ pub fn run() {
             list_google_oauth_session_accounts,
             open_in_apple_mail,
             open_in_apple_calendar,
+            show_path_in_folder,
             run_ai_tool,
             build_unified_diff,
             set_window_opacity,
