@@ -23,15 +23,31 @@ function formatDateTime(value: string,) {
   },);
 }
 
-function formatSessionKind(value: MeetingSessionKind | "",) {
-  switch (value) {
-    case "decision_making":
-      return "Decision-making";
-    case "informative":
-      return "Informative";
-    default:
-      return "";
+function formatTime(value: string,) {
+  const date = new Date(value,);
+  if (Number.isNaN(date.getTime(),)) return value;
+  return date.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+  },);
+}
+
+function isSameDay(left: string, right: string,) {
+  const leftDate = new Date(left,);
+  const rightDate = new Date(right,);
+  if (Number.isNaN(leftDate.getTime(),) || Number.isNaN(rightDate.getTime(),)) return false;
+  return leftDate.getFullYear() === rightDate.getFullYear()
+    && leftDate.getMonth() === rightDate.getMonth()
+    && leftDate.getDate() === rightDate.getDate();
+}
+
+function formatDateTimeRange(startedAt: string, endedAt: string,) {
+  if (!startedAt) return endedAt ? formatDateTime(endedAt,) : "";
+  if (!endedAt) return formatDateTime(startedAt,);
+  if (isSameDay(startedAt, endedAt,)) {
+    return `${formatDateTime(startedAt,)} ~ ${formatTime(endedAt,)}`;
   }
+  return `${formatDateTime(startedAt,)} ~ ${formatDateTime(endedAt,)}`;
 }
 
 function parseParticipants(value: string | null,) {
@@ -143,10 +159,13 @@ export function stripMeetingPageDoc(note: PageNote | unknown, doc: JSONContent,)
 function MeetingMetaView({ node, }: NodeViewProps,) {
   const attrs = node.attrs as MeetingMetaAttributes;
   const rows = [
-    attrs.startedAt ? { label: "Started", value: formatDateTime(attrs.startedAt,), } : null,
-    attrs.endedAt ? { label: "Ended", value: formatDateTime(attrs.endedAt,), } : null,
+    attrs.startedAt || attrs.endedAt
+      ? {
+        label: "Time",
+        value: formatDateTimeRange(attrs.startedAt, attrs.endedAt,),
+      }
+      : null,
     attrs.location ? { label: "Location", value: attrs.location, } : null,
-    attrs.sessionKind ? { label: "Type", value: formatSessionKind(attrs.sessionKind,), } : null,
     attrs.participants.length > 0 ? { label: "People", value: attrs.participants.join(", ",), } : null,
   ].filter((row,): row is { label: string; value: string; } => row !== null);
 
