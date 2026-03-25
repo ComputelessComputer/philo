@@ -1017,6 +1017,7 @@ function PageView({
   onPageChange?: (page: PageNote | null,) => void;
 },) {
   const [page, setPage,] = useState<PageNote | null>(null,);
+  const resolvedPage = pageOverride?.title === title ? pageOverride : page;
 
   useEffect(() => {
     loadPage(title,).then(setPage,).catch(console.error,);
@@ -1028,9 +1029,12 @@ function PageView({
   }, [pageOverride, title,],);
 
   useEffect(() => {
-    onPageChange?.(page,);
+    onPageChange?.(resolvedPage ?? null,);
+  }, [onPageChange, resolvedPage,],);
+
+  useEffect(() => {
     return () => onPageChange?.(null,);
-  }, [onPageChange, page,],);
+  }, [onPageChange, title,],);
 
   const handleSave = useCallback((note: DailyNote | PageNote,) => {
     if ("date" in note) return;
@@ -1042,7 +1046,7 @@ function PageView({
     }
   }, [onSave,],);
 
-  if (!page) {
+  if (!resolvedPage) {
     return (
       <div className="w-full max-w-3xl px-6 pt-6 pb-10">
         <p className="text-sm text-gray-500 dark:text-gray-400">Page not found.</p>
@@ -1050,12 +1054,12 @@ function PageView({
     );
   }
 
-  const pageIsUrlSummary = isUrlSummaryPage(page,);
-  const pageIsTypedGitHub = page.linkKind === "github_pr"
-    || page.linkKind === "github_issue"
-    || page.linkKind === "github_commit";
-  const pageHeading = pageIsUrlSummary ? page.linkTitle ?? page.title : page.title;
-  const summaryUpdatedAt = formatSummaryUpdatedAt(page.summaryUpdatedAt,);
+  const pageIsUrlSummary = isUrlSummaryPage(resolvedPage,);
+  const pageIsTypedGitHub = resolvedPage.linkKind === "github_pr"
+    || resolvedPage.linkKind === "github_issue"
+    || resolvedPage.linkKind === "github_commit";
+  const pageHeading = pageIsUrlSummary ? resolvedPage.linkTitle ?? resolvedPage.title : resolvedPage.title;
+  const summaryUpdatedAt = formatSummaryUpdatedAt(resolvedPage.summaryUpdatedAt,);
 
   return (
     <div className="w-full max-w-3xl">
@@ -1067,7 +1071,7 @@ function PageView({
           >
             {pageHeading}
           </h1>
-          {page.type === "meeting" && (
+          {resolvedPage.type === "meeting" && (
             <span
               className="text-xs font-medium uppercase tracking-wide px-3 py-1 rounded-md text-white font-sans"
               style={{ background: "linear-gradient(to bottom, #4b5563, #1f2937)", }}
@@ -1076,7 +1080,7 @@ function PageView({
             </span>
           )}
         </div>
-        {page.type === "meeting" && meetingRecordingError && (
+        {resolvedPage.type === "meeting" && meetingRecordingError && (
           <p
             className="mt-3 text-xs text-red-500"
             style={{ fontFamily: "'IBM Plex Mono', monospace", }}
@@ -1084,15 +1088,15 @@ function PageView({
             {meetingRecordingError}
           </p>
         )}
-        {pageIsUrlSummary && page.source && (
+        {pageIsUrlSummary && resolvedPage.source && (
           <div className="mt-3 space-y-2">
             <button
               type="button"
-              onClick={() => openUrl(page.source!,).catch(console.error,)}
+              onClick={() => openUrl(resolvedPage.source!,).catch(console.error,)}
               className="block max-w-full truncate text-left text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-              title={page.source}
+              title={resolvedPage.source}
             >
-              {page.source}
+              {resolvedPage.source}
             </button>
             {summaryUpdatedAt && (
               <p
@@ -1104,27 +1108,27 @@ function PageView({
             )}
           </div>
         )}
-        {pageIsTypedGitHub && <GitHubPageHeader page={page} />}
-        {page.attachedTo && (
+        {pageIsTypedGitHub && <GitHubPageHeader page={resolvedPage} />}
+        {resolvedPage.attachedTo && (
           <button
             type="button"
-            onClick={() => onOpenDate?.(page.attachedTo!,)}
+            onClick={() => onOpenDate?.(resolvedPage.attachedTo!,)}
             className="mt-3 text-sm text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
           >
-            Attached to {formatDate(page.attachedTo,)}
+            Attached to {formatDate(resolvedPage.attachedTo,)}
           </button>
         )}
       </div>
       <EditableNote
         ref={editorRef}
-        note={page}
+        note={resolvedPage}
         transcriptReadOnly={transcriptReadOnly}
         onSave={handleSave}
         onOpenDate={onOpenDate}
         onOpenPage={onOpenPage}
         onInteract={onInteract}
       />
-      {pageIsUrlSummary && page.followUpQuestions.length > 0 && onAskAiPrompt && (
+      {pageIsUrlSummary && resolvedPage.followUpQuestions.length > 0 && onAskAiPrompt && (
         <div className="px-6 pt-4 pb-6">
           <p
             className="text-[11px] uppercase tracking-[0.18em] text-gray-400"
@@ -1133,7 +1137,7 @@ function PageView({
             ask ai next
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            {page.followUpQuestions.map((question,) => (
+            {resolvedPage.followUpQuestions.map((question,) => (
               <button
                 key={question}
                 type="button"
