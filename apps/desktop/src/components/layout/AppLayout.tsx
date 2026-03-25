@@ -6,7 +6,7 @@ import { exists, watch, } from "@tauri-apps/plugin-fs";
 import { openPath, openUrl, } from "@tauri-apps/plugin-opener";
 import type { Editor as TiptapEditor, } from "@tiptap/core";
 import type { JSONContent, } from "@tiptap/react";
-import { ChevronLeft, ChevronRight, House, MapPin, } from "lucide-react";
+import { ChevronLeft, ChevronRight, House, MapPin, X, } from "lucide-react";
 import { Fragment, type RefObject, useCallback, useEffect, useMemo, useRef, useState, } from "react";
 import { useCurrentDate, } from "../../hooks/useCurrentDate";
 import { useCurrentCity, } from "../../hooks/useTimezoneCity";
@@ -158,6 +158,12 @@ interface ActiveMeetingSession {
   existingTranscript: string;
   transcriptState: MeetingTranscriptState;
   failureReason: string | null;
+}
+
+interface LiveMeetingTranscript {
+  pageTitle: string;
+  captionText: string;
+  fullText: string;
 }
 
 function getNodeText(node: JSONContent | undefined,): string {
@@ -479,6 +485,106 @@ function getTranscriptText(state: MeetingTranscriptState, includePartial = true,
   return includePartial
     ? [state.fallbackFinalText, state.fallbackPartialText,].filter(Boolean,).join("\n\n",).trim()
     : state.fallbackFinalText.trim();
+}
+
+function getLiveTranscriptCaption(transcript: string, maxWords = 18,) {
+  const normalized = transcript.replace(/\s+/g, " ",).trim();
+  if (!normalized) return "Listening...";
+
+  const words = normalized.split(" ",);
+  if (words.length <= maxWords) return normalized;
+  return `…${words.slice(-maxWords,).join(" ",)}`;
+}
+
+function createLiveMeetingTranscript(pageTitle: string, transcript: string,): LiveMeetingTranscript {
+  const fullText = transcript.trim();
+  return {
+    pageTitle,
+    captionText: getLiveTranscriptCaption(fullText,),
+    fullText,
+  };
+}
+
+function LiveMeetingTranscriptOverlay({
+  transcript,
+  open,
+  onOpen,
+  onClose,
+}: {
+  transcript: LiveMeetingTranscript | null;
+  open: boolean;
+  onOpen: () => void;
+  onClose: () => void;
+},) {
+  const scrollRef = useRef<HTMLDivElement | null>(null,);
+
+  useEffect(() => {
+    if (!open || !scrollRef.current) return;
+    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+  }, [open, transcript?.fullText,],);
+
+  if (!transcript) return null;
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="fixed bottom-5 left-1/2 z-[70] flex w-[min(720px,calc(100%-3rem))] -translate-x-1/2 flex-col gap-2 rounded-2xl border border-gray-200 bg-white/96 px-4 py-3 text-left shadow-[0_18px_60px_rgba(15,23,42,0.16)] backdrop-blur"
+      >
+        <div
+          className="flex items-center gap-2 text-[11px] uppercase tracking-[0.18em] text-gray-400"
+          style={{ fontFamily: "'IBM Plex Mono', monospace", }}
+        >
+          <span className="h-2 w-2 rounded-full bg-red-500" />
+          live transcript
+        </div>
+        <p className="truncate text-sm leading-6 text-gray-900">
+          {transcript.captionText}
+        </p>
+      </button>
+
+      {open && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center px-6 py-16">
+          <button
+            type="button"
+            aria-label="Close transcript"
+            className="absolute inset-0 bg-black/18 backdrop-blur-[2px]"
+            onClick={onClose}
+          />
+          <div className="relative flex w-full max-w-3xl flex-col overflow-hidden rounded-[28px] border border-gray-200 bg-white shadow-[0_28px_120px_rgba(15,23,42,0.22)]">
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-5">
+              <div className="min-w-0">
+                <p
+                  className="text-[11px] uppercase tracking-[0.18em] text-gray-400"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace", }}
+                >
+                  live transcript
+                </p>
+                <p className="mt-2 truncate text-lg text-gray-900">{transcript.pageTitle}</p>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-full border border-gray-200 p-2 text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-700"
+                aria-label="Close transcript"
+              >
+                <X className="h-4 w-4" strokeWidth={2} />
+              </button>
+            </div>
+            <div
+              ref={scrollRef}
+              className="max-h-[68vh] overflow-y-auto px-6 py-5"
+            >
+              <p className="whitespace-pre-wrap text-base leading-8 text-gray-900">
+                {transcript.fullText || "Listening..."}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 function formatMeetingLifecycleError(
@@ -993,6 +1099,7 @@ function PageView({
   pagesRevision,
   pageOverride,
   transcriptReadOnly,
+  transcriptHidden,
   meetingRecordingError,
   onOpenDate,
   onOpenPage,
@@ -1006,6 +1113,7 @@ function PageView({
   pagesRevision: number;
   pageOverride?: PageNote | null;
   transcriptReadOnly?: boolean;
+  transcriptHidden?: boolean;
   meetingRecordingError?: string | null;
   onOpenDate?: (date: string,) => void;
   onOpenPage?: (title: string,) => void;
@@ -1113,6 +1221,7 @@ function PageView({
         ref={editorRef}
         note={resolvedPage}
         transcriptReadOnly={transcriptReadOnly}
+        transcriptHidden={transcriptHidden}
         onSave={handleSave}
         onOpenDate={onOpenDate}
         onOpenPage={onOpenPage}
@@ -1163,6 +1272,8 @@ export default function AppLayout() {
   const [isWindowFocused, setIsWindowFocused,] = useState(() => document.hasFocus());
   const [isMeetingRecording, setIsMeetingRecording,] = useState(false,);
   const [meetingRecordingError, setMeetingRecordingError,] = useState<string | null>(null,);
+  const [liveMeetingTranscript, setLiveMeetingTranscript,] = useState<LiveMeetingTranscript | null>(null,);
+  const [meetingTranscriptModalOpen, setMeetingTranscriptModalOpen,] = useState(false,);
   const [globalSearchOpen, setGlobalSearchOpen,] = useState(false,);
   const [globalSearchQuery, setGlobalSearchQuery,] = useState("",);
   const [globalSearchResults, setGlobalSearchResults,] = useState<GlobalSearchResult[]>([],);
@@ -1217,6 +1328,7 @@ export default function AppLayout() {
   const viewAnimationResetRef = useRef<number | null>(null,);
   const currentView = viewState.history[viewState.index] ?? { kind: "home", };
   const currentPageTitle = currentView.kind === "page" ? currentView.title : null;
+  const activeMeetingPageTitle = liveMeetingTranscript?.pageTitle ?? activeMeetingSessionRef.current?.pageTitle ?? null;
   const currentViewKey = currentView.kind === "page" ? `page:${currentView.title}` : "home";
   const canGoBack = viewState.index > 0;
   const canGoForward = viewState.index < viewState.history.length - 1;
@@ -1246,6 +1358,19 @@ export default function AppLayout() {
     setMeetingSummaryTargetTitle(null,);
     setMeetingRecordingError(null,);
   }, [activePage?.title,],);
+
+  useEffect(() => {
+    if (!meetingTranscriptModalOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent,) => {
+      if (event.key === "Escape") {
+        setMeetingTranscriptModalOpen(false,);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown,);
+    return () => window.removeEventListener("keydown", handleKeyDown,);
+  }, [meetingTranscriptModalOpen,],);
 
   const handleCurrentPageChange = useCallback((page: PageNote | null,) => {
     currentPageRef.current = page;
@@ -1880,6 +2005,8 @@ export default function AppLayout() {
     clearMeetingListeners();
     activeMeetingSessionRef.current = null;
     setIsMeetingRecording(false,);
+    setLiveMeetingTranscript(null,);
+    setMeetingTranscriptModalOpen(false,);
     setMeetingRecordingError(failureReason,);
 
     if (failureReason) {
@@ -1957,6 +2084,7 @@ export default function AppLayout() {
     await persistPageUpdate(preparedPage,);
 
     clearMeetingListeners();
+    setMeetingTranscriptModalOpen(false,);
     const sessionId = crypto.randomUUID();
     activeMeetingSessionRef.current = {
       sessionId,
@@ -1967,6 +2095,7 @@ export default function AppLayout() {
       transcriptState: createMeetingTranscriptState(),
       failureReason: null,
     };
+    setLiveMeetingTranscript(createLiveMeetingTranscript(preparedPage.title, splitDoc.transcript,),);
 
     const sessionListeners: UnlistenFn[] = [];
 
@@ -1978,11 +2107,16 @@ export default function AppLayout() {
           if (event.type !== "stream_response") return;
 
           applyTranscriptResponse(activeSession.transcriptState, event.response,);
+          const transcript = mergeTranscriptText(
+            activeSession.existingTranscript,
+            getTranscriptText(activeSession.transcriptState, true,),
+          );
+          setLiveMeetingTranscript(createLiveMeetingTranscript(activeSession.pageTitle, transcript,),);
 
           try {
             await updateMeetingPage({
               pageTitle: activeSession.pageTitle,
-              transcript: getTranscriptText(activeSession.transcriptState, true,),
+              transcript,
             },);
           } catch (error) {
             console.error(error,);
@@ -2043,6 +2177,8 @@ export default function AppLayout() {
         clearMeetingListeners();
         activeMeetingSessionRef.current = null;
         setIsMeetingRecording(false,);
+        setLiveMeetingTranscript(null,);
+        setMeetingTranscriptModalOpen(false,);
         setMeetingRecordingError(message,);
         console.error("Could not start meeting recording:", message,);
         return;
@@ -2053,6 +2189,8 @@ export default function AppLayout() {
       clearMeetingListeners();
       activeMeetingSessionRef.current = null;
       setIsMeetingRecording(false,);
+      setLiveMeetingTranscript(null,);
+      setMeetingTranscriptModalOpen(false,);
       setMeetingRecordingError(error instanceof Error ? error.message : "Could not start meeting recording.",);
       console.error("Could not start meeting recording:", error,);
     }
@@ -3105,7 +3243,9 @@ export default function AppLayout() {
                     pagesRevision={pagesRevision}
                     pageOverride={activePage}
                     transcriptReadOnly={isMeetingRecording
-                      && activeMeetingSessionRef.current?.pageTitle === currentView.title}
+                      && activeMeetingPageTitle === currentView.title}
+                    transcriptHidden={isMeetingRecording
+                      && activeMeetingPageTitle === currentView.title}
                     meetingRecordingError={meetingRecordingError}
                     onOpenDate={scrollToDate}
                     onOpenPage={openPageView}
@@ -3236,6 +3376,15 @@ export default function AppLayout() {
         >
           {isMeetingSummaryRunning ? "Summarizing meeting..." : "Summarize meeting"}
         </button>
+      )}
+
+      {isMeetingRecording && (
+        <LiveMeetingTranscriptOverlay
+          transcript={liveMeetingTranscript}
+          open={meetingTranscriptModalOpen}
+          onOpen={() => setMeetingTranscriptModalOpen(true,)}
+          onClose={() => setMeetingTranscriptModalOpen(false,)}
+        />
       )}
 
       <AiComposer

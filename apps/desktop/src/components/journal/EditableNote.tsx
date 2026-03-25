@@ -81,6 +81,7 @@ export interface EditableNoteSelection {
 interface EditableNoteProps {
   note: DailyNote | PageNote;
   transcriptReadOnly?: boolean;
+  transcriptHidden?: boolean;
   placeholder?: string;
   onSave?: (note: DailyNote | PageNote,) => void;
   onOpenDate?: (date: string,) => void;
@@ -112,13 +113,24 @@ function getReferenceDate(note: DailyNote | PageNote,) {
   return note.attachedTo ?? getToday();
 }
 
-function getEditorNoteContent(note: DailyNote | PageNote, transcriptReadOnly = false,) {
+function getEditorNoteContent(
+  note: DailyNote | PageNote,
+  transcriptReadOnly = false,
+  transcriptHidden = false,
+) {
   return "date" in note
     ? parseJsonContent(note.content,)
-    : decorateMeetingPageDoc(note, parseJsonContent(note.content,), { transcriptReadOnly, },);
+    : decorateMeetingPageDoc(note, parseJsonContent(note.content,), {
+      transcriptReadOnly,
+      transcriptHidden,
+    },);
 }
 
-function getMeetingDecorationKey(note: DailyNote | PageNote, transcriptReadOnly: boolean,) {
+function getMeetingDecorationKey(
+  note: DailyNote | PageNote,
+  transcriptReadOnly: boolean,
+  transcriptHidden: boolean,
+) {
   if ("date" in note || note.type !== "meeting") return "";
   return JSON.stringify({
     endedAt: note.endedAt,
@@ -126,6 +138,7 @@ function getMeetingDecorationKey(note: DailyNote | PageNote, transcriptReadOnly:
     participants: note.participants,
     sessionKind: note.sessionKind,
     startedAt: note.startedAt,
+    transcriptHidden,
     transcriptReadOnly,
   },);
 }
@@ -447,6 +460,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
     {
       note,
       transcriptReadOnly = false,
+      transcriptHidden = false,
       placeholder = "Start writing...",
       onSave,
       onOpenDate,
@@ -473,7 +487,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
     onCreatePageRef.current = onCreatePage;
 
     const selfUpdateRef = useRef(false,);
-    const meetingDecorationKey = getMeetingDecorationKey(note, transcriptReadOnly,);
+    const meetingDecorationKey = getMeetingDecorationKey(note, transcriptReadOnly, transcriptHidden,);
     const [editingDateChip, setEditingDateChip,] = useState<EditableDateChipState | null>(null,);
     const dateChipPopoverRef = useRef<HTMLDivElement | null>(null,);
     const editingDateChipRef = useRef<EditableDateChipState | null>(null,);
@@ -715,7 +729,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
           },
         },),
       ],
-      content: getEditorNoteContent(note, transcriptReadOnly,),
+      content: getEditorNoteContent(note, transcriptReadOnly, transcriptHidden,),
       editable: true,
       immediatelyRender: false,
       editorProps: {
@@ -812,7 +826,9 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
       onUpdate: ({ editor, },) => {
         const nextContent = "date" in noteRef.current
           ? editor.getJSON()
-          : stripMeetingPageDoc(noteRef.current, editor.getJSON() as JSONContent,);
+          : stripMeetingPageDoc(noteRef.current, editor.getJSON() as JSONContent, {
+            preserveTranscript: transcriptHidden ? parseJsonContent(noteRef.current.content,) : undefined,
+          },);
         saveDebounced(JSON.stringify(nextContent,),);
       },
     },);
@@ -870,7 +886,10 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
         return;
       }
 
-      const incoming = getEditorNoteContent(note, transcriptReadOnly,);
+      const incoming = getEditorNoteContent(note, transcriptReadOnly, transcriptHidden,);
+      if (JSON.stringify(editor.getJSON(),) === JSON.stringify(incoming,)) {
+        return;
+      }
       const previousSelection = editor.state.selection;
       editor
         .chain()
@@ -886,7 +905,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
           return true;
         },)
         .run();
-    }, [meetingDecorationKey, note.content, transcriptReadOnly,],);
+    }, [meetingDecorationKey, note.content, transcriptHidden, transcriptReadOnly,],);
 
     useEffect(() => {
       if (!editor || !onSelectionChange) return;

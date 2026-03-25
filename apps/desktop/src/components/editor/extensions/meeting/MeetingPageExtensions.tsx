@@ -136,7 +136,7 @@ function trimTrailingEmptyParagraphs(content: JSONContent[],) {
 export function decorateMeetingPageDoc(
   note: PageNote | unknown,
   doc: JSONContent,
-  options?: { transcriptReadOnly?: boolean; },
+  options?: { transcriptReadOnly?: boolean; transcriptHidden?: boolean; },
 ) {
   if (!isMeetingPage(note,)) return doc;
 
@@ -172,6 +172,8 @@ export function decorateMeetingPageDoc(
 
   const content = transcriptHeadingIndex === -1
     ? [...normalizedSource,]
+    : options?.transcriptHidden
+    ? [...normalizedSource.slice(0, transcriptHeadingIndex,),]
     : [
       ...normalizedSource.slice(0, transcriptHeadingIndex,),
       {
@@ -190,16 +192,22 @@ export function decorateMeetingPageDoc(
   } satisfies JSONContent;
 }
 
-export function stripMeetingPageDoc(note: PageNote | unknown, doc: JSONContent,) {
+export function stripMeetingPageDoc(
+  note: PageNote | unknown,
+  doc: JSONContent,
+  options?: { preserveTranscript?: JSONContent; },
+) {
   if (!isMeetingPage(note,)) return doc;
 
   const content: JSONContent[] = [];
+  let hasTranscript = false;
   for (const node of normalizeDoc(doc,)) {
     if (node.type === "meetingMeta") {
       continue;
     }
 
     if (node.type === "meetingTranscript") {
+      hasTranscript = true;
       content.push(
         createHeading(2, "Transcript",),
         ...trimTrailingEmptyParagraphs(Array.isArray(node.content,) ? node.content : [],),
@@ -208,6 +216,24 @@ export function stripMeetingPageDoc(note: PageNote | unknown, doc: JSONContent,)
     }
 
     content.push(node,);
+  }
+
+  if (!hasTranscript && options?.preserveTranscript) {
+    const transcriptSource = normalizeDoc(options.preserveTranscript,);
+    let transcriptHeadingIndex = -1;
+    for (let index = transcriptSource.length - 1; index >= 0; index -= 1) {
+      if (getHeadingLabel(transcriptSource[index],) === "Transcript") {
+        transcriptHeadingIndex = index;
+        break;
+      }
+    }
+
+    if (transcriptHeadingIndex !== -1) {
+      const transcriptContent = trimTrailingEmptyParagraphs(transcriptSource.slice(transcriptHeadingIndex + 1,),);
+      if (transcriptContent.length > 0) {
+        content.push(createHeading(2, "Transcript",), ...transcriptContent,);
+      }
+    }
   }
 
   return {
