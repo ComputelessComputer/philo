@@ -32,6 +32,9 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Sync submodules
+        run: git submodule sync --recursive && git submodule update --init --recursive
+
       - name: Install system dependencies (Ubuntu only)
         if: matrix.platform == 'ubuntu-22.04'
         run: |
