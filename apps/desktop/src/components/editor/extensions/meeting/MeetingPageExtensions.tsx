@@ -121,6 +121,18 @@ function normalizeDoc(doc: JSONContent,) {
   return doc.type === "doc" && Array.isArray(doc.content,) ? doc.content : [];
 }
 
+function trimTrailingEmptyParagraphs(content: JSONContent[],) {
+  const trimmed = [...content,];
+  while (trimmed.length > 0) {
+    const last = trimmed[trimmed.length - 1];
+    if (last?.type !== "paragraph" || getNodeText(last,).trim()) {
+      break;
+    }
+    trimmed.pop();
+  }
+  return trimmed;
+}
+
 export function decorateMeetingPageDoc(
   note: PageNote | unknown,
   doc: JSONContent,
@@ -188,7 +200,10 @@ export function stripMeetingPageDoc(note: PageNote | unknown, doc: JSONContent,)
     }
 
     if (node.type === "meetingTranscript") {
-      content.push(createHeading(2, "Transcript",), ...(Array.isArray(node.content,) ? node.content : []),);
+      content.push(
+        createHeading(2, "Transcript",),
+        ...trimTrailingEmptyParagraphs(Array.isArray(node.content,) ? node.content : [],),
+      );
       continue;
     }
 
