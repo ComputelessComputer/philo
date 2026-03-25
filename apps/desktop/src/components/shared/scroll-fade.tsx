@@ -81,15 +81,16 @@ export const ScrollFadeOverlay = memo(function ScrollFadeOverlay({
   return (
     <div
       className={cn([
-        "pointer-events-none absolute z-20",
-        isHorizontal ? ["top-0 h-full w-8",] : ["left-0 h-6 w-full",],
-        position === "top" && "top-0 bg-linear-to-b from-white to-transparent",
+        "pointer-events-none absolute z-20 backdrop-blur-md",
+        isHorizontal ? ["top-0 h-full w-14",] : ["left-0 h-8 w-full",],
+        position === "top"
+        && "top-0 bg-linear-to-b from-white/95 via-white/80 to-transparent",
         position === "bottom"
-        && "bottom-0 bg-linear-to-t from-white to-transparent",
+        && "bottom-0 bg-linear-to-t from-white/95 via-white/80 to-transparent",
         position === "left"
-        && "left-0 bg-linear-to-r from-white to-transparent",
+        && "left-0 bg-linear-to-r from-white/95 via-white/80 to-transparent",
         position === "right"
-        && "right-0 bg-linear-to-l from-white to-transparent",
+        && "right-0 bg-linear-to-l from-white/95 via-white/80 to-transparent",
       ],)}
     />
   );
