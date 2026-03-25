@@ -3,8 +3,10 @@
 extern crate objc;
 
 pub mod philo_tools;
+pub mod settings_paths;
 pub mod widget_git;
 
+use crate::settings_paths::normalize_folder;
 use keyring::{Entry as KeyringEntry, Error as KeyringError};
 use reqwest::blocking::{Client as HttpClient, Response as HttpResponse};
 use reqwest::{Client as AsyncHttpClient, Method};
@@ -1579,19 +1581,6 @@ struct ObsidianSettingsDetection {
     excalidraw_folder: String,
     assets_folder: String,
     filename_pattern: String,
-}
-
-fn normalize_folder(raw: &str) -> String {
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return String::new();
-    }
-    if trimmed == "/" || trimmed == "./" || trimmed == "." {
-        return ".".to_string();
-    }
-
-    let without_prefix = trimmed.trim_start_matches("./").trim_start_matches('/');
-    without_prefix.trim_end_matches('/').to_string()
 }
 
 fn read_json_file(path: &PathBuf) -> Option<Value> {

@@ -1,15 +1,15 @@
+use crate::settings_paths::{
+    default_settings_path, normalize_filename_pattern, resolve_journal_dir,
+};
 use chrono::{Duration, NaiveDate};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::env;
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::process::{Command as StdCommand, Stdio};
 use std::time::UNIX_EPOCH;
-
-const DEFAULT_FILENAME_PATTERN: &str = "{YYYY}-{MM}-{DD}";
 
 #[derive(Clone, Debug, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
@@ -127,47 +127,6 @@ enum ParsedCommand {
     Delete { date: String },
 }
 
-fn default_settings_path() -> Result<PathBuf, String> {
-    if let Ok(path) = env::var("PHILO_SETTINGS_PATH") {
-        let trimmed = path.trim();
-        if !trimmed.is_empty() {
-            return Ok(PathBuf::from(trimmed));
-        }
-    }
-
-    let home = env::var("HOME").map_err(|_| "Could not resolve HOME directory".to_string())?;
-    let base_dir = if cfg!(debug_assertions) {
-        PathBuf::from(home)
-            .join("Library")
-            .join("Application Support")
-            .join("com.philo.dev")
-    } else {
-        PathBuf::from(home)
-            .join("Library")
-            .join("Application Support")
-            .join("philo")
-    };
-
-    Ok(base_dir.join("settings.json"))
-}
-
-fn normalize_folder(raw: &str) -> String {
-    let trimmed = raw.trim();
-    if trimmed.is_empty() {
-        return String::new();
-    }
-    if trimmed == "/" || trimmed == "./" || trimmed == "." {
-        return ".".to_string();
-    }
-
-    let without_prefix = trimmed.trim_start_matches("./").trim_start_matches('/');
-    without_prefix.trim_end_matches('/').to_string()
-}
-
-fn join_paths(base: &Path, extra: &str) -> PathBuf {
-    base.join(extra)
-}
-
 pub fn resolve_note_context() -> Result<NoteContext, String> {
     let settings_path = default_settings_path()?;
     let raw = fs::read_to_string(&settings_path).map_err(|e| {
@@ -180,36 +139,18 @@ pub fn resolve_note_context() -> Result<NoteContext, String> {
     let settings: PhiloSettings =
         serde_json::from_str(&raw).map_err(|e| format!("Could not parse settings: {}", e))?;
 
-    let mut journal_dir = settings.journal_dir.trim().to_string();
-    if journal_dir.is_empty() {
-        let vault_dir = settings.vault_dir.trim();
-        if !vault_dir.is_empty() {
-            let daily_logs_folder = normalize_folder(&settings.daily_logs_folder);
-            let root = PathBuf::from(vault_dir);
-            journal_dir = if daily_logs_folder.is_empty() || daily_logs_folder == "." {
-                root.to_string_lossy().to_string()
-            } else {
-                join_paths(&root, &daily_logs_folder)
-                    .to_string_lossy()
-                    .to_string()
-            };
-        }
-    }
-
-    if journal_dir.trim().is_empty() {
+    let Some(journal_dir) = resolve_journal_dir(
+        &settings.journal_dir,
+        &settings.vault_dir,
+        &settings.daily_logs_folder,
+    ) else {
         return Err("Journal is not configured.".to_string());
-    }
-
-    let filename_pattern = if settings.filename_pattern.trim().is_empty() {
-        DEFAULT_FILENAME_PATTERN.to_string()
-    } else {
-        settings.filename_pattern.trim().to_string()
     };
 
     Ok(NoteContext {
         settings_path,
-        journal_dir: PathBuf::from(journal_dir),
-        filename_pattern,
+        journal_dir,
+        filename_pattern: normalize_filename_pattern(&settings.filename_pattern),
     })
 }
 
