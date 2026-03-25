@@ -7000,7 +7000,7 @@ dependencies = [
 
 [[package]]
 name = "philo"
-version = "0.0.48"
+version = "0.0.49"
 dependencies = [
  "chrono",
  "git2",
