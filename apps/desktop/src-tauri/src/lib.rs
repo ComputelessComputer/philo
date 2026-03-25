@@ -239,10 +239,15 @@ fn set_window_opacity(_app: AppHandle, _opacity: f64) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn get_native_current_position(app: AppHandle) -> Result<Option<NativeCurrentPosition>, String> {
+async fn get_native_current_position(
+    app: AppHandle,
+) -> Result<Option<NativeCurrentPosition>, String> {
     #[cfg(target_os = "macos")]
     {
-        let position = macos_location::get_current_position(app)?;
+        let position =
+            tauri::async_runtime::spawn_blocking(move || macos_location::get_current_position(app))
+                .await
+                .map_err(|e| e.to_string())??;
         Ok(Some(NativeCurrentPosition {
             latitude: position.latitude,
             longitude: position.longitude,
