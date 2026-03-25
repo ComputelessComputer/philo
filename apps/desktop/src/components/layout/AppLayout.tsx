@@ -3487,7 +3487,7 @@ export default function AppLayout() {
             void handleMeetingSummaryFabClick();
           }}
           disabled={isMeetingSummaryRunning}
-          className={`fixed bottom-16 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 px-4 py-2 rounded-md text-xs font-medium uppercase tracking-wide text-white font-sans shadow-lg transition-all ${
+          className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 px-4 py-2 rounded-md text-xs font-medium uppercase tracking-wide text-white font-sans shadow-lg transition-all ${
             isMeetingSummaryRunning
               ? "cursor-default opacity-80"
               : "cursor-pointer hover:scale-105 active:scale-95"
