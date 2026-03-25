@@ -1,0 +1,6 @@
+[build]
+target-dir = "target"
+
+[env]
+MACOSX_DEPLOYMENT_TARGET = { value = "13.0", force = true }
+CMAKE_OSX_DEPLOYMENT_TARGET = { value = "13.0", force = true }
