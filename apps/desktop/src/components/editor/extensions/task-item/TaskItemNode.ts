@@ -171,7 +171,7 @@ export const CustomTaskItem = TaskItem.extend({
         '<path d="m7 4 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />',
         "</svg>",
       ].join("",);
-      const handleToggle = (event: MouseEvent,) => {
+      const handleToggle = (event: MouseEvent | PointerEvent,) => {
         event.preventDefault();
         event.stopPropagation();
         if (toggle.disabled) {
@@ -181,7 +181,7 @@ export const CustomTaskItem = TaskItem.extend({
         isCollapsed = !isCollapsed;
         syncNestedState(currentNode,);
       };
-      toggle.addEventListener("mousedown", handleToggle,);
+      toggle.addEventListener("pointerdown", handleToggle,);
 
       checkbox.type = "checkbox";
       checkbox.checked = node.attrs.checked;
@@ -208,11 +208,9 @@ export const CustomTaskItem = TaskItem.extend({
 
       listItem.dataset.checked = String(node.attrs.checked,);
       label.contentEditable = "false";
-      label.appendChild(toggle,);
       label.appendChild(checkbox,);
       label.appendChild(checkboxStyler,);
-      listItem.appendChild(label,);
-      listItem.appendChild(content,);
+      listItem.append(toggle, label, content,);
 
       // Add rollover badge if originDate exists
       if (node.attrs.originDate && node.attrs.originDate !== node.attrs.checked) {
