@@ -3608,7 +3608,7 @@ async fn ensure_microphone_permission(app: AppHandle) -> Result<(), String> {
         PermissionStatus::Authorized => Ok(()),
         PermissionStatus::Denied => {
             let _ = app.permissions().open(Permission::Microphone).await;
-            Err("Microphone access is required to record meetings. Allow Philo in System Settings > Privacy & Security > Microphone.".to_string())
+            Err("Microphone access is required to record meetings. Allow the app in System Settings > Privacy & Security > Microphone.".to_string())
         }
         PermissionStatus::NeverRequested => Err(
             "Microphone permission request did not finish. Try recording again and allow access when prompted."
