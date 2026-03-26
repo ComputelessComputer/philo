@@ -7,6 +7,16 @@ export interface TaskItemAttributes {
   checked: boolean;
 }
 
+function hasNestedListChildren(node: JSONContent,) {
+  if (!Array.isArray(node.content,) || node.content.length === 0) {
+    return false;
+  }
+
+  return node.content.some((child,) =>
+    child?.type === "bulletList" || child?.type === "orderedList" || child?.type === "taskList"
+  );
+}
+
 function trimNestedParagraphIndentation(node: JSONContent,): JSONContent {
   if (node.type !== "paragraph" || !Array.isArray(node.content,) || node.content.length === 0) {
     return node;
@@ -130,8 +140,49 @@ export const CustomTaskItem = TaskItem.extend({
     return ({ node, HTMLAttributes, getPos, editor, },) => {
       const listItem = document.createElement("li",);
       const label = document.createElement("label",);
+      const toggle = document.createElement("button",);
       const checkbox = document.createElement("input",);
       const content = document.createElement("div",);
+      let currentNode = node.toJSON();
+      let isCollapsed = false;
+
+      const syncNestedState = (nextNode: JSONContent,) => {
+        const hasNestedChildren = hasNestedListChildren(nextNode,);
+        listItem.classList.toggle("task-item--has-children", hasNestedChildren,);
+
+        if (!hasNestedChildren) {
+          isCollapsed = false;
+        }
+
+        listItem.classList.toggle("task-item--collapsed", hasNestedChildren && isCollapsed,);
+        toggle.disabled = !hasNestedChildren;
+        toggle.setAttribute("aria-hidden", hasNestedChildren ? "false" : "true",);
+        toggle.setAttribute("aria-label", isCollapsed ? "Expand nested items" : "Collapse nested items",);
+        toggle.setAttribute("aria-expanded", hasNestedChildren ? (!isCollapsed).toString() : "false",);
+      };
+
+      toggle.type = "button";
+      toggle.tabIndex = -1;
+      toggle.className = "task-item-toggle";
+      toggle.setAttribute("aria-hidden", "true",);
+      toggle.innerHTML = [
+        '<svg viewBox="0 0 20 20" fill="none" aria-hidden="true">',
+        '<path d="m7 4 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />',
+        "</svg>",
+      ].join("",);
+      toggle.addEventListener("mousedown", (event,) => {
+        event.preventDefault();
+      },);
+      toggle.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+        if (toggle.disabled) {
+          return;
+        }
+
+        isCollapsed = !isCollapsed;
+        syncNestedState(currentNode,);
+      },);
 
       checkbox.type = "checkbox";
       checkbox.checked = node.attrs.checked;
@@ -141,8 +192,11 @@ export const CustomTaskItem = TaskItem.extend({
           editor.commands.command(({ tr, },) => {
             const pos = getPos();
             if (pos == null) return false;
+            const attrs = typeof currentNode.attrs === "object" && currentNode.attrs
+              ? currentNode.attrs
+              : node.attrs;
             tr.setNodeMarkup(pos, undefined, {
-              ...node.attrs,
+              ...attrs,
               checked: checkbox.checked,
             },);
             return true;
@@ -151,6 +205,7 @@ export const CustomTaskItem = TaskItem.extend({
       },);
 
       label.contentEditable = "false";
+      label.appendChild(toggle,);
       label.appendChild(checkbox,);
       listItem.appendChild(label,);
       listItem.appendChild(content,);
@@ -167,6 +222,8 @@ export const CustomTaskItem = TaskItem.extend({
         listItem.setAttribute(key, value as string,);
       },);
 
+      syncNestedState(currentNode,);
+
       return {
         dom: listItem,
         contentDOM: content,
@@ -174,7 +231,10 @@ export const CustomTaskItem = TaskItem.extend({
           if (updatedNode.type !== this.type) {
             return false;
           }
+
           checkbox.checked = updatedNode.attrs.checked;
+          currentNode = updatedNode.toJSON();
+          syncNestedState(currentNode,);
           return true;
         },
       };

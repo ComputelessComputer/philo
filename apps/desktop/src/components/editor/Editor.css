@@ -29,6 +29,57 @@
   height: var(--editor-line-height);
 }
 
+.tiptap ul[data-type="taskList"] li.task-item--collapsed > div > ul,
+.tiptap ul[data-type="taskList"] li.task-item--collapsed > div > ol {
+  display: none;
+}
+
+.tiptap ul[data-type="taskList"] .task-item-toggle {
+  width: 0;
+  height: 16px;
+  margin-right: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #9ca3af;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  transition:
+    opacity 120ms ease,
+    color 120ms ease,
+    transform 120ms ease,
+    width 120ms ease,
+    margin-right 120ms ease;
+}
+
+.tiptap ul[data-type="taskList"] .task-item-toggle svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+  transition: transform 120ms ease;
+}
+
+.tiptap ul[data-type="taskList"] li.task-item--has-children > label .task-item-toggle {
+  width: 16px;
+  margin-right: 4px;
+  pointer-events: auto;
+}
+
+.tiptap ul[data-type="taskList"] li.task-item--has-children:hover > label .task-item-toggle,
+.tiptap ul[data-type="taskList"] li.task-item--has-children:focus-within > label .task-item-toggle,
+.tiptap ul[data-type="taskList"] li.task-item--collapsed > label .task-item-toggle {
+  opacity: 1;
+}
+
+.tiptap ul[data-type="taskList"] li.task-item--has-children > label .task-item-toggle:hover {
+  color: #4b5563;
+}
+
+.tiptap ul[data-type="taskList"] li.task-item--has-children:not(.task-item--collapsed) > label .task-item-toggle svg {
+  transform: rotate(90deg);
+}
+
 .tiptap ul[data-type="taskList"] input[type="checkbox"] {
   margin-top: 0;
 }
