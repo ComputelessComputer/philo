@@ -1,4 +1,4 @@
-import { type JSONContent, mergeAttributes, } from "@tiptap/core";
+import { getRenderedAttributes, type JSONContent, mergeAttributes, } from "@tiptap/core";
 import TaskItem from "@tiptap/extension-task-item";
 
 export interface TaskItemAttributes {
@@ -140,6 +140,7 @@ export const CustomTaskItem = TaskItem.extend({
     return ({ node, HTMLAttributes, getPos, editor, },) => {
       const listItem = document.createElement("li",);
       const label = document.createElement("label",);
+      const checkboxStyler = document.createElement("span",);
       const toggle = document.createElement("button",);
       const checkbox = document.createElement("input",);
       const content = document.createElement("div",);
@@ -170,10 +171,7 @@ export const CustomTaskItem = TaskItem.extend({
         '<path d="m7 4 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />',
         "</svg>",
       ].join("",);
-      toggle.addEventListener("mousedown", (event,) => {
-        event.preventDefault();
-      },);
-      toggle.addEventListener("click", event => {
+      const handleToggle = (event: MouseEvent,) => {
         event.preventDefault();
         event.stopPropagation();
         if (toggle.disabled) {
@@ -182,10 +180,14 @@ export const CustomTaskItem = TaskItem.extend({
 
         isCollapsed = !isCollapsed;
         syncNestedState(currentNode,);
-      },);
+      };
+      toggle.addEventListener("mousedown", handleToggle,);
 
       checkbox.type = "checkbox";
       checkbox.checked = node.attrs.checked;
+      checkbox.addEventListener("mousedown", (event,) => {
+        event.preventDefault();
+      },);
 
       checkbox.addEventListener("change", () => {
         if (typeof getPos === "function") {
@@ -204,9 +206,11 @@ export const CustomTaskItem = TaskItem.extend({
         }
       },);
 
+      listItem.dataset.checked = String(node.attrs.checked,);
       label.contentEditable = "false";
       label.appendChild(toggle,);
       label.appendChild(checkbox,);
+      label.appendChild(checkboxStyler,);
       listItem.appendChild(label,);
       listItem.appendChild(content,);
 
@@ -222,18 +226,53 @@ export const CustomTaskItem = TaskItem.extend({
         listItem.setAttribute(key, value as string,);
       },);
 
+      let prevRenderedAttributeKeys = new Set(Object.keys(HTMLAttributes,),);
       syncNestedState(currentNode,);
 
       return {
         dom: listItem,
         contentDOM: content,
+        stopEvent: event => {
+          const target = event.target;
+          return target instanceof HTMLElement && (toggle.contains(target,) || checkbox.contains(target,));
+        },
         update: (updatedNode,) => {
           if (updatedNode.type !== this.type) {
             return false;
           }
 
+          listItem.dataset.checked = String(updatedNode.attrs.checked,);
           checkbox.checked = updatedNode.attrs.checked;
           currentNode = updatedNode.toJSON();
+          const extensionAttributes = editor.extensionManager.attributes;
+          const newHTMLAttributes = getRenderedAttributes(updatedNode, extensionAttributes,);
+          const newKeys = new Set(Object.keys(newHTMLAttributes,),);
+          const staticAttrs = this.options.HTMLAttributes as Record<string, string>;
+
+          prevRenderedAttributeKeys.forEach(key => {
+            if (!newKeys.has(key,)) {
+              if (key in staticAttrs) {
+                listItem.setAttribute(key, staticAttrs[key],);
+              } else {
+                listItem.removeAttribute(key,);
+              }
+            }
+          },);
+
+          Object.entries(newHTMLAttributes,).forEach(([key, value,],) => {
+            if (value == null) {
+              if (key in staticAttrs) {
+                listItem.setAttribute(key, staticAttrs[key],);
+              } else {
+                listItem.removeAttribute(key,);
+              }
+              return;
+            }
+
+            listItem.setAttribute(key, value as string,);
+          },);
+
+          prevRenderedAttributeKeys = newKeys;
           syncNestedState(currentNode,);
           return true;
         },
