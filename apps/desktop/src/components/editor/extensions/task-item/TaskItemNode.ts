@@ -182,6 +182,10 @@ export const CustomTaskItem = TaskItem.extend({
         syncNestedState(currentNode,);
       };
       toggle.addEventListener("pointerdown", handleToggle,);
+      toggle.addEventListener("click", event => {
+        event.preventDefault();
+        event.stopPropagation();
+      },);
 
       checkbox.type = "checkbox";
       checkbox.checked = node.attrs.checked;
