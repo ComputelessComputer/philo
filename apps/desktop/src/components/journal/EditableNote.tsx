@@ -18,7 +18,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import { useDebounceCallback, } from "usehooks-ts";
 import "../editor/Editor.css";
 import { showNativeContextMenu, } from "../../hooks/useNativeContextMenu";
-import { parseJsonContent, } from "../../lib/markdown";
+import { md2json, parseJsonContent, } from "../../lib/markdown";
 import { openGoogleMentionChip, } from "../../services/google-open";
 import { resolveAssetUrl, saveImage, } from "../../services/images";
 import {
@@ -108,6 +108,30 @@ type ReadOnlyTranscriptRange = {
 };
 
 const IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp",];
+const LIST_NODE_TYPES = new Set(["bulletList", "orderedList", "taskList",],);
+
+function shouldParseMarkdownPaste(text: string, html: string,) {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+
+  if (/(^|\n)[\t ]*(?:[-*+] )?\[[ xX]\]\s+/m.test(text,)) {
+    return true;
+  }
+
+  if (html) {
+    return false;
+  }
+
+  const lines = trimmed.split(/\r?\n/,);
+  const listLineCount = lines.filter(line => /^[\t ]*(?:[-*+] |\d+\. )/.test(line,)).length;
+  return listLineCount >= 2;
+}
+
+function getMarkdownPasteContent(text: string,) {
+  const parsed = md2json(text,);
+  const content = Array.isArray(parsed.content,) ? parsed.content : [];
+  return content.some(node => LIST_NODE_TYPES.has(node.type ?? "",)) ? content : null;
+}
 
 async function showPathInFinder(path: string,) {
   await invoke("show_path_in_folder", { path, },);
@@ -789,7 +813,28 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
             IMAGE_MIME_TYPES.includes(file.type,)
           );
           if (files.length === 0) {
-            return false;
+            const text = event.clipboardData?.getData("text/plain",) ?? "";
+            const html = event.clipboardData?.getData("text/html",) ?? "";
+
+            if (!shouldParseMarkdownPaste(text, html,)) {
+              return false;
+            }
+
+            const content = getMarkdownPasteContent(text,);
+            if (!content || !editor) {
+              return false;
+            }
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            editor.commands.focus();
+            editor.commands.insertContentAt(
+              { from: _view.state.selection.from, to: _view.state.selection.to, },
+              content,
+              { updateSelection: true, },
+            );
+            return true;
           }
 
           event.preventDefault();
