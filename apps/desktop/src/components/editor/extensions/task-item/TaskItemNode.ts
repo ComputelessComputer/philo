@@ -147,6 +147,16 @@ export const CustomTaskItem = TaskItem.extend({
       let currentNode = node.toJSON();
       let isCollapsed = false;
 
+      const syncNestedDomState = (hasNestedChildren: boolean,) => {
+        queueMicrotask(() => {
+          Array.from(content.children,).forEach((child,) => {
+            if (child instanceof HTMLUListElement || child instanceof HTMLOListElement) {
+              child.hidden = hasNestedChildren && isCollapsed;
+            }
+          },);
+        },);
+      };
+
       const syncNestedState = (nextNode: JSONContent,) => {
         const hasNestedChildren = hasNestedListChildren(nextNode,);
         listItem.classList.toggle("task-item--has-children", hasNestedChildren,);
@@ -157,9 +167,11 @@ export const CustomTaskItem = TaskItem.extend({
 
         listItem.classList.toggle("task-item--collapsed", hasNestedChildren && isCollapsed,);
         toggle.disabled = !hasNestedChildren;
+        toggle.contentEditable = "false";
         toggle.setAttribute("aria-hidden", hasNestedChildren ? "false" : "true",);
         toggle.setAttribute("aria-label", isCollapsed ? "Expand nested items" : "Collapse nested items",);
         toggle.setAttribute("aria-expanded", hasNestedChildren ? (!isCollapsed).toString() : "false",);
+        syncNestedDomState(hasNestedChildren,);
       };
 
       toggle.type = "button";
