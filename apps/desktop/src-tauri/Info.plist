@@ -4,6 +4,10 @@
 <dict>
   <key>LSMinimumSystemVersion</key>
   <string>13.0</string>
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Philo uses your microphone to transcribe your side of a meeting.</string>
+  <key>NSAudioCaptureUsageDescription</key>
+  <string>Philo uses system audio capture to transcribe other participants in a meeting.</string>
   <key>NSLocationWhenInUseUsageDescription</key>
   <string>Philo uses your location to show the current city in today's note.</string>
 </dict>
