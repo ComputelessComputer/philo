@@ -3608,13 +3608,46 @@ async fn ensure_microphone_permission(app: AppHandle) -> Result<(), String> {
         PermissionStatus::Authorized => Ok(()),
         PermissionStatus::Denied => {
             let _ = app.permissions().open(Permission::Microphone).await;
-            Err("Microphone access is required to record meetings. Allow the app in System Settings > Privacy & Security > Microphone.".to_string())
+            Err(microphone_permission_error_message())
         }
-        PermissionStatus::NeverRequested => Err(
-            "Microphone permission request did not finish. Try recording again and allow access when prompted."
-                .to_string(),
-        ),
+        PermissionStatus::NeverRequested => Err(microphone_permission_pending_message()),
     }
+}
+
+fn microphone_permission_error_message() -> String {
+    let mut message = "Microphone access is required to record meetings. Allow the app in System Settings > Privacy & Security > Microphone.".to_string();
+
+    #[cfg(target_os = "macos")]
+    if cfg!(debug_assertions) && !is_running_inside_app_bundle() {
+        message.push_str(
+            " You are running an unpackaged dev build, so macOS may list the launcher app instead of a separate Philo Dev entry. Check the app that started `pnpm tauri dev`, like Warp, Ghostty, or Terminal, or open /Applications/Philo.app and grant Philo there.",
+        );
+    }
+
+    message
+}
+
+fn microphone_permission_pending_message() -> String {
+    let mut message =
+        "Microphone permission request did not finish. Try recording again and allow access when prompted."
+            .to_string();
+
+    #[cfg(target_os = "macos")]
+    if cfg!(debug_assertions) && !is_running_inside_app_bundle() {
+        message.push_str(
+            " If no prompt appears, macOS may be treating this as the launcher app instead of Philo Dev. Check the terminal app that started `pnpm tauri dev`, or try the installed /Applications/Philo.app.",
+        );
+    }
+
+    message
+}
+
+#[cfg(target_os = "macos")]
+fn is_running_inside_app_bundle() -> bool {
+    env::current_exe().ok().is_some_and(|path| {
+        path.ancestors()
+            .any(|ancestor| ancestor.extension().and_then(|ext| ext.to_str()) == Some("app"))
+    })
 }
 
 #[tauri::command]
