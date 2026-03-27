@@ -65,6 +65,10 @@
   pointer-events: auto;
 }
 
+.tiptap ul[data-type="taskList"] li[data-type="taskItem"] ul[data-type="taskList"] .task-item-toggle {
+  display: none;
+}
+
 .tiptap ul[data-type="taskList"] li.task-item--has-children:hover > .task-item-toggle,
 .tiptap ul[data-type="taskList"] li.task-item--has-children:focus-within > .task-item-toggle,
 .tiptap ul[data-type="taskList"] li.task-item--collapsed > .task-item-toggle {
