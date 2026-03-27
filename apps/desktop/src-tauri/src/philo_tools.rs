@@ -966,11 +966,14 @@ pub fn run_sidecar_philo(
     } else {
         exe_dir
     };
-    let binary_path = base_dir.join("philo-cli");
     #[cfg(windows)]
-    {
-        binary_path.set_extension("exe");
-    }
+    let binary_path = {
+        let mut path = base_dir.join("philo-cli");
+        path.set_extension("exe");
+        path
+    };
+    #[cfg(not(windows))]
+    let binary_path = base_dir.join("philo-cli");
 
     if !binary_path.exists() {
         return run_tool_command(ToolCommand::Philo {
