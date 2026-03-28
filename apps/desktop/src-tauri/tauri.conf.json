@@ -5,7 +5,7 @@
   "identifier": "com.johnjeong.philo",
   "build": {
     "beforeDevCommand": "pnpm run dev",
-    "devUrl": "http://localhost:1421",
+    "devUrl": "http://localhost:1451",
     "beforeBuildCommand": "pnpm run build",
     "frontendDist": "../dist"
   },
