@@ -1,0 +1,8 @@
+{
+  "bundle": {
+    "externalBin": [
+      "binaries/philo-cli",
+      "binaries/check-permissions"
+    ]
+  }
+}

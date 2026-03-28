@@ -7139,6 +7139,7 @@ dependencies = [
  "tauri-plugin-permissions",
  "tauri-plugin-process",
  "tauri-plugin-settings",
+ "tauri-plugin-shell",
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
 ]
@@ -10210,6 +10211,7 @@ dependencies = [
  "tauri",
  "tauri-plugin",
  "tauri-plugin-shell",
+ "tauri-plugin-sidecar2",
  "tauri-specta",
  "tcc",
  "thiserror 2.0.18",

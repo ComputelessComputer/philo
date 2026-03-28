@@ -24,6 +24,7 @@ tauri = { version = "2", features = ["protocol-asset"] }
 tauri-plugin-opener = "2"
 tauri-plugin-fs = "2"
 tauri-plugin-process = "2"
+tauri-plugin-shell = "2"
 tauri-plugin-geolocation = "2"
 tauri-plugin-deep-link = "2"
 serde = { version = "1", features = ["derive"] }
