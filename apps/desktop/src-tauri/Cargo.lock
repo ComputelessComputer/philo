@@ -7115,7 +7115,7 @@ dependencies = [
 
 [[package]]
 name = "philo"
-version = "0.0.64"
+version = "0.0.65"
 dependencies = [
  "chrono",
  "git2",
