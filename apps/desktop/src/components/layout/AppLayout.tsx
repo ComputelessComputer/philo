@@ -2267,13 +2267,12 @@ export default function AppLayout() {
       return;
     }
 
+    let speakerOnlyRecording = false;
     try {
       await ensureMicrophonePermission();
     } catch (error) {
-      setMeetingRecordingError(
-        error instanceof Error ? error.message : "Microphone access is required to record meetings.",
-      );
-      return;
+      speakerOnlyRecording = true;
+      console.warn("Microphone permission unavailable; continuing with system audio only.", error,);
     }
 
     let page: PageNote | null = null;
@@ -2384,7 +2383,7 @@ export default function AppLayout() {
       await startListenerSession({
         session_id: sessionId,
         languages: sttConfig.spokenLanguages,
-        onboarding: false,
+        onboarding: speakerOnlyRecording,
         record_enabled: sttConfig.saveRecordings,
         model: sttConfig.model,
         base_url: sttConfig.baseUrl,
@@ -2411,6 +2410,9 @@ export default function AppLayout() {
       }
 
       setIsMeetingRecording(true,);
+      if (speakerOnlyRecording) {
+        setMeetingRecordingError("Microphone access unavailable. Recording system audio only.",);
+      }
     } catch (error) {
       clearMeetingListeners();
       activeMeetingSessionRef.current = null;
