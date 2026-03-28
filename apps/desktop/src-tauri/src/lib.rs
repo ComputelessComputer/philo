@@ -66,6 +66,8 @@ const GOOGLE_OAUTH_USERINFO_URL: &str = "https://openidconnect.googleapis.com/v1
 const GOOGLE_OAUTH_KEYRING_SERVICE: &str = "com.johnjeong.philo.google-oauth";
 const GOOGLE_OAUTH_KEYRING_SERVICE_DEV: &str = "com.johnjeong.philo.dev.google-oauth";
 const GOOGLE_OAUTH_KEYRING_ACCOUNT: &str = "session";
+const MICROPHONE_PERMISSION_SETTLE_ATTEMPTS: usize = 4;
+const MICROPHONE_PERMISSION_SETTLE_DELAY_MS: u64 = 150;
 
 #[derive(Default)]
 struct GoogleOAuthState {
@@ -3591,8 +3593,8 @@ async fn ensure_microphone_permission(app: AppHandle) -> Result<(), String> {
             .await
             .map_err(|e| format!("Could not request microphone permission: {e}"))?;
 
-        for _ in 0..20 {
-            std::thread::sleep(Duration::from_millis(250));
+        for _ in 0..MICROPHONE_PERMISSION_SETTLE_ATTEMPTS {
+            std::thread::sleep(Duration::from_millis(MICROPHONE_PERMISSION_SETTLE_DELAY_MS));
             status = app
                 .permissions()
                 .check(Permission::Microphone)
