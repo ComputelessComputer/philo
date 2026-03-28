@@ -1527,6 +1527,7 @@ export default function AppLayout() {
   const currentViewKey = currentView.kind === "page" ? `page:${currentView.title}` : "home";
   const canGoBack = viewState.index > 0;
   const canGoForward = viewState.index < viewState.history.length - 1;
+  const showMeetingRecordingErrorBanner = Boolean(meetingRecordingError,) && activePage?.type !== "meeting";
   const focusedFutureDate = focusedDate && focusedDate !== today && !pastDates.includes(focusedDate,)
     ? focusedDate
     : null;
@@ -3410,6 +3411,16 @@ export default function AppLayout() {
                 />
               )
               : updateInfo && <UpdateBanner update={updateInfo} onDismiss={() => setUpdateInfo(null,)} />}
+            {showMeetingRecordingErrorBanner && (
+              <div className="w-full max-w-3xl px-6 pt-4">
+                <p
+                  className="text-xs text-red-500"
+                  style={{ fontFamily: "'IBM Plex Mono', monospace", }}
+                >
+                  {meetingRecordingError}
+                </p>
+              </div>
+            )}
             {currentView.kind === "page"
               ? (
                 <div
