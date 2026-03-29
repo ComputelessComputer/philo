@@ -1351,12 +1351,13 @@ function PageView({
     || resolvedPage.linkKind === "github_issue"
     || resolvedPage.linkKind === "github_commit";
   const pageHeading = pageIsUrlSummary ? resolvedPage.linkTitle ?? resolvedPage.title : resolvedPage.title;
+  const meetingLocation = resolvedPage.type === "meeting" ? resolvedPage.location?.trim() ?? "" : "";
   const summaryUpdatedAt = formatSummaryUpdatedAt(resolvedPage.summaryUpdatedAt,);
 
   return (
     <div className="w-full max-w-3xl">
       <div className="px-6 pt-6 pb-4">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
           <h1
             className="text-2xl italic text-gray-900 dark:text-white"
             style={{ fontFamily: '"Instrument Serif", serif', }}
@@ -1371,12 +1372,22 @@ function PageView({
             {pageHeading}
           </h1>
           {resolvedPage.type === "meeting" && (
-            <span
-              className="text-xs font-medium uppercase tracking-wide px-3 py-1 rounded-md text-white font-sans"
-              style={{ background: "linear-gradient(to bottom, #4b5563, #1f2937)", }}
-            >
-              meeting
-            </span>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <span
+                className="text-xs font-medium uppercase tracking-wide px-3 py-1 rounded-md text-white font-sans"
+                style={{ background: "linear-gradient(to bottom, #4b5563, #1f2937)", }}
+              >
+                meeting
+              </span>
+              {meetingLocation && (
+                <div className="inline-flex max-w-full items-center gap-1.5 text-gray-400 dark:text-gray-500">
+                  <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
+                  <span className="min-w-0 text-sm font-sans text-gray-500 dark:text-gray-400">
+                    {meetingLocation}
+                  </span>
+                </div>
+              )}
+            </div>
           )}
         </div>
         {resolvedPage.type === "meeting" && meetingRecordingError && (
