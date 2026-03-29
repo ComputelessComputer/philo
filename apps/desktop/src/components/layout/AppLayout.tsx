@@ -81,6 +81,7 @@ import {
   loadDailyNote,
   loadPage,
   loadPastNotes,
+  renamePage,
   saveDailyNote,
   savePage,
 } from "../../services/storage";
@@ -1290,6 +1291,7 @@ function PageView({
   onOpenPage,
   onAskAiPrompt,
   onSave,
+  onRenameTitle,
   onInteract,
   editorRef,
   onPageChange,
@@ -1304,11 +1306,16 @@ function PageView({
   onOpenPage?: (title: string,) => void;
   onAskAiPrompt?: (prompt: string,) => void;
   onSave?: (page: PageNote,) => void;
+  onRenameTitle?: (page: PageNote, nextTitle: string,) => Promise<PageNote | null> | PageNote | null;
   onInteract?: () => void;
   editorRef?: RefObject<EditableNoteHandle | null>;
   onPageChange?: (page: PageNote | null,) => void;
 },) {
   const [page, setPage,] = useState<PageNote | null>(null,);
+  const [isEditingTitle, setIsEditingTitle,] = useState(false,);
+  const [draftTitle, setDraftTitle,] = useState(title,);
+  const [titleEditError, setTitleEditError,] = useState<string | null>(null,);
+  const titleInputRef = useRef<HTMLInputElement | null>(null,);
   const resolvedPage = pageOverride?.title === title ? pageOverride : page;
 
   useEffect(() => {
@@ -1338,6 +1345,65 @@ function PageView({
     }
   }, [onSave,],);
 
+  const pageIsUrlSummary = resolvedPage ? isUrlSummaryPage(resolvedPage,) : false;
+  const pageIsTypedGitHub = !!resolvedPage && (
+    resolvedPage.linkKind === "github_pr"
+    || resolvedPage.linkKind === "github_issue"
+    || resolvedPage.linkKind === "github_commit"
+  );
+  const pageHeading = resolvedPage
+    ? (pageIsUrlSummary ? resolvedPage.linkTitle ?? resolvedPage.title : resolvedPage.title)
+    : title;
+  const canEditTitle = !!resolvedPage && pageHeading === resolvedPage.title && !!onRenameTitle;
+  const titleInputWidthCh = Math.max(draftTitle.length, 1,) + 1;
+  const meetingLocation = resolvedPage?.type === "meeting" ? resolvedPage.location?.trim() ?? "" : "";
+  const summaryUpdatedAt = formatSummaryUpdatedAt(resolvedPage?.summaryUpdatedAt ?? null,);
+
+  useEffect(() => {
+    if (!isEditingTitle) {
+      setDraftTitle(pageHeading,);
+    }
+  }, [isEditingTitle, pageHeading,],);
+
+  useEffect(() => {
+    if (!isEditingTitle) return;
+    titleInputRef.current?.focus();
+    titleInputRef.current?.select();
+  }, [isEditingTitle,],);
+
+  const cancelTitleEdit = useCallback(() => {
+    setDraftTitle(pageHeading,);
+    setTitleEditError(null,);
+    setIsEditingTitle(false,);
+  }, [pageHeading,],);
+
+  const saveTitleEdit = useCallback(async () => {
+    if (!resolvedPage || !canEditTitle || !onRenameTitle) return;
+
+    const nextTitle = sanitizePageTitle(draftTitle,);
+    setIsEditingTitle(false,);
+
+    if (!nextTitle) {
+      setDraftTitle(resolvedPage.title,);
+      return;
+    }
+
+    if (nextTitle === resolvedPage.title) {
+      setDraftTitle(nextTitle,);
+      setTitleEditError(null,);
+      return;
+    }
+
+    try {
+      setTitleEditError(null,);
+      const renamedPage = await onRenameTitle(resolvedPage, nextTitle,);
+      setDraftTitle(renamedPage?.title ?? nextTitle,);
+    } catch (error) {
+      setDraftTitle(resolvedPage.title,);
+      setTitleEditError(error instanceof Error ? error.message : "Could not rename page.",);
+    }
+  }, [canEditTitle, draftTitle, onRenameTitle, resolvedPage,],);
+
   if (!resolvedPage) {
     return (
       <div className="w-full max-w-3xl px-6 pt-6 pb-10">
@@ -1346,31 +1412,58 @@ function PageView({
     );
   }
 
-  const pageIsUrlSummary = isUrlSummaryPage(resolvedPage,);
-  const pageIsTypedGitHub = resolvedPage.linkKind === "github_pr"
-    || resolvedPage.linkKind === "github_issue"
-    || resolvedPage.linkKind === "github_commit";
-  const pageHeading = pageIsUrlSummary ? resolvedPage.linkTitle ?? resolvedPage.title : resolvedPage.title;
-  const meetingLocation = resolvedPage.type === "meeting" ? resolvedPage.location?.trim() ?? "" : "";
-  const summaryUpdatedAt = formatSummaryUpdatedAt(resolvedPage.summaryUpdatedAt,);
-
   return (
     <div className="w-full max-w-3xl">
       <div className="px-6 pt-6 pb-4">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-          <h1
-            className="text-2xl italic text-gray-900 dark:text-white"
-            style={{ fontFamily: '"Instrument Serif", serif', }}
-            onContextMenu={(event,) => {
-              showFinderContextMenu(
-                event,
-                `show-page-in-finder-${resolvedPage.title}`,
-                resolvedPage.path ? Promise.resolve(resolvedPage.path,) : getPagePath(resolvedPage.title,),
-              );
-            }}
-          >
-            {pageHeading}
-          </h1>
+          {isEditingTitle && canEditTitle
+            ? (
+              <input
+                ref={titleInputRef}
+                value={draftTitle}
+                onChange={(event,) => setDraftTitle(event.target.value,)}
+                onBlur={() => {
+                  void saveTitleEdit();
+                }}
+                onKeyDown={(event,) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    event.currentTarget.blur();
+                  }
+                  if (event.key === "Escape") {
+                    event.preventDefault();
+                    cancelTitleEdit();
+                  }
+                }}
+                className="min-w-0 bg-transparent p-0 text-2xl italic text-gray-900 dark:text-white focus:outline-hidden"
+                style={{
+                  fontFamily: '"Instrument Serif", serif',
+                  width: `${titleInputWidthCh}ch`,
+                  maxWidth: "100%",
+                }}
+              />
+            )
+            : (
+              <h1
+                className={`text-2xl italic text-gray-900 dark:text-white ${canEditTitle ? "cursor-text" : ""}`}
+                style={{ fontFamily: '"Instrument Serif", serif', }}
+                onClick={() => {
+                  if (!canEditTitle) return;
+                  setTitleEditError(null,);
+                  setDraftTitle(resolvedPage.title,);
+                  setIsEditingTitle(true,);
+                }}
+                onContextMenu={(event,) => {
+                  showFinderContextMenu(
+                    event,
+                    `show-page-in-finder-${resolvedPage.title}`,
+                    resolvedPage.path ? Promise.resolve(resolvedPage.path,) : getPagePath(resolvedPage.title,),
+                  );
+                }}
+              >
+                {pageHeading}
+              </h1>
+            )}
           {resolvedPage.type === "meeting" && (
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
               <span
@@ -1390,6 +1483,14 @@ function PageView({
             </div>
           )}
         </div>
+        {titleEditError && (
+          <p
+            className="mt-3 text-xs text-red-500"
+            style={{ fontFamily: "'IBM Plex Mono', monospace", }}
+          >
+            {titleEditError}
+          </p>
+        )}
         {resolvedPage.type === "meeting" && meetingRecordingError && (
           <p
             className="mt-3 text-xs text-red-500"
@@ -2870,6 +2971,47 @@ export default function AppLayout() {
     savePage(page,).catch(console.error,);
   }, [],);
 
+  const handlePageRename = useCallback(async (page: PageNote, nextTitle: string,) => {
+    const currentTitle = page.title;
+    suppressWatcherUntilRef.current = Date.now() + LOCAL_SAVE_WATCH_SUPPRESSION_MS;
+    const renamedPage = await renamePage(page, nextTitle,);
+
+    currentPageRef.current = renamedPage;
+    setActivePage(renamedPage,);
+    setPagesRevision((value,) => value + 1);
+    setViewState((current,) => ({
+      ...current,
+      history: current.history.map((view,) => (
+        view.kind === "page" && view.title === currentTitle
+          ? { kind: "page", title: renamedPage.title, }
+          : view
+      )),
+    }));
+    setMeetingSummaryTargetTitle((value,) => value === currentTitle ? renamedPage.title : value);
+    setLiveMeetingTranscript((value,) => (
+      value?.pageTitle === currentTitle
+        ? { ...value, pageTitle: renamedPage.title, }
+        : value
+    ));
+
+    if (activeMeetingSessionRef.current?.pageTitle === currentTitle) {
+      activeMeetingSessionRef.current = {
+        ...activeMeetingSessionRef.current,
+        pageTitle: renamedPage.title,
+      };
+    }
+
+    if (page.attachedTo && todayNoteRef.current?.date === page.attachedTo) {
+      const refreshedTodayNote = await loadDailyNote(page.attachedTo,);
+      if (refreshedTodayNote) {
+        todayNoteRef.current = refreshedTodayNote;
+        setTodayNote(refreshedTodayNote,);
+      }
+    }
+
+    return renamedPage;
+  }, [],);
+
   const handleTodayCityChange = useCallback((city: string | null,) => {
     const note = todayNoteRef.current;
     if (!note || note.city === city) return;
@@ -3453,6 +3595,7 @@ export default function AppLayout() {
                     onOpenPage={openPageView}
                     onAskAiPrompt={openAiComposerWithPrompt}
                     onSave={handlePageSave}
+                    onRenameTitle={handlePageRename}
                     onInteract={handleEditorInteract}
                     editorRef={pageEditorRef}
                     onPageChange={handleCurrentPageChange}

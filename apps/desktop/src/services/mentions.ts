@@ -389,7 +389,7 @@ function buildDatePickerSuggestion(): MentionSuggestion {
     id: "action_open_date_picker",
     label: "Select date",
     kind: "date",
-    group: "action",
+    group: "date",
     action: "open_date_picker",
   };
 }

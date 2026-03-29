@@ -1,5 +1,6 @@
 import { invoke, } from "@tauri-apps/api/core";
-import { exists, } from "@tauri-apps/plugin-fs";
+import { join, } from "@tauri-apps/api/path";
+import { exists, readDir, rename, } from "@tauri-apps/plugin-fs";
 import { EMPTY_DOC, json2md, md2json, parseJsonContent, } from "../lib/markdown";
 import {
   AttachedPage,
@@ -31,6 +32,7 @@ import {
   getNoteLinkTarget,
   getNotePath,
   getPagePath,
+  getPagesDir,
   isExplicitPageLinkTarget,
   parseDateFromNoteLinkTarget,
   parsePageTitleFromLinkTarget,
@@ -528,6 +530,129 @@ function buildPageFrontmatter(page: PageNote,): FrontmatterRecord {
   return frontmatter;
 }
 
+async function serializePageBody(page: PageNote,) {
+  const json = parseJsonContent(page.content,);
+  const indentation = await getMarkdownIndentation();
+  let body = unresolveMarkdownImages(json2md(json, { indentation, },),);
+  body = unresolveMarkdownAssetLinks(body,);
+  body = convertAtMentionsToWikiLinks(body, page.attachedTo ?? getToday(),);
+  body = await rewriteDateMentionLinksToNoteLinks(body,);
+  return rewriteMarkdownPageLinksToCanonicalWikiLinks(body,);
+}
+
+function rewritePageLinksInMarkdown(markdown: string, currentTitle: string, nextTitle: string,) {
+  const normalizedCurrentTitle = sanitizePageTitle(currentTitle,);
+  const normalizedNextTitle = sanitizePageTitle(nextTitle,);
+  if (
+    !normalizedCurrentTitle
+    || !normalizedNextTitle
+    || normalizedCurrentTitle === normalizedNextTitle
+  ) {
+    return markdown;
+  }
+
+  return mapMarkdownOutsideCode(
+    markdown,
+    (part,) => {
+      const withWikiLinks = part.replace(
+        WIKI_LINK_RE,
+        (full, target: string, label: string | undefined, offset: number, source: string,) => {
+          if (offset > 0 && source[offset - 1] === "!") return full;
+          if (target.includes("(due date)",)) return full;
+
+          const linkedTitle = parsePageTitleFromLinkTarget(target,);
+          if (linkedTitle !== normalizedCurrentTitle) return full;
+
+          const nextTarget = buildPageLinkTarget(normalizedNextTitle,);
+          const trimmedLabel = label?.trim();
+          return trimmedLabel && trimmedLabel !== normalizedCurrentTitle
+            ? `[[${nextTarget}|${trimmedLabel}]]`
+            : `[[${nextTarget}]]`;
+        },
+      );
+
+      return withWikiLinks.replace(
+        MARKDOWN_LINK_RE,
+        (full, label: string, target: string, titleAttr: string | undefined, offset: number, source: string,) => {
+          if (offset > 0 && source[offset - 1] === "!") return full;
+
+          const linkedTitle = parsePageTitleFromLinkTarget(target,);
+          if (linkedTitle !== normalizedCurrentTitle) return full;
+
+          const trimmedLabel = label.trim();
+          const nextLabel = !trimmedLabel || trimmedLabel === normalizedCurrentTitle
+            ? normalizedNextTitle
+            : label;
+          const nextTarget = buildPageMarkdownHref(normalizedNextTitle,);
+          return titleAttr ? `[${nextLabel}](${nextTarget} "${titleAttr}")` : `[${nextLabel}](${nextTarget})`;
+        },
+      );
+    },
+  );
+}
+
+async function listMarkdownFiles(rootDir: string,): Promise<string[]> {
+  const entries = await readDir(rootDir,);
+  const files: string[] = [];
+
+  for (const entry of entries) {
+    if (!entry.name) continue;
+
+    const path = await join(rootDir, entry.name,);
+    if (entry.isDirectory) {
+      files.push(...await listMarkdownFiles(path,),);
+      continue;
+    }
+
+    if (entry.isFile && entry.name.toLowerCase().endsWith(".md",)) {
+      files.push(path,);
+    }
+  }
+
+  return files;
+}
+
+function normalizeComparablePath(path: string,) {
+  return path.replace(/\\/g, "/",).toLowerCase();
+}
+
+async function rewritePageLinksInFiles(
+  currentTitle: string,
+  nextTitle: string,
+  ignoredPaths: Set<string>,
+) {
+  if (sanitizePageTitle(currentTitle,) === sanitizePageTitle(nextTitle,)) {
+    return;
+  }
+
+  const roots = new Set<string>([await getJournalDir(), await getPagesDir(),],);
+  const candidatePaths = new Set<string>();
+
+  for (const root of roots) {
+    for (const path of await listMarkdownFiles(root,)) {
+      candidatePaths.add(path,);
+    }
+  }
+
+  for (const path of candidatePaths) {
+    if (ignoredPaths.has(normalizeComparablePath(path,),)) {
+      continue;
+    }
+
+    const raw = await invoke<string | null>("read_markdown_file", { path, },);
+    if (!raw) continue;
+
+    const { frontmatter, body, } = parseMarkdownFrontmatter(raw,);
+    const nextBody = rewritePageLinksInMarkdown(body, currentTitle, nextTitle,);
+    if (nextBody === body) continue;
+
+    await invoke("write_markdown_file", {
+      path,
+      content: buildMarkdownFrontmatter(frontmatter, nextBody,),
+    },);
+  }
+}
+
 function extractLinkedPageTitles(markdown: string,): string[] {
   const titles = new Set<string>();
 
@@ -666,17 +791,64 @@ export async function loadPageByPath(path: string,): Promise<PageNote | null> {
 
 export async function savePage(page: PageNote,): Promise<void> {
   const filepath = page.path || await getPagePath(page.title,);
-  const json = parseJsonContent(page.content,);
-  const indentation = await getMarkdownIndentation();
-  let body = unresolveMarkdownImages(json2md(json, { indentation, },),);
-  body = unresolveMarkdownAssetLinks(body,);
-  body = convertAtMentionsToWikiLinks(body, page.attachedTo ?? getToday(),);
-  body = await rewriteDateMentionLinksToNoteLinks(body,);
-  body = rewriteMarkdownPageLinksToCanonicalWikiLinks(body,);
   await invoke("write_markdown_file", {
     path: filepath,
-    content: buildMarkdownFrontmatter(buildPageFrontmatter(page,), body,),
+    content: buildMarkdownFrontmatter(buildPageFrontmatter(page,), await serializePageBody(page,),),
   },);
+}
+
+export async function renamePage(page: PageNote, nextTitle: string,): Promise<PageNote> {
+  const currentTitle = sanitizePageTitle(page.title,);
+  const normalizedNextTitle = sanitizePageTitle(nextTitle,);
+  if (!normalizedNextTitle) {
+    throw new Error("Page title is required.",);
+  }
+
+  if (normalizedNextTitle === currentTitle) {
+    return page;
+  }
+
+  const currentPath = page.path || await getPagePath(currentTitle,);
+  const nextPath = await getPagePath(normalizedNextTitle,);
+  const isCaseOnlyRename = currentTitle.toLowerCase() === normalizedNextTitle.toLowerCase();
+
+  if (currentPath !== nextPath && !isCaseOnlyRename && await exists(nextPath,)) {
+    throw new Error("A page with this title already exists.",);
+  }
+
+  if (currentPath !== nextPath && await exists(currentPath,)) {
+    await rename(currentPath, nextPath,);
+  }
+
+  const nextPage = {
+    ...page,
+    title: normalizedNextTitle,
+    path: nextPath,
+  };
+
+  await invoke("write_markdown_file", {
+    path: nextPath,
+    content: buildMarkdownFrontmatter(
+      buildPageFrontmatter(nextPage,),
+      rewritePageLinksInMarkdown(await serializePageBody(nextPage,), currentTitle, normalizedNextTitle,),
+    ),
+  },);
+
+  await rewritePageLinksInFiles(
+    currentTitle,
+    normalizedNextTitle,
+    new Set([
+      normalizeComparablePath(currentPath,),
+      normalizeComparablePath(nextPath,),
+    ],),
+  );
+
+  const reloaded = await loadPage(normalizedNextTitle,);
+  if (!reloaded) {
+    throw new Error("Could not load renamed page.",);
+  }
+
+  return reloaded;
 }
 
 export async function createAttachedPage({
