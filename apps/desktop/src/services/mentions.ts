@@ -67,6 +67,7 @@ export interface MentionChipData {
 
 export interface MentionSuggestion extends MentionChipData {
   group: MentionGroup;
+  detail?: string;
   action?: "open_date_picker" | "show_more_pages";
 }
 
@@ -131,6 +132,17 @@ function formatDisplayDate(date: string,): string {
   return fromIsoDate(date,).toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
+  },);
+}
+
+function formatSuggestionDateDetail(date: string,): string {
+  const target = fromIsoDate(date,);
+  const currentYear = fromIsoDate(getToday(),).getFullYear();
+  return target.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    ...(target.getFullYear() !== currentYear ? { year: "numeric" as const, } : {}),
   },);
 }
 
@@ -363,6 +375,7 @@ function buildDateSuggestion(date: string, label: string,): MentionSuggestion {
   return {
     id: buildDateId(date,),
     label,
+    detail: formatSuggestionDateDetail(date,),
     kind: "date",
     group: "date",
   };

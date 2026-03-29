@@ -519,9 +519,29 @@
   flex-shrink: 0;
 }
 
+.mention-menu-copy {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
 .mention-menu-label {
   font-size: 0.92rem;
   font-weight: 500;
+  line-height: 1.2;
+}
+
+.mention-menu-detail {
+  color: #6b7280;
+  font-size: 0.74rem;
+  line-height: 1.2;
+}
+
+.mention-menu-item.is-selected .mention-menu-detail {
+  color: #1d4ed8;
+  opacity: 0.78;
 }
 
 .mention-date-picker {

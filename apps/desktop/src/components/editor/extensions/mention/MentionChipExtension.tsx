@@ -194,7 +194,10 @@ function MentionMenuBody(
                   type="button"
                 >
                   <Icon className="mention-menu-icon" size={14} />
-                  <span className="mention-menu-label">{item.label}</span>
+                  <span className="mention-menu-copy">
+                    <span className="mention-menu-label">{item.label}</span>
+                    {item.detail && <span className="mention-menu-detail">{item.detail}</span>}
+                  </span>
                 </button>
               </div>
             );
