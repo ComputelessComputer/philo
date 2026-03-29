@@ -518,6 +518,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
     onCreatePageRef.current = onCreatePage;
 
     const selfUpdateRef = useRef(false,);
+    const lastIncomingContentRef = useRef<string | null>(null,);
     const meetingDecorationKey = getMeetingDecorationKey(note, transcriptReadOnly, transcriptHidden,);
     const [editingDateChip, setEditingDateChip,] = useState<EditableDateChipState | null>(null,);
     const dateChipPopoverRef = useRef<HTMLDivElement | null>(null,);
@@ -984,15 +985,24 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
 
     useEffect(() => {
       if (!editor || editor.isDestroyed) return;
+      const incoming = getEditorNoteContent(note, transcriptReadOnly, transcriptHidden,);
+      const serializedIncoming = JSON.stringify(incoming,);
+
       if (selfUpdateRef.current) {
         selfUpdateRef.current = false;
+        lastIncomingContentRef.current = serializedIncoming;
         return;
       }
 
-      const incoming = getEditorNoteContent(note, transcriptReadOnly, transcriptHidden,);
-      if (JSON.stringify(editor.getJSON(),) === JSON.stringify(incoming,)) {
+      if (lastIncomingContentRef.current === serializedIncoming) {
         return;
       }
+
+      if (JSON.stringify(editor.getJSON(),) === serializedIncoming) {
+        lastIncomingContentRef.current = serializedIncoming;
+        return;
+      }
+
       const previousSelection = editor.state.selection;
       editor
         .chain()
@@ -1008,6 +1018,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
           return true;
         },)
         .run();
+      lastIncomingContentRef.current = serializedIncoming;
     }, [meetingDecorationKey, note.content, transcriptHidden, transcriptReadOnly,],);
 
     useEffect(() => {
