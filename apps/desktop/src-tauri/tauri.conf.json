@@ -29,7 +29,8 @@
           "$HOME/Library/Application Support/com.philo.dev/journal/assets/**"
         ]
       }
-    }
+    },
+    "macOSPrivateApi": true
   },
   "bundle": {
     "active": true,
