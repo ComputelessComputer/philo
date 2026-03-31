@@ -224,9 +224,9 @@ export const CustomTaskItem = TaskItem.extend({
 
       listItem.dataset.checked = String(node.attrs.checked,);
       label.contentEditable = "false";
-      label.appendChild(toggle,);
       label.appendChild(checkbox,);
       label.appendChild(checkboxStyler,);
+      listItem.appendChild(toggle,);
       listItem.appendChild(label,);
       listItem.appendChild(content,);
 
