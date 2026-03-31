@@ -6,28 +6,28 @@ import { buildHomeSchemas, siteConfig, withSiteName, } from "../lib/site";
 
 const capabilities = [
   {
-    title: "Daily notes in one timeline",
-    description: "Review older notes in a continuous feed instead of bouncing through tabs and old files.",
+    title: "Focused just on daily notes",
+    description: "Philo stays intentionally narrow: today, nearby days, and the work attached to them instead of a sprawling knowledge base.",
     visual: "timeline",
   },
   {
-    title: "Unfinished tasks roll forward",
-    description: "If a task is still open when the date changes, Philo brings it into today automatically.",
+    title: "Open work rolls forward",
+    description: "If a task is still open when the date changes, Philo carries it into today automatically so the thread of work stays intact.",
     visual: "rollover",
   },
   {
-    title: "Recurring work comes back on its own",
-    description: "Daily and scheduled tasks can return automatically, so you do not have to rebuild the same plan every morning.",
+    title: "Recurring routines stay lightweight",
+    description: "Daily and scheduled tasks can return automatically, so you do not have to rebuild the same note structure every morning.",
     visual: "recurring",
   },
   {
-    title: "Markdown, not lock-in",
-    description: "Keep your journal as plain markdown on disk and keep using tools like Obsidian or Logseq if you want.",
+    title: "Markdown stays the source",
+    description: "Keep your daily notes as plain markdown on disk and keep using tools like Obsidian or Logseq if that still fits your setup.",
     visual: "markdown",
   },
   {
-    title: "Free and open source",
-    description: "Philo is meant to augment your vault, not turn your daily notes into another subscription silo.",
+    title: "A stepping stone into fastrepl/char",
+    description: "Philo is an open experiment, not the final destination. The plan is to bring this daily-notes context model natively into fastrepl/char.",
     visual: "open-source",
   },
 ];
@@ -42,8 +42,7 @@ const sectionCards = Object.entries(contentSections,)
   }));
 
 const heroMetaTitle = withSiteName(siteConfig.defaultTitle,);
-const heroMetaDescription =
-  "Build widgets directly inside your notes — your notetaking app is your IDE.";
+const heroMetaDescription = siteConfig.defaultDescription;
 ---
 
 <SiteLayout title={heroMetaTitle} description={heroMetaDescription} path="/" schema={buildHomeSchemas()}>
@@ -51,8 +50,11 @@ const heroMetaDescription =
       <main class="shell">
         <section class="hero enter" style="--delay: 70ms;">
           <div class="hero-copy">
-            <h1>Philo: Vibe <del>coding</del> notetaking <span class="hero-beta">[beta]</span></h1>
+            <h1>Philo is an experimental daily notes app <span class="hero-beta">[poc]</span></h1>
             <p class="lede">{heroMetaDescription}</p>
+            <p class="item-copy hero-detail">
+              It exists to test a tighter daily-notes workflow in the open before these ideas are integrated natively into fastrepl/char to augment personal context.
+            </p>
             <div class="download-split" data-download>
               <a class="download-button" data-download-primary href="https://github.com/ComputelessComputer/philo/releases/latest">
                 <span class="platform-icon-set" aria-hidden="true">
@@ -108,7 +110,7 @@ const heroMetaDescription =
         </section>
 
         <section class="panel enter" style="--delay: 140ms;">
-          <h2>Why Philo exists</h2>
+          <h2>What this experiment is testing</h2>
           <ul class="detail-list">
             {
               capabilities.map((item,) => (
@@ -268,10 +270,11 @@ const heroMetaDescription =
         </section>
 
         <section class="panel enter" style="--delay: 420ms;">
-          <h2>Built to sit beside your vault, not replace it</h2>
+          <h2>Eventually this should disappear into fastrepl/char</h2>
           <p class="item-copy">
-            Philo is open source and free forever. Your notes stay as markdown files on disk, and
-            the app is meant to make daily notes lighter, not trap them in a new format or workflow.
+            Philo is a public proof of concept, not a forever-standalone notes app. Your notes stay
+            as markdown files on disk, and the long-term direction is native fastrepl/char
+            integration that carries forward your day-to-day context without adding another silo.
           </p>
         </section>
 
@@ -423,6 +426,10 @@ const heroMetaDescription =
     line-height: 1.72;
     color: #3f3f3d;
     text-wrap: pretty;
+  }
+
+  .hero-detail {
+    max-width: 64ch;
   }
 
   .download-split {

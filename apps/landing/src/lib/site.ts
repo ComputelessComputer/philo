@@ -1,8 +1,9 @@
 export const siteConfig = {
   name: "Philo",
   siteUrl: "https://philo.so",
-  defaultTitle: "Philo: The IDE for your daily notes",
-  defaultDescription: "Build widgets directly inside your notes and keep daily planning in one calmer loop.",
+  defaultTitle: "Philo: Experimental daily notes for personal context",
+  defaultDescription:
+    "Philo is an experimental proof of concept focused on daily notes and shaping native personal context inside fastrepl/char.",
   defaultImagePath: "/philo-hero-screenshot.svg",
   email: "john@hyprnote.com",
   repoUrl: "https://github.com/ComputelessComputer/philo",
