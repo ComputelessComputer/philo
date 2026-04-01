@@ -64,46 +64,13 @@ Philo is built to make daily notes lighter, not turn them into another subscript
 - `⌘P` open the widget library
 - `⌘,` open settings
 
-## Links
+## Try Philo
 
 - Website: [philo.so](https://philo.so)
 - Blog: [Notes from the team](https://philo.so/blog)
+- Download: [Latest release](https://github.com/ComputelessComputer/philo/releases/latest)
 - Releases: [GitHub releases](https://github.com/ComputelessComputer/philo/releases)
 - Source: [GitHub repository](https://github.com/ComputelessComputer/philo)
-
-## Stack
-
-Tauri v2, React 19, TypeScript, TipTap, Tailwind CSS v4, and Rust.
-
-## Google Account Setup
-
-Philo's `Settings -> Google Account` flow uses Philo's bundled desktop OAuth client. End users only need to click `Continue with Google` in settings and complete consent in their browser.
-
-If you are maintaining Philo's Google Cloud project, make sure:
-
-1. The Gmail API and Google Calendar API are enabled.
-2. The OAuth consent screen is configured in `Google Auth platform`.
-3. The bundled desktop OAuth client remains active on the project.
-4. `GOOGLE_OAUTH_CLIENT_SECRET` is available in local build envs and GitHub Actions secrets if that client requires a secret during token exchange.
-
-For local desktop development, put `GOOGLE_OAUTH_CLIENT_SECRET=...` in the repo root `.env` or export it in your shell before starting `pnpm dev`. If you want to override the bundled client ID locally, `GOOGLE_OAUTH_CLIENT_ID=...` is also accepted. The desktop Tauri launcher reads those values and passes them through to Rust and Vite before startup.
-
-Philo currently requests:
-
-- `openid`, `email`, and `profile`
-- `https://www.googleapis.com/auth/calendar.events.readonly`
-- `https://www.googleapis.com/auth/gmail.readonly`
-
-Philo can connect multiple Google accounts. Account metadata is stored in `settings.json`, while access and refresh tokens stay in the OS credential store.
-
-If your OAuth consent screen is still in testing and your audience is external, add your Google account as a test user before signing in. Gmail read-only is a restricted scope, so a public rollout may require Google verification.
-
-## Internal docs
-
-- [Data storage and configuration](docs/data-storage-and-configuration.md)
-- [Markdown sync and editor rendering](docs/markdown-sync.md)
-- [File and folder organization](docs/repo-structure.md)
-- [Widget persistence and lifecycle](docs/widget-persistence-and-lifecycle.md)
 
 ## License
 
