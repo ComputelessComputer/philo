@@ -81,6 +81,11 @@ const jsonLd = Array.isArray(schema,) ? schema : [schema,];
   </head>
   <body>
     <div class="site-ambient"></div>
+    <div class="site-banner">
+      <p>
+        Philo is being integrated into <a href="https://char.com">Char</a> as a feature.
+      </p>
+    </div>
     <slot />
   </body>
 </html>
@@ -132,5 +137,45 @@ const jsonLd = Array.isArray(schema,) ? schema : [schema,];
       radial-gradient(circle at 5% 8%, #ffffff 0%, transparent 32%),
       radial-gradient(circle at 92% 92%, #e8ebff 0%, transparent 38%);
     opacity: 0.8;
+  }
+
+  .site-banner {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    padding: 16px 20px 0;
+  }
+
+  .site-banner p {
+    margin: 0 auto;
+    max-width: 1160px;
+    border: 1px solid rgba(95, 112, 216, 0.22);
+    border-radius: 999px;
+    padding: 11px 18px;
+    background: rgba(248, 248, 246, 0.92);
+    box-shadow: 0 14px 34px rgba(37, 37, 37, 0.08);
+    color: var(--muted);
+    font-size: var(--fs-sm);
+    letter-spacing: 0.02em;
+    text-align: center;
+    backdrop-filter: blur(12px);
+  }
+
+  .site-banner a {
+    color: var(--text);
+    text-decoration: underline;
+    text-underline-offset: 0.22em;
+  }
+
+  @media (max-width: 720px) {
+    .site-banner {
+      padding: 12px 12px 0;
+    }
+
+    .site-banner p {
+      border-radius: 18px;
+      padding: 12px 14px;
+      line-height: 1.5;
+    }
   }
 </style>
