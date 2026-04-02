@@ -1,0 +1,17 @@
+{
+  "expo": {
+    "name": "Philo",
+    "slug": "philo-mobile",
+    "scheme": "philo-mobile",
+    "version": "0.0.1",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.johnjeong.philo.mobile"
+    }
+  }
+}

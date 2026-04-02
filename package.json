@@ -6,13 +6,18 @@
   "type": "module",
   "packageManager": "pnpm@10.30.3",
   "workspaces": [
-    "apps/*"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
     "dev": "pnpm --filter @philo/desktop dev",
+    "dev:mobile": "pnpm --filter @philo/mobile start",
+    "dev:mobile:ios": "pnpm --filter @philo/mobile ios",
+    "dev:web-editor-host": "pnpm --filter @philo/web-editor-host dev",
     "build": "pnpm --filter @philo/desktop build",
+    "build:web-editor-host": "pnpm --filter @philo/web-editor-host build",
     "preview": "pnpm --filter @philo/desktop preview",
-    "typecheck": "turbo run typecheck --force --filter=@philo/desktop --filter=@philo/landing",
+    "typecheck": "turbo run typecheck --force --filter=!philo-workspace",
     "content-engine:discover": "node scripts/content-engine/discover.mjs",
     "content-engine:prioritize": "node scripts/content-engine/prioritize.mjs",
     "content-engine:draft": "node scripts/content-engine/draft.mjs",
