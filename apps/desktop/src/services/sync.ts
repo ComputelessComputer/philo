@@ -118,11 +118,12 @@ function joinSyncPath(prefix: string, suffix: string,) {
   return normalizeSyncPath(suffix ? `${prefix}/${suffix}` : prefix,);
 }
 
-function getBlobObjectKey(path: string, contentHash: string,) {
+function getBlobObjectKey(userId: string, path: string, contentHash: string,) {
   const normalized = normalizeSyncPath(path,);
   const safePath = normalized.replace(/[^a-zA-Z0-9._/-]+/g, "-",);
   const safeHash = contentHash.replace(/[^a-zA-Z0-9._-]+/g, "-",);
-  return `${safeHash}/${safePath}`;
+  const safeUserId = userId.replace(/[^a-zA-Z0-9._-]+/g, "-",);
+  return `${safeUserId}/${safeHash}/${safePath}`;
 }
 
 function getSyncStatusSnapshot(settings: Settings, errorMessage?: string | null,): SyncStatusSnapshot {
@@ -417,7 +418,7 @@ async function uploadRemoteDocument(
   let blobKey: string | null = null;
 
   if (snapshot.storageType === "blob" && snapshot.bytes) {
-    blobKey = getBlobObjectKey(snapshot.path, snapshot.contentHash,);
+    blobKey = getBlobObjectKey(userId, snapshot.path, snapshot.contentHash,);
     const { error: uploadError, } = await client.storage.from(SYNC_BUCKET,).upload(blobKey, snapshot.bytes, {
       cacheControl: "3600",
       contentType: undefined,

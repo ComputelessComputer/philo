@@ -1,9 +1,12 @@
 # File And Folder Organization
 
-This repo is a small pnpm workspace with two app targets:
+This repo is a small pnpm workspace with three app targets plus shared packages:
 
 - `apps/desktop` is the actual Philo desktop app.
+- `apps/mobile` is the Expo iPhone shell.
 - `apps/landing` is the marketing site.
+- `packages/core` holds shared sync and bridge contracts.
+- `packages/web-editor-host` is the standalone browser host used by the mobile WebView flow.
 
 If you are making product changes, most of the time you will be working inside `apps/desktop`.
 
@@ -27,11 +30,17 @@ If you are making product changes, most of the time you will be working inside `
 - `apps/`
   - Workspace packages.
   - `desktop` is the Tauri app.
+  - `mobile` is the Expo app.
   - `landing` is the Astro site.
+- `packages/`
+  - Shared packages reused across app targets.
+  - `core` contains sync and WebView bridge types/helpers.
+  - `web-editor-host` contains the standalone editor host loaded by mobile.
 - `docs/`
   - Internal documentation like architecture notes.
   - Notable references include:
     - `data-storage-and-configuration.md`
+    - `mobile-sync.md`
     - `markdown-sync.md`
     - `widget-persistence-and-lifecycle.md`
 - `scripts/`
@@ -57,6 +66,43 @@ apps/desktop/
 ├── vite.config.ts
 └── package.json
 ```
+
+## Mobile App Layout
+
+`apps/mobile` is the Expo shell used for iPhone development.
+
+```text
+apps/mobile/
+├── src/
+├── App.tsx
+├── app.json
+├── index.ts
+└── package.json
+```
+
+Important pieces:
+
+- `App.tsx`
+  - Native shell with Today, Search, and Settings surfaces.
+- `src/services/sync.ts`
+  - Mobile mirrored-cache persistence, Supabase auth/session handling, and sync pull/push logic.
+- `src/components/EditorWebView.tsx`
+  - Native bridge that renders the shared browser host inside `react-native-webview`.
+- `src/hooks/useMountEffect.ts`
+  - Mount-only React escape hatch used for linking and app-state listeners.
+
+## Shared Packages
+
+```text
+packages/
+├── core/
+└── web-editor-host/
+```
+
+- `packages/core`
+  - Shared sync kinds, conflict helpers, and editor-host bridge message parsing.
+- `packages/web-editor-host`
+  - Standalone browser editor shell used by the mobile WebView path and local Vite development.
 
 ## `apps/desktop/src`
 

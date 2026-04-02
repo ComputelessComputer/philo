@@ -56,6 +56,13 @@ The shape comes from `apps/desktop/src/services/settings.ts`:
   "excalidrawFolder": "",
   "assetsFolder": "",
   "widgetGitHistoryEnabled": true,
+  "syncEnabled": false,
+  "syncEmail": "",
+  "syncAccessToken": "",
+  "syncRefreshToken": "",
+  "syncDeviceId": "",
+  "syncLastSyncedAt": "",
+  "syncError": "",
   "hasCompletedOnboarding": false
 }
 ```
@@ -105,6 +112,20 @@ What each field means:
 - `widgetGitHistoryEnabled`
   - Enables the app-managed Git mirror used for widget snapshot history.
   - Default: `true`.
+- `syncEnabled`
+  - Controls whether desktop local-cloud sync is allowed to run.
+- `syncEmail`
+  - Email address used for Supabase magic-link sign-in.
+- `syncAccessToken`
+  - Cached Supabase access token for the current desktop sync session.
+- `syncRefreshToken`
+  - Cached Supabase refresh token for the current desktop sync session.
+- `syncDeviceId`
+  - Stable device identifier attached to sync writes and conflict copies.
+- `syncLastSyncedAt`
+  - Timestamp of the last completed desktop sync pass.
+- `syncError`
+  - Last sync error surfaced in settings.
 - `hasCompletedOnboarding`
   - Used to decide whether first-run setup should appear.
 
@@ -158,6 +179,44 @@ If a vault is configured:
 - chat history lives under `<vaultDir>/chats/`
 
 Settings still remain in `<baseDir>/settings.json` even when content is stored in the vault.
+
+## Desktop Sync State
+
+Desktop sync keeps one more app-owned file beside `settings.json`:
+
+```text
+<baseDir>/sync-state.json
+```
+
+That file tracks the last mirrored revision and content hash for every synced path so the desktop app can detect pulls, pushes, deletions, and conflicts without changing the local markdown file model.
+
+Desktop sync uses these environment variables:
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+The Supabase table and storage bucket are described in [mobile-sync.md](mobile-sync.md).
+
+## Mobile Sync Cache
+
+The Expo app keeps its own mirrored sandbox under the iPhone app documents directory:
+
+```text
+<documentDirectory>/philo-sync/
+├── manifest.json
+└── documents/
+```
+
+On mobile:
+
+- sync settings live in `AsyncStorage`
+- Supabase session tokens live in `SecureStore`
+- mirrored markdown and blobs live under `philo-sync/documents/`
+
+The mobile app reads:
+
+- `EXPO_PUBLIC_SUPABASE_URL`
+- `EXPO_PUBLIC_SUPABASE_ANON_KEY`
 
 ## Daily Notes
 
