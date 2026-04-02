@@ -3772,7 +3772,13 @@ pub fn run() {
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
-            app.deep_link().on_open_url(move |_| {
+            app.deep_link().on_open_url(move |event| {
+                let payload: Vec<String> = event
+                    .urls()
+                    .into_iter()
+                    .map(|url| url.to_string())
+                    .collect();
+                let _ = app_handle.emit("philo:deep-link-opened", payload);
                 focus_main_window(&app_handle);
             });
 

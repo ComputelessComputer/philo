@@ -18,6 +18,7 @@ import {
   useState,
 } from "react";
 import { useCurrentDate, } from "../../hooks/useCurrentDate";
+import { useMountEffect, } from "../../hooks/useMountEffect";
 import { showNativeContextMenu, } from "../../hooks/useNativeContextMenu";
 import { useCurrentCity, } from "../../hooks/useTimezoneCity";
 import { EMPTY_DOC, parseJsonContent, } from "../../lib/markdown";
@@ -85,6 +86,7 @@ import {
   saveDailyNote,
   savePage,
 } from "../../services/storage";
+import { consumeDesktopSyncAuthCallback, scheduleDesktopSync, SYNC_DEEP_LINK_EVENT, } from "../../services/sync";
 import { rolloverTasks, } from "../../services/tasks";
 import {
   checkForUpdate,
@@ -1892,6 +1894,7 @@ export default function AppLayout() {
     todayNoteRef.current = updated;
     setTodayNote(updated,);
     saveDailyNote(updated,).catch(console.error,);
+    scheduleDesktopSync();
   }, [],);
 
   const attachMeetingPageToTodayNote = useCallback((title: string,) => {
@@ -1925,6 +1928,7 @@ export default function AppLayout() {
     currentPageRef.current = page;
     setActivePage(page,);
     await savePage(page,);
+    scheduleDesktopSync();
     return page;
   }, [],);
 
@@ -1978,6 +1982,7 @@ export default function AppLayout() {
     };
 
     await savePage(page,);
+    scheduleDesktopSync();
     return page;
   }, [today,],);
 
@@ -2849,6 +2854,28 @@ export default function AppLayout() {
     invoke("set_window_opacity", { opacity: targetOpacity, },).catch(console.error,);
   }, [isPinned, isWindowFocused,],);
 
+  useMountEffect(() => {
+    let unlisten: UnlistenFn | null = null;
+
+    void listen<string[]>(SYNC_DEEP_LINK_EVENT, (event,) => {
+      const urls = Array.isArray(event.payload,) ? event.payload : [];
+      urls.forEach((url,) => {
+        if (!url.startsWith("philo://sync-auth",)) return;
+        void consumeDesktopSyncAuthCallback(url,)
+          .then(() => {
+            scheduleDesktopSync(0,);
+          },)
+          .catch(console.error,);
+      },);
+    },).then((dispose,) => {
+      unlisten = dispose;
+    },).catch(console.error,);
+
+    return () => {
+      void unlisten?.();
+    };
+  },);
+
   // Re-read today's note from disk when the window regains focus (handles external edits)
   useEffect(() => {
     if (!isConfigured) return;
@@ -2856,6 +2883,7 @@ export default function AppLayout() {
       runGoogleSync().finally(() => {
         syncTodayNoteFromDisk();
         setPagesRevision((value,) => value + 1);
+        scheduleDesktopSync(0,);
       },);
     };
     window.addEventListener("focus", handleFocus,);
@@ -2870,6 +2898,7 @@ export default function AppLayout() {
       await runGoogleSync();
       const note = await getOrCreateDailyNote(today,);
       setTodayNote(note,);
+      scheduleDesktopSync(0,);
     }
     load().catch(console.error,);
   }, [isConfigured, pagesRevision, runGoogleSync, storageRevision, today,],);
@@ -2881,6 +2910,7 @@ export default function AppLayout() {
         if (changed) {
           syncTodayNoteFromDisk();
         }
+        scheduleDesktopSync(0,);
       },).catch(console.error,);
     }, 5 * 60 * 1000,);
     return () => window.clearInterval(id,);
@@ -2908,6 +2938,7 @@ export default function AppLayout() {
     todayNoteRef.current = updated;
     setTodayNote(updated,);
     saveDailyNote(updated,).catch(console.error,);
+    scheduleDesktopSync();
   }, [currentCity, todayNote,],);
 
   // Watch the journal directory for external changes
@@ -2922,6 +2953,7 @@ export default function AppLayout() {
           if (!event.paths.some((path,) => path.endsWith(".md",))) return;
           if (Date.now() < suppressWatcherUntilRef.current) return;
           syncTodayNoteFromDisk();
+          scheduleDesktopSync();
         },
         { recursive: true, },
       );
@@ -2944,6 +2976,7 @@ export default function AppLayout() {
           if (Date.now() < suppressWatcherUntilRef.current) return;
           if (!event.paths.some((path,) => path.startsWith(pagesDir,) && path.endsWith(".md",))) return;
           setPagesRevision((value,) => value + 1);
+          scheduleDesktopSync();
         },
         { recursive: true, },
       );
@@ -2960,6 +2993,7 @@ export default function AppLayout() {
       suppressWatcherUntilRef.current = Date.now() + LOCAL_SAVE_WATCH_SUPPRESSION_MS;
       setTodayNote(note,);
       saveDailyNote(note,).catch(console.error,);
+      scheduleDesktopSync();
     },
     [],
   );
@@ -2969,6 +3003,7 @@ export default function AppLayout() {
     currentPageRef.current = page;
     setActivePage(page,);
     savePage(page,).catch(console.error,);
+    scheduleDesktopSync();
   }, [],);
 
   const handlePageRename = useCallback(async (page: PageNote, nextTitle: string,) => {
@@ -3009,6 +3044,7 @@ export default function AppLayout() {
       }
     }
 
+    scheduleDesktopSync();
     return renamedPage;
   }, [],);
 

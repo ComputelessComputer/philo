@@ -30,6 +30,15 @@ import {
   STT_PROVIDERS,
   type SttProvider,
 } from "../../services/settings";
+import {
+  clearDesktopSyncSession,
+  describeSyncSession,
+  formatSyncError,
+  formatSyncTimestamp,
+  getDesktopSyncCapability,
+  requestDesktopSyncMagicLink,
+  syncDesktopNow,
+} from "../../services/sync";
 import { getToday, } from "../../types/note";
 import { VaultPathMarquee, } from "../shared/VaultPathMarquee";
 import { SpokenLanguagesField, } from "./SpokenLanguagesField";
@@ -440,6 +449,8 @@ export function SettingsModal({ open, initialTab = "ai", onClose, }: SettingsMod
   const [googleError, setGoogleError,] = useState("",);
   const [googleSessionAccounts, setGoogleSessionAccounts,] = useState<null | string[]>(null,);
   const [isObsidianVault, setIsObsidianVault,] = useState(false,);
+  const [syncAction, setSyncAction,] = useState<null | "sending_link" | "syncing" | "disconnecting">(null,);
+  const [syncNotice, setSyncNotice,] = useState("",);
   const inputRef = useRef<HTMLInputElement>(null,);
   const modalRef = useRef<HTMLDivElement>(null,);
   const filenamePatternSectionRef = useRef<HTMLDivElement>(null,);
@@ -464,6 +475,8 @@ export function SettingsModal({ open, initialTab = "ai", onClose, }: SettingsMod
         setGoogleAction(null,);
         setGoogleError("",);
         setGoogleSessionAccounts(null,);
+        setSyncAction(null,);
+        setSyncNotice("",);
       },);
       // Resolve the default journal dir for display
       getJournalDir().then(setDefaultJournalDir,);
@@ -964,6 +977,60 @@ export function SettingsModal({ open, initialTab = "ai", onClose, }: SettingsMod
   const activeProviderDescription = providerSettingsTab === "ai"
     ? "Choose the provider for summaries and chat."
     : "Choose the speech-to-text provider for recording.";
+  const syncCapability = getDesktopSyncCapability(settings,);
+
+  const refreshSettingsDraft = async () => {
+    const nextSettings = await loadSettings();
+    settingsRef.current = nextSettings;
+    lastSavedSettingsRef.current = nextSettings;
+    setSettings(nextSettings,);
+  };
+
+  const handleSendSyncMagicLink = async () => {
+    const nextEmail = settings.syncEmail.trim();
+    if (!nextEmail) {
+      setSyncNotice("Enter the email address you want to use for sync first.",);
+      return;
+    }
+
+    setSyncAction("sending_link",);
+    setSyncNotice("",);
+    try {
+      await requestDesktopSyncMagicLink(nextEmail,);
+      await refreshSettingsDraft();
+      setSyncNotice("Magic link sent. Open it from your email on this device to finish sign-in.",);
+    } catch (error) {
+      setSyncNotice(getErrorMessage(error, "Could not send sync magic link.",),);
+    } finally {
+      setSyncAction(null,);
+    }
+  };
+
+  const handleSyncNow = async () => {
+    setSyncAction("syncing",);
+    setSyncNotice("",);
+    try {
+      await syncDesktopNow();
+      await refreshSettingsDraft();
+    } catch (error) {
+      setSyncNotice(getErrorMessage(error, "Could not run sync.",),);
+    } finally {
+      setSyncAction(null,);
+    }
+  };
+
+  const handleDisconnectSync = async () => {
+    setSyncAction("disconnecting",);
+    setSyncNotice("",);
+    try {
+      await clearDesktopSyncSession();
+      await refreshSettingsDraft();
+    } catch (error) {
+      setSyncNotice(getErrorMessage(error, "Could not clear sync session.",),);
+    } finally {
+      setSyncAction(null,);
+    }
+  };
 
   return (
     <div
@@ -1400,6 +1467,105 @@ export function SettingsModal({ open, initialTab = "ai", onClose, }: SettingsMod
                   onChange={(value,) => update({ googleCalendarOpenClient: value, },)}
                 />
               </div>
+            </div>
+
+            <div className="my-5 border-t border-gray-100" />
+
+            <div className="space-y-3">
+              <label className="block text-sm text-gray-600" style={mono}>
+                Local-cloud sync
+              </label>
+              <button
+                type="button"
+                onClick={() => update({ syncEnabled: !settings.syncEnabled, },)}
+                className={`flex w-full items-center justify-between rounded-none border px-3 py-2 text-left text-sm transition-colors cursor-pointer ${
+                  settings.syncEnabled
+                    ? "border-violet-300 bg-violet-50/40 text-violet-700"
+                    : "border-gray-200 bg-white text-gray-600 hover:bg-gray-50"
+                }`}
+                style={mono}
+              >
+                <span>{settings.syncEnabled ? "Enabled" : "Disabled"}</span>
+                <span
+                  className={`inline-flex h-5 w-9 items-center border ${
+                    settings.syncEnabled
+                      ? "border-violet-400 bg-violet-600 justify-end"
+                      : "border-gray-300 bg-gray-200 justify-start"
+                  }`}
+                >
+                  <span className="mx-0.5 h-3.5 w-3.5 bg-white" />
+                </span>
+              </button>
+              <div className="grid gap-3 lg:grid-cols-[minmax(0,1.4fr)_auto_auto]">
+                <div className="space-y-2">
+                  <label className="block text-sm text-gray-600" style={mono}>
+                    Sync email
+                  </label>
+                  <input
+                    type="email"
+                    value={settings.syncEmail}
+                    onChange={(e,) => update({ syncEmail: e.target.value, },)}
+                    placeholder="you@example.com"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-none text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 transition-all"
+                    style={mono}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    type="button"
+                    onClick={() => void handleSendSyncMagicLink()}
+                    disabled={!syncCapability.configured || syncAction !== null}
+                    className="rounded-none border border-gray-200 px-3 py-2 text-sm text-gray-700 transition-colors disabled:cursor-default disabled:opacity-60 hover:bg-gray-50"
+                    style={mono}
+                  >
+                    {syncAction === "sending_link" ? "Sending…" : "Send magic link"}
+                  </button>
+                </div>
+                <div className="flex items-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void handleSyncNow()}
+                    disabled={!syncCapability.configured || !syncCapability.authenticated || syncAction !== null}
+                    className="rounded-none border border-gray-200 px-3 py-2 text-sm text-gray-700 transition-colors disabled:cursor-default disabled:opacity-60 hover:bg-gray-50"
+                    style={mono}
+                  >
+                    {syncAction === "syncing" ? "Syncing…" : "Sync now"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleDisconnectSync()}
+                    disabled={!syncCapability.authenticated || syncAction !== null}
+                    className="rounded-none border border-gray-200 px-3 py-2 text-sm text-gray-700 transition-colors disabled:cursor-default disabled:opacity-60 hover:bg-gray-50"
+                    style={mono}
+                  >
+                    {syncAction === "disconnecting" ? "Disconnecting…" : "Sign out"}
+                  </button>
+                </div>
+              </div>
+              <div className="grid gap-2 text-xs text-gray-500 md:grid-cols-3" style={mono}>
+                <div>
+                  <span className="text-gray-400">Session</span>
+                  <div className="mt-1 text-gray-700">{describeSyncSession(settings,)}</div>
+                </div>
+                <div>
+                  <span className="text-gray-400">Last synced</span>
+                  <div className="mt-1 text-gray-700">{formatSyncTimestamp(settings.syncLastSyncedAt,)}</div>
+                </div>
+                <div>
+                  <span className="text-gray-400">Status</span>
+                  <div className="mt-1 text-gray-700">{syncCapability.status.state}</div>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400" style={mono}>
+                {syncCapability.configured
+                  ? "Desktop mirrors notes, pages, widgets, and assets to Supabase while Philo is open."
+                  : "Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to enable sync."}
+              </p>
+              {(settings.syncError || syncNotice) && (
+                <p className={`text-xs ${settings.syncError ? "text-red-600" : "text-gray-500"}`} style={mono}>
+                  {settings.syncError ? formatSyncError(settings.syncError,) : syncNotice}
+                </p>
+              )}
             </div>
 
             <div className="my-5 border-t border-gray-100" />

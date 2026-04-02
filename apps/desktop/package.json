@@ -15,6 +15,7 @@
     "tauri": "node scripts/tauri.mjs"
   },
   "dependencies": {
+    "@philo/core": "workspace:*",
     "@ai-sdk/anthropic": "^3.0.58",
     "@ai-sdk/google": "^3.0.43",
     "@ai-sdk/openai": "^3.0.41",
@@ -25,6 +26,7 @@
     "@ibm/plex-mono": "^1.1.0",
     "@ibm/plex-sans": "^1.1.0",
     "@tailwindcss/typography": "^0.5.19",
+    "@supabase/supabase-js": "^2.101.1",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-fs": "^2.4.5",

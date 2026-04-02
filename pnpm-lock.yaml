@@ -44,6 +44,12 @@ importers:
       '@ibm/plex-sans':
         specifier: ^1.1.0
         version: 1.1.0
+      '@philo/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@supabase/supabase-js':
+        specifier: ^2.101.1
+        version: 2.101.1
       '@tailwindcss/typography':
         specifier: ^0.5.19
         version: 0.5.19(tailwindcss@4.2.1)

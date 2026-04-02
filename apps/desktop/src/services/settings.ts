@@ -31,6 +31,13 @@ export interface Settings {
   excalidrawFolder: string;
   assetsFolder: string;
   widgetGitHistoryEnabled: boolean;
+  syncEnabled: boolean;
+  syncEmail: string;
+  syncAccessToken: string;
+  syncRefreshToken: string;
+  syncDeviceId: string;
+  syncLastSyncedAt: string;
+  syncError: string;
   hasCompletedOnboarding: boolean;
 }
 
@@ -194,6 +201,13 @@ const DEFAULT_SETTINGS: Settings = {
   excalidrawFolder: "",
   assetsFolder: "",
   widgetGitHistoryEnabled: true,
+  syncEnabled: false,
+  syncEmail: "",
+  syncAccessToken: "",
+  syncRefreshToken: "",
+  syncDeviceId: "",
+  syncLastSyncedAt: "",
+  syncError: "",
   hasCompletedOnboarding: false,
 };
 
@@ -489,6 +503,13 @@ export async function loadSettings(): Promise<Settings> {
       },),
       googleOAuthClientId: normalizeGoogleOAuthClientId(parsed.googleOAuthClientId,),
       googleGrantedScopes: normalizeGoogleGrantedScopes(parsed.googleGrantedScopes,),
+      syncEnabled: parsed.syncEnabled === true,
+      syncEmail: typeof parsed.syncEmail === "string" ? parsed.syncEmail.trim() : "",
+      syncAccessToken: typeof parsed.syncAccessToken === "string" ? parsed.syncAccessToken.trim() : "",
+      syncRefreshToken: typeof parsed.syncRefreshToken === "string" ? parsed.syncRefreshToken.trim() : "",
+      syncDeviceId: typeof parsed.syncDeviceId === "string" ? parsed.syncDeviceId.trim() : "",
+      syncLastSyncedAt: typeof parsed.syncLastSyncedAt === "string" ? parsed.syncLastSyncedAt : "",
+      syncError: typeof parsed.syncError === "string" ? parsed.syncError : "",
     };
   } catch {
     return { ...DEFAULT_SETTINGS, };
@@ -516,6 +537,13 @@ export async function saveSettings(settings: Settings,): Promise<void> {
         saveRecordings: settings.saveRecordings !== false,
         googleAccounts: normalizeGoogleAccounts(settings.googleAccounts,),
         googleOAuthClientId: DEFAULT_GOOGLE_OAUTH_CLIENT_ID,
+        syncEnabled: settings.syncEnabled === true,
+        syncEmail: settings.syncEmail.trim(),
+        syncAccessToken: settings.syncAccessToken.trim(),
+        syncRefreshToken: settings.syncRefreshToken.trim(),
+        syncDeviceId: settings.syncDeviceId.trim(),
+        syncLastSyncedAt: settings.syncLastSyncedAt,
+        syncError: settings.syncError,
       },
       null,
       2,
