@@ -6,7 +6,14 @@
 
 .tiptap {
   --editor-line-height: 20px;
+  --task-checkbox-border: #000000;
+  --task-checkbox-border-hover: #9ca3af;
   line-height: var(--editor-line-height);
+}
+
+.dark .tiptap {
+  --task-checkbox-border: #6b7280;
+  --task-checkbox-border-hover: #9ca3af;
 }
 
 .tiptap p,
@@ -85,6 +92,11 @@
 
 .tiptap ul[data-type="taskList"] input[type="checkbox"] {
   margin-top: 0;
+  border-color: var(--task-checkbox-border);
+}
+
+.tiptap ul[data-type="taskList"] input[type="checkbox"]:hover:not(:checked) {
+  border-color: var(--task-checkbox-border-hover);
 }
 
 .tiptap a:hover {
