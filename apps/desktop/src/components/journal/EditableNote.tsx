@@ -19,7 +19,7 @@ import { useDebounceCallback, } from "usehooks-ts";
 import "../editor/Editor.css";
 import { showNativeContextMenu, } from "../../hooks/useNativeContextMenu";
 import { md2json, parseJsonContent, } from "../../lib/markdown";
-import { shouldParseMarkdownPaste, } from "../../lib/markdown-lists";
+import { normalizeArrowLigatures, } from "../../lib/typography";
 import { openGoogleMentionChip, } from "../../services/google-open";
 import { resolveAssetUrl, saveImage, } from "../../services/images";
 import {
@@ -111,8 +111,25 @@ type ReadOnlyTranscriptRange = {
 const IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp",];
 const LIST_NODE_TYPES = new Set(["bulletList", "orderedList", "taskList",],);
 
+function shouldParseMarkdownPaste(text: string, html: string,) {
+  const trimmed = text.trim();
+  if (!trimmed) return false;
+
+  if (/(^|\n)[\t ]*(?:[-*+] )?\[[ xX]\]\s+/m.test(text,)) {
+    return true;
+  }
+
+  if (html) {
+    return false;
+  }
+
+  const lines = trimmed.split(/\r?\n/,);
+  const listLineCount = lines.filter(line => /^[\t ]*(?:[-*+] |\d+\. )/.test(line,)).length;
+  return listLineCount >= 2;
+}
+
 function getMarkdownPasteContent(text: string,) {
-  const parsed = md2json(text,);
+  const parsed = md2json(normalizeArrowLigatures(text,),);
   const content = Array.isArray(parsed.content,) ? parsed.content : [];
   return content.some(node => LIST_NODE_TYPES.has(node.type ?? "",)) ? content : null;
 }
@@ -176,6 +193,11 @@ function findReadOnlyTranscriptRange(doc: ProseMirrorNode,): ReadOnlyTranscriptR
 
 function selectionTouchesRange(selection: Selection, range: ReadOnlyTranscriptRange,) {
   return selection.from < range.to && selection.to > range.from;
+}
+
+function isCodeSelection(selection: Selection,) {
+  return selection.$from.parent.type.spec.code === true
+    || selection.$from.marks().some(mark => mark.type.name === "code");
 }
 
 function getSelectionNear(doc: ProseMirrorNode, pos: number, bias: -1 | 1,) {
@@ -877,6 +899,19 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
         attributes: {
           class: "max-w-none focus:outline-hidden px-6 text-gray-900 dark:text-gray-100",
         },
+        handleTextInput: (_view, from, to, text,) => {
+          if (text !== ">" || isCodeSelection(_view.state.selection,)) {
+            return false;
+          }
+
+          const previousChar = from > 0 ? _view.state.doc.textBetween(from - 1, from, "", "",) : "";
+          if (previousChar !== "-") {
+            return false;
+          }
+
+          _view.dispatch(_view.state.tr.insertText("→", from - 1, to,).scrollIntoView(),);
+          return true;
+        },
         handlePaste: (_view, event,) => {
           const files = Array.from(event.clipboardData?.files ?? [],).filter(file =>
             IMAGE_MIME_TYPES.includes(file.type,)
@@ -884,6 +919,10 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
           if (files.length === 0) {
             const text = event.clipboardData?.getData("text/plain",) ?? "";
             const html = event.clipboardData?.getData("text/html",) ?? "";
+
+            if (isCodeSelection(_view.state.selection,)) {
+              return false;
+            }
 
             if (!shouldParseMarkdownPaste(text, html,)) {
               return false;
