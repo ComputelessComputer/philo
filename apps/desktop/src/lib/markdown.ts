@@ -18,6 +18,7 @@ import { CustomParagraph, } from "../components/editor/extensions/paragraph/Para
 import { CustomTaskItem, } from "../components/editor/extensions/task-item/TaskItemNode";
 import { UnderlineExtension, } from "../components/editor/extensions/underline/UnderlineExtension";
 import { WidgetExtension, } from "../components/editor/extensions/widget/WidgetExtension";
+import { normalizeMarkdownParsingLine, } from "./markdown-lists";
 
 export const EMPTY_DOC: JSONContent = {
   type: "doc",
@@ -242,15 +243,7 @@ function normalizeMarkdownForParsing(markdown: string,): string {
       return line;
     }
 
-    const leadingWhitespace = line.match(/^[\t ]*/,)?.[0] ?? "";
-    const expandedIndentation = leadingWhitespace.replace(/\t/g, "    ",);
-    const rest = line.slice(leadingWhitespace.length,);
-
-    if (leadingWhitespace.includes("\t",) && /^\[([ xX])\]\s+/.test(rest,)) {
-      return `${expandedIndentation}- ${rest}`;
-    }
-
-    return `${expandedIndentation}${rest}`;
+    return normalizeMarkdownParsingLine(line,);
   },).join("\n",);
 }
 

@@ -19,6 +19,7 @@ import { useDebounceCallback, } from "usehooks-ts";
 import "../editor/Editor.css";
 import { showNativeContextMenu, } from "../../hooks/useNativeContextMenu";
 import { md2json, parseJsonContent, } from "../../lib/markdown";
+import { shouldParseMarkdownPaste, } from "../../lib/markdown-lists";
 import { openGoogleMentionChip, } from "../../services/google-open";
 import { resolveAssetUrl, saveImage, } from "../../services/images";
 import {
@@ -109,23 +110,6 @@ type ReadOnlyTranscriptRange = {
 
 const IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp",];
 const LIST_NODE_TYPES = new Set(["bulletList", "orderedList", "taskList",],);
-
-function shouldParseMarkdownPaste(text: string, html: string,) {
-  const trimmed = text.trim();
-  if (!trimmed) return false;
-
-  if (/(^|\n)[\t ]*(?:[-*+] )?\[[ xX]\]\s+/m.test(text,)) {
-    return true;
-  }
-
-  if (html) {
-    return false;
-  }
-
-  const lines = trimmed.split(/\r?\n/,);
-  const listLineCount = lines.filter(line => /^[\t ]*(?:[-*+] |\d+\. )/.test(line,)).length;
-  return listLineCount >= 2;
-}
 
 function getMarkdownPasteContent(text: string,) {
   const parsed = md2json(text,);
