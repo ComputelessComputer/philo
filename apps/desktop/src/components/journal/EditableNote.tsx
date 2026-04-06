@@ -9,6 +9,7 @@ import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Table, TableCell, TableHeader, TableRow, } from "@tiptap/extension-table";
 import TaskList from "@tiptap/extension-task-list";
+import Typography from "@tiptap/extension-typography";
 import { Fragment, type Node as ProseMirrorNode, } from "@tiptap/pm/model";
 import { NodeSelection, Plugin, PluginKey, Selection, TextSelection, } from "@tiptap/pm/state";
 import { EditorContent, useEditor, } from "@tiptap/react";
@@ -19,7 +20,6 @@ import { useDebounceCallback, } from "usehooks-ts";
 import "../editor/Editor.css";
 import { showNativeContextMenu, } from "../../hooks/useNativeContextMenu";
 import { md2json, parseJsonContent, } from "../../lib/markdown";
-import { normalizeArrowLigatures, } from "../../lib/typography";
 import { openGoogleMentionChip, } from "../../services/google-open";
 import { resolveAssetUrl, saveImage, } from "../../services/images";
 import {
@@ -129,7 +129,7 @@ function shouldParseMarkdownPaste(text: string, html: string,) {
 }
 
 function getMarkdownPasteContent(text: string,) {
-  const parsed = md2json(normalizeArrowLigatures(text,),);
+  const parsed = md2json(text,);
   const content = Array.isArray(parsed.content,) ? parsed.content : [];
   return content.some(node => LIST_NODE_TYPES.has(node.type ?? "",)) ? content : null;
 }
@@ -193,11 +193,6 @@ function findReadOnlyTranscriptRange(doc: ProseMirrorNode,): ReadOnlyTranscriptR
 
 function selectionTouchesRange(selection: Selection, range: ReadOnlyTranscriptRange,) {
   return selection.from < range.to && selection.to > range.from;
-}
-
-function isCodeSelection(selection: Selection,) {
-  return selection.$from.parent.type.spec.code === true
-    || selection.$from.marks().some(mark => mark.type.name === "code");
 }
 
 function getSelectionNear(doc: ProseMirrorNode, pos: number, bias: -1 | 1,) {
@@ -974,6 +969,29 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
         CustomParagraph,
         Image.configure({ inline: true, allowBase64: false, },),
         UnderlineExtension,
+        Typography.configure({
+          openDoubleQuote: false,
+          closeDoubleQuote: false,
+          openSingleQuote: false,
+          closeSingleQuote: false,
+          emDash: false,
+          ellipsis: false,
+          leftArrow: false,
+          copyright: false,
+          trademark: false,
+          servicemark: false,
+          registeredTrademark: false,
+          oneHalf: false,
+          oneQuarter: false,
+          threeQuarters: false,
+          plusMinus: false,
+          notEqual: false,
+          laquo: false,
+          raquo: false,
+          multiplication: false,
+          superscriptTwo: false,
+          superscriptThree: false,
+        },),
         Placeholder.configure({
           placeholder: ({ editor, },) => (editor.isEmpty ? placeholder : ""),
         },),
@@ -1137,19 +1155,6 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
         attributes: {
           class: "max-w-none focus:outline-hidden px-6 text-gray-900 dark:text-gray-100",
         },
-        handleTextInput: (_view, from, to, text,) => {
-          if (text !== ">" || isCodeSelection(_view.state.selection,)) {
-            return false;
-          }
-
-          const previousChar = from > 0 ? _view.state.doc.textBetween(from - 1, from, "", "",) : "";
-          if (previousChar !== "-") {
-            return false;
-          }
-
-          _view.dispatch(_view.state.tr.insertText("→", from - 1, to,).scrollIntoView(),);
-          return true;
-        },
         handlePaste: (_view, event,) => {
           const files = Array.from(event.clipboardData?.files ?? [],).filter(file =>
             IMAGE_MIME_TYPES.includes(file.type,)
@@ -1157,10 +1162,6 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
           if (files.length === 0) {
             const text = event.clipboardData?.getData("text/plain",) ?? "";
             const html = event.clipboardData?.getData("text/html",) ?? "";
-
-            if (isCodeSelection(_view.state.selection,)) {
-              return false;
-            }
 
             if (!shouldParseMarkdownPaste(text, html,)) {
               return false;
