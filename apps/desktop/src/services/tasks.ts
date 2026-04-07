@@ -33,7 +33,16 @@ const RECURRENCE_WIKILINK = /\[\[(?:recurring_)?(daily|weekly|monthly|(\d+)(days
 const CANONICAL_RECURRING_WIKILINK = /\[\[(\d{4}-\d{2}-\d{2})\(start date\),\s*(\d+)\((day|days)\)\]\]/i;
 const DUE_DATE_WIKILINK = /\[\[\d{4}-\d{2}-\d{2}\(due date\)(?:\|[^\]]+)?\]\]/i;
 const DUE_DATE_CAPTURE = /\[\[(\d{4}-\d{2}-\d{2})\(due date\)(?:\|[^\]]+)?\]\]/gi;
+const PRIORITY_TAG = /(?:^|[\s([{])#(urgent|high|mid|low)\b/i;
 const GOOGLE_BLOCK_HEADING = "# Google";
+
+type TaskPriority = "urgent" | "high" | "mid" | "low";
+const TASK_PRIORITY_RANK: Record<TaskPriority, number> = {
+  urgent: 0,
+  high: 1,
+  mid: 2,
+  low: 3,
+};
 
 function stripManagedGoogleBlock(content: string,) {
   const lines = content.split("\n",);
@@ -162,6 +171,23 @@ function getEarliestDueDate(text: string,) {
   return earliest;
 }
 
+function getTaskPriority(text: string,): TaskPriority | null {
+  const match = PRIORITY_TAG.exec(text,);
+  if (!match) return null;
+
+  const priority = match[1]?.toLowerCase();
+  if (!priority || !(priority in TASK_PRIORITY_RANK)) {
+    return null;
+  }
+
+  return priority as TaskPriority;
+}
+
+function getTaskPriorityRank(text: string,) {
+  const priority = getTaskPriority(text,);
+  return priority ? TASK_PRIORITY_RANK[priority] : Number.POSITIVE_INFINITY;
+}
+
 function sortTaskLists(node: JSONContent,): JSONContent {
   const content = Array.isArray(node.content,) ? node.content.map((child,) => sortTaskLists(child,)) : node.content;
   if (node.type !== "taskList" || !Array.isArray(content,)) {
@@ -169,18 +195,33 @@ function sortTaskLists(node: JSONContent,): JSONContent {
   }
 
   const sortedContent = content
-    .map((child, index,) => ({
-      child,
-      index,
-      dueDate: getEarliestDueDate(collectNodeText(child,),),
-    }))
+    .map((child, index,) => {
+      const text = collectNodeText(child,);
+      return {
+        child,
+        index,
+        dueDate: getEarliestDueDate(text,),
+        priorityRank: getTaskPriorityRank(text,),
+      };
+    },)
     .sort((left, right,) => {
       if (left.dueDate && right.dueDate) {
-        if (left.dueDate === right.dueDate) return left.index - right.index;
+        if (left.dueDate === right.dueDate) {
+          if (left.priorityRank !== right.priorityRank) {
+            return left.priorityRank - right.priorityRank;
+          }
+
+          return left.index - right.index;
+        }
         return left.dueDate.localeCompare(right.dueDate,);
       }
       if (left.dueDate) return -1;
       if (right.dueDate) return 1;
+
+      if (left.priorityRank !== right.priorityRank) {
+        return left.priorityRank - right.priorityRank;
+      }
+
       return left.index - right.index;
     },)
     .map((item,) => item.child);

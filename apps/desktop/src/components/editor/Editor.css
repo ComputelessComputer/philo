@@ -267,6 +267,35 @@
   color: #b91c1c;
 }
 
+.tiptap .hashtag-priority {
+  margin: 0 -0.02rem;
+  padding: 0.02rem 0.38rem;
+  border-radius: 999px;
+  font-weight: 600;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+.tiptap .hashtag-priority-urgent {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.tiptap .hashtag-priority-high {
+  background: #ffedd5;
+  color: #c2410c;
+}
+
+.tiptap .hashtag-priority-mid {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+
+.tiptap .hashtag-priority-low {
+  background: #e5e7eb;
+  color: #4b5563;
+}
+
 .tiptap .meeting-meta-node {
   margin: 0 0 1.25rem;
   border: 1px solid #e5e7eb;
@@ -530,6 +559,22 @@
 .mention-menu-item.is-selected {
   background: #eff6ff;
   color: #1d4ed8;
+}
+
+.mention-menu-item[data-priority-level="urgent"] .mention-menu-icon {
+  color: #dc2626;
+}
+
+.mention-menu-item[data-priority-level="high"] .mention-menu-icon {
+  color: #ea580c;
+}
+
+.mention-menu-item[data-priority-level="mid"] .mention-menu-icon {
+  color: #0284c7;
+}
+
+.mention-menu-item[data-priority-level="low"] .mention-menu-icon {
+  color: #6b7280;
 }
 
 .mention-menu-icon {

@@ -60,6 +60,7 @@ import {
   type PersistentSelectionRange,
   setPersistentSelectionHighlight,
 } from "../editor/extensions/persistent-selection/PersistentSelectionHighlightExtension";
+import { PriorityCommandExtension, } from "../editor/extensions/priority-command/PriorityCommandExtension";
 import { SlashCommandExtension, } from "../editor/extensions/slash-command/SlashCommandExtension";
 import { CustomTaskItem, } from "../editor/extensions/task-item/TaskItemNode";
 import { UnderlineExtension, } from "../editor/extensions/underline/UnderlineExtension";
@@ -1124,6 +1125,7 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
           ],
         },),
         HashtagExtension,
+        PriorityCommandExtension,
         MeetingMetaExtension,
         MeetingTranscriptExtension,
         ExcalidrawExtension,

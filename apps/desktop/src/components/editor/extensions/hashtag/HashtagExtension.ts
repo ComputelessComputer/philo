@@ -3,6 +3,7 @@ import { Plugin, PluginKey, } from "@tiptap/pm/state";
 import { Decoration, DecorationSet, } from "@tiptap/pm/view";
 
 const HASHTAG_RE = /(^|[\s([{])([#@][a-zA-Z]\w*)\b/g;
+const PRIORITY_TAGS = new Set(["#urgent", "#high", "#mid", "#low",],);
 
 export const HashtagExtension = Extension.create({
   name: "hashtag",
@@ -27,9 +28,13 @@ export const HashtagExtension = Extension.create({
                 const prefix = match[1] ?? "";
                 const token = match[2] ?? "";
                 const start = pos + match.index + prefix.length;
+                const normalizedToken = token.toLowerCase();
+                const classes = PRIORITY_TAGS.has(normalizedToken,)
+                  ? `hashtag hashtag-priority hashtag-priority-${normalizedToken.slice(1,)}`
+                  : "hashtag";
                 decorations.push(
                   Decoration.inline(start, start + token.length, {
-                    class: "hashtag",
+                    class: classes,
                   },),
                 );
               }
