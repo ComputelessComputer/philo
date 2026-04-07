@@ -229,8 +229,8 @@ function sortTaskLists(node: JSONContent,): JSONContent {
   return { ...node, content: sortedContent, };
 }
 
-export async function buildSortedTodosPendingChange(note: DailyNote,): Promise<AssistantPendingChange | null> {
-  const beforeDoc = parseJsonContent(note.content,);
+function getSortedTaskChange(content: string,) {
+  const beforeDoc = parseJsonContent(content,);
   const afterDoc = sortTaskLists(beforeDoc,);
   const beforeMarkdown = json2md(beforeDoc,);
   const afterMarkdown = json2md(afterDoc,);
@@ -240,10 +240,26 @@ export async function buildSortedTodosPendingChange(note: DailyNote,): Promise<A
   }
 
   return {
-    date: note.date,
+    afterDoc,
     beforeMarkdown,
     afterMarkdown,
-    unifiedDiff: await buildUnifiedDiff(beforeMarkdown, afterMarkdown,),
+  };
+}
+
+export function sortTasksInNoteContent(content: string,): string | null {
+  const change = getSortedTaskChange(content,);
+  return change ? JSON.stringify(change.afterDoc,) : null;
+}
+
+export async function buildSortedTodosPendingChange(note: DailyNote,): Promise<AssistantPendingChange | null> {
+  const change = getSortedTaskChange(note.content,);
+  if (!change) return null;
+
+  return {
+    date: note.date,
+    beforeMarkdown: change.beforeMarkdown,
+    afterMarkdown: change.afterMarkdown,
+    unifiedDiff: await buildUnifiedDiff(change.beforeMarkdown, change.afterMarkdown,),
     cityBefore: note.city ?? null,
     cityAfter: note.city ?? null,
   };

@@ -6,7 +6,7 @@ import { exists, watch, } from "@tauri-apps/plugin-fs";
 import { openPath, openUrl, } from "@tauri-apps/plugin-opener";
 import type { Editor as TiptapEditor, } from "@tiptap/core";
 import type { JSONContent, } from "@tiptap/react";
-import { ChevronLeft, ChevronRight, House, MapPin, X, } from "lucide-react";
+import { ArrowUpDown, ChevronLeft, ChevronRight, House, LoaderCircle, MapPin, X, } from "lucide-react";
 import {
   Fragment,
   type MouseEvent as ReactMouseEvent,
@@ -88,7 +88,7 @@ import {
   savePage,
 } from "../../services/storage";
 import { consumeDesktopSyncAuthCallback, scheduleDesktopSync, SYNC_DEEP_LINK_EVENT, } from "../../services/sync";
-import { rolloverTasks, } from "../../services/tasks";
+import { rolloverTasks, sortTasksInNoteContent, } from "../../services/tasks";
 import {
   checkForUpdate,
   consumePendingPostUpdate,
@@ -1580,6 +1580,7 @@ export default function AppLayout() {
   const [updateInfo, setUpdateInfo,] = useState<UpdateInfo | null>(null,);
   const [postUpdateInfo, setPostUpdateInfo,] = useState<PostUpdateInfo | null>(null,);
   const [isPinned, setIsPinned,] = useState(false,);
+  const [isTaskTriaging, setIsTaskTriaging,] = useState(false,);
   const [isWindowFocused, setIsWindowFocused,] = useState(() => document.hasFocus());
   const [isMeetingRecording, setIsMeetingRecording,] = useState(false,);
   const [meetingRecordingError, setMeetingRecordingError,] = useState<string | null>(null,);
@@ -1645,6 +1646,7 @@ export default function AppLayout() {
   const currentViewKey = currentView.kind === "page" ? `page:${currentView.title}` : "home";
   const canGoBack = viewState.index > 0;
   const canGoForward = viewState.index < viewState.history.length - 1;
+  const canTriageTasks = currentView.kind === "page" ? Boolean(activePage,) : Boolean(todayNote,);
   const showMeetingRecordingErrorBanner = Boolean(meetingRecordingError,) && activePage?.type !== "meeting";
   const focusedFutureDate = focusedDate && focusedDate !== today && !pastDates.includes(focusedDate,)
     ? focusedDate
@@ -3010,6 +3012,35 @@ export default function AppLayout() {
     scheduleDesktopSync();
   }, [],);
 
+  const handleTriageTasks = useCallback(() => {
+    if (isTaskTriaging) return;
+
+    setIsTaskTriaging(true,);
+
+    try {
+      if (currentView.kind === "page") {
+        const page = currentPageRef.current ?? activePage;
+        if (!page) return;
+
+        const nextContent = sortTasksInNoteContent(page.content,);
+        if (!nextContent) return;
+
+        handlePageSave({ ...page, content: nextContent, },);
+        return;
+      }
+
+      const note = todayNoteRef.current ?? todayNote;
+      if (!note) return;
+
+      const nextContent = sortTasksInNoteContent(note.content,);
+      if (!nextContent) return;
+
+      handleTodaySave({ ...note, content: nextContent, },);
+    } finally {
+      setIsTaskTriaging(false,);
+    }
+  }, [activePage, currentView.kind, handlePageSave, handleTodaySave, isTaskTriaging, todayNote,],);
+
   const handlePageRename = useCallback(async (page: PageNote, nextTitle: string,) => {
     const currentTitle = page.title;
     suppressWatcherUntilRef.current = Date.now() + LOCAL_SAVE_WATCH_SUPPRESSION_MS;
@@ -3462,6 +3493,23 @@ export default function AppLayout() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={handleTriageTasks}
+            disabled={!canTriageTasks || isTaskTriaging}
+            className={`flex h-5 w-5 items-center justify-center rounded-md transition-colors ${
+              canTriageTasks
+                ? "text-gray-400 hover:text-gray-700 hover:bg-gray-100"
+                : "text-gray-200"
+            }`}
+            title="Triage and sort tasks"
+            aria-label="Triage and sort tasks"
+          >
+            {isTaskTriaging
+              ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" strokeWidth={2} />
+              : <ArrowUpDown className="h-3.5 w-3.5" strokeWidth={2} />}
+          </button>
+
           <button
             type="button"
             onClick={() => {
