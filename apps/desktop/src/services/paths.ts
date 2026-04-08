@@ -306,13 +306,16 @@ export function buildPageLinkTarget(title: string,): string {
     throw new Error("Page title is required.",);
   }
 
-  return `pages/${normalizedTitle}`;
+  return normalizedTitle;
 }
 
 export function buildPageMarkdownHref(title: string,): string {
-  const target = buildPageLinkTarget(title,);
-  const [prefix, pageTitle,] = target.split("/", 2,);
-  return `${prefix}/${encodeURIComponent(pageTitle,)}.md`;
+  const normalizedTitle = sanitizePageTitle(title,);
+  if (!normalizedTitle) {
+    throw new Error("Page title is required.",);
+  }
+
+  return `pages/${encodeURIComponent(normalizedTitle,)}.md`;
 }
 
 export function isExplicitPageLinkTarget(target: string,): boolean {
