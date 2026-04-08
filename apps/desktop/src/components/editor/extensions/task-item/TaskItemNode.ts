@@ -192,6 +192,18 @@ export const CustomTaskItem = TaskItem.extend({
         toggle.setAttribute("aria-hidden", canToggleNestedChildren ? "false" : "true",);
         toggle.setAttribute("aria-label", isCollapsed ? "Expand nested items" : "Collapse nested items",);
         toggle.setAttribute("aria-expanded", canToggleNestedChildren ? (!isCollapsed).toString() : "false",);
+        toggle.innerHTML = isCollapsed
+          ? [
+            '<svg viewBox="0 0 20 20" fill="none" aria-hidden="true">',
+            '<path d="M6 10h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />',
+            '<path d="M10 6v8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />',
+            "</svg>",
+          ].join("",)
+          : [
+            '<svg viewBox="0 0 20 20" fill="none" aria-hidden="true">',
+            '<path d="M6 10h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />',
+            "</svg>",
+          ].join("",);
         syncNestedDomState(canToggleNestedChildren,);
       };
 
@@ -199,11 +211,6 @@ export const CustomTaskItem = TaskItem.extend({
       toggle.tabIndex = -1;
       toggle.className = "task-item-toggle";
       toggle.setAttribute("aria-hidden", "true",);
-      toggle.innerHTML = [
-        '<svg viewBox="0 0 20 20" fill="none" aria-hidden="true">',
-        '<path d="m7 4 6 6-6 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />',
-        "</svg>",
-      ].join("",);
       const handleToggle = (event: MouseEvent | PointerEvent,) => {
         event.preventDefault();
         event.stopPropagation();

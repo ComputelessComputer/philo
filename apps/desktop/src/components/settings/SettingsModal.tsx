@@ -2,7 +2,7 @@ import { invoke, } from "@tauri-apps/api/core";
 import { join, } from "@tauri-apps/api/path";
 import { getCurrentWindow, } from "@tauri-apps/api/window";
 import { open as openDialog, } from "@tauri-apps/plugin-dialog";
-import { AlertTriangle, Check, ChevronDown, RefreshCw, X, } from "lucide-react";
+import { AlertTriangle, ArrowUpDown, Check, RefreshCw, X, } from "lucide-react";
 import { useEffect, useRef, useState, } from "react";
 import { connectGoogleAccount, disconnectGoogleAccount, isGoogleAccountConnected, } from "../../services/google";
 import { detectObsidianFolders, isWithinObsidianVault, } from "../../services/obsidian";
@@ -386,7 +386,7 @@ function SharpSelectField<T extends string,>(
             {selected.label}
           </span>
         </span>
-        <ChevronDown className={`h-4 w-4 shrink-0 text-gray-500 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ArrowUpDown className="h-4 w-4 shrink-0 text-gray-500" />
       </button>
       {open && (
         <div

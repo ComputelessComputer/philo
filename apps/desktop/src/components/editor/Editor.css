@@ -56,8 +56,7 @@
   pointer-events: none;
   transition:
     opacity 120ms ease,
-    color 120ms ease,
-    transform 120ms ease;
+    color 120ms ease;
   transform: translateY(-50%);
 }
 
@@ -65,7 +64,6 @@
   display: block;
   width: 16px;
   height: 16px;
-  transition: transform 120ms ease;
 }
 
 .tiptap ul[data-type="taskList"] li.task-item--has-children > .task-item-toggle {
@@ -84,10 +82,6 @@
 
 .tiptap ul[data-type="taskList"] li.task-item--has-children > .task-item-toggle:hover {
   color: #4b5563;
-}
-
-.tiptap ul[data-type="taskList"] li.task-item--has-children:not(.task-item--collapsed) > .task-item-toggle svg {
-  transform: rotate(90deg);
 }
 
 .tiptap ul[data-type="taskList"] input[type="checkbox"] {

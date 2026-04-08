@@ -1,4 +1,4 @@
-import { ChevronDown, Plus, } from "lucide-react";
+import { Minus, Plus, } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, } from "react";
 import type { ChatHistoryEntry, } from "../../services/chats";
 import { AiDiffPreview, } from "./AiDiffPreview";
@@ -79,7 +79,7 @@ export function AiResultPanel({
                   className="inline-flex h-7 w-7 shrink-0 items-center justify-center text-gray-500 transition-colors hover:text-gray-900"
                   aria-label={historyOpen ? "Hide chat history" : "Show chat history"}
                 >
-                  <ChevronDown size={15} className={`transition-transform ${historyOpen ? "rotate-180" : ""}`} />
+                  {historyOpen ? <Minus size={15} /> : <Plus size={15} />}
                 </button>
               )}
             </div>

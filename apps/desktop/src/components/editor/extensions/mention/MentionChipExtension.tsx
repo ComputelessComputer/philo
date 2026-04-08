@@ -13,7 +13,7 @@ import Mention from "@tiptap/extension-mention";
 import { PluginKey, } from "@tiptap/pm/state";
 import { ReactRenderer, } from "@tiptap/react";
 import type { SuggestionOptions, } from "@tiptap/suggestion";
-import { CalendarDays, ChevronDown, FilePlus2, FileText, Repeat2, } from "lucide-react";
+import { CalendarDays, FilePlus2, FileText, Plus, Repeat2, } from "lucide-react";
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState, } from "react";
 import {
   createDateMention,
@@ -175,7 +175,7 @@ function MentionMenuBody(
             const Icon = item.action === "create_page"
               ? FilePlus2
               : item.action === "show_more_pages"
-              ? ChevronDown
+              ? Plus
               : item.kind === "page"
               ? FileText
               : item.kind === "recurring"

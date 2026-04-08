@@ -6,7 +6,7 @@ import { exists, watch, } from "@tauri-apps/plugin-fs";
 import { openPath, openUrl, } from "@tauri-apps/plugin-opener";
 import type { Editor as TiptapEditor, } from "@tiptap/core";
 import type { JSONContent, } from "@tiptap/react";
-import { ArrowUpDown, ChevronLeft, ChevronRight, House, LoaderCircle, MapPin, X, } from "lucide-react";
+import { ArrowLeft, ArrowRight, ArrowUpDown, House, LoaderCircle, MapPin, X, } from "lucide-react";
 import {
   Fragment,
   type MouseEvent as ReactMouseEvent,
@@ -3475,7 +3475,7 @@ export default function AppLayout() {
             }`}
             title="Back"
           >
-            <ChevronLeft className="h-4 w-4" strokeWidth={2} />
+            <ArrowLeft className="h-4 w-4" strokeWidth={2} />
           </button>
           <button
             type="button"
@@ -3488,7 +3488,7 @@ export default function AppLayout() {
             }`}
             title="Forward"
           >
-            <ChevronRight className="h-4 w-4" strokeWidth={2} />
+            <ArrowRight className="h-4 w-4" strokeWidth={2} />
           </button>
         </div>
 
