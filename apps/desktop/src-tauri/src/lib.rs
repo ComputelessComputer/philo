@@ -26,6 +26,7 @@ use std::{env, fs, process::Command};
 use tauri::ipc::Channel;
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_analytics::AnalyticsPluginExt;
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_fs::FsExt;
@@ -3719,7 +3720,11 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_analytics::init())
         .plugin(tauri_plugin_permissions::init())
+        .plugin(tauri_plugin_misc::init())
+        .plugin(tauri_plugin_store::Builder::default().build())
+        .plugin(tauri_plugin_store2::init())
         .plugin(tauri_plugin_settings::init())
         .plugin(tauri_plugin_listener::init())
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -3772,6 +3777,12 @@ pub fn run() {
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
+            app_handle.analytics().event_fire_and_forget(
+                tauri_plugin_analytics::AnalyticsPayload::builder("app_started")
+                    .with("debug", cfg!(debug_assertions))
+                    .build(),
+            );
+
             app.deep_link().on_open_url(move |event| {
                 let payload: Vec<String> = event
                     .urls()

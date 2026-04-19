@@ -2,6 +2,7 @@ import type { Editor, } from "@tiptap/core";
 import { BubbleMenu, } from "@tiptap/react/menus";
 import { useState, } from "react";
 import { getAiConfigurationMessage, isAiKeyMissingError, } from "../../services/ai";
+import { trackEvent, } from "../../services/analytics";
 import { generateWidgetWithStorage, } from "../../services/generate";
 import { createWidgetFile, } from "../../services/widget-files";
 import { recordWidgetGitRevision, } from "../../services/widget-git-history";
@@ -88,6 +89,11 @@ export function EditorBubbleMenu({ editor, onChatSelection, }: EditorBubbleMenuP
         favorite: false,
         storageSchema,
         saved: false,
+      },);
+      trackEvent("widget_created", {
+        runtime: record.runtime,
+        source: "bubble_menu",
+        storage_enabled: Boolean(record.storageSchema,),
       },);
       await recordWidgetGitRevision(record, "create", null,);
       updateWidgetById(editor, widgetId, {

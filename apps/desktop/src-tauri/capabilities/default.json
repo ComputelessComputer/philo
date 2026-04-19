@@ -14,6 +14,7 @@
     "geolocation:allow-get-current-position",
     "fs:allow-watch",
     "fs:allow-unwatch",
+    "analytics:default",
     "listener:default",
     "updater:default",
     "process:allow-restart",
