@@ -63,10 +63,12 @@ import {
   buildPageLinkTarget,
   getJournalDir,
   getNotePath,
+  getPageDisplayTitle,
   getPagePath,
   getPagesDir,
   initJournalScope,
   parseDateFromNoteLinkTarget,
+  parsePageTitleFromLinkTarget,
   parsePageTitleFromPath,
   sanitizePageTitle,
 } from "../../services/paths";
@@ -1357,10 +1359,11 @@ function PageView({
     || resolvedPage.linkKind === "github_issue"
     || resolvedPage.linkKind === "github_commit"
   );
+  const pageEditableTitle = resolvedPage ? getPageDisplayTitle(resolvedPage.title,) : getPageDisplayTitle(title,);
   const pageHeading = resolvedPage
-    ? (pageIsUrlSummary ? resolvedPage.linkTitle ?? resolvedPage.title : resolvedPage.title)
-    : title;
-  const canEditTitle = !!resolvedPage && pageHeading === resolvedPage.title && !!onRenameTitle;
+    ? (pageIsUrlSummary ? resolvedPage.linkTitle ?? pageEditableTitle : pageEditableTitle)
+    : pageEditableTitle;
+  const canEditTitle = !!resolvedPage && pageHeading === pageEditableTitle && !!onRenameTitle;
   const titleInputWidthCh = Math.max(draftTitle.length, 1,) + 1;
   const meetingLocation = resolvedPage?.type === "meeting" ? resolvedPage.location?.trim() ?? "" : "";
   const summaryUpdatedAt = formatSummaryUpdatedAt(resolvedPage?.summaryUpdatedAt ?? null,);
@@ -1390,12 +1393,12 @@ function PageView({
     setIsEditingTitle(false,);
 
     if (!nextTitle) {
-      setDraftTitle(resolvedPage.title,);
+      setDraftTitle(pageEditableTitle,);
       return;
     }
 
-    if (nextTitle === resolvedPage.title) {
-      setDraftTitle(nextTitle,);
+    if (nextTitle === pageEditableTitle || nextTitle === resolvedPage.title) {
+      setDraftTitle(pageEditableTitle,);
       setTitleEditError(null,);
       return;
     }
@@ -1403,12 +1406,14 @@ function PageView({
     try {
       setTitleEditError(null,);
       const renamedPage = await onRenameTitle(resolvedPage, nextTitle,);
-      setDraftTitle(renamedPage?.title ?? nextTitle,);
+      setDraftTitle(getPageDisplayTitle(renamedPage?.title ?? nextTitle,),);
     } catch (error) {
-      setDraftTitle(resolvedPage.title,);
-      setTitleEditError(error instanceof Error ? error.message : "Could not rename page.",);
+      setDraftTitle(pageEditableTitle,);
+      setTitleEditError(
+        error instanceof Error ? error.message : typeof error === "string" ? error : "Could not rename page.",
+      );
     }
-  }, [canEditTitle, draftTitle, onRenameTitle, resolvedPage,],);
+  }, [canEditTitle, draftTitle, onRenameTitle, pageEditableTitle, resolvedPage,],);
 
   if (!resolvedPage) {
     return (
@@ -1456,7 +1461,7 @@ function PageView({
                 onClick={() => {
                   if (!canEditTitle) return;
                   setTitleEditError(null,);
-                  setDraftTitle(resolvedPage.title,);
+                  setDraftTitle(pageEditableTitle,);
                   setIsEditingTitle(true,);
                 }}
                 onContextMenu={(event,) => {
@@ -1639,6 +1644,7 @@ export default function AppLayout() {
   const searchNavigationModeRef = useRef<"mouse" | "keyboard">("mouse",);
   const hasMountedViewRef = useRef(false,);
   const nextViewAnimationDirectionRef = useRef<"forward" | "backward" | null>(null,);
+  const skipNextViewAnimationRef = useRef(false,);
   const viewAnimationFrameRef = useRef<number | null>(null,);
   const viewAnimationResetRef = useRef<number | null>(null,);
   const currentView = viewState.history[viewState.index] ?? { kind: "home", };
@@ -1747,6 +1753,17 @@ export default function AppLayout() {
   useEffect(() => {
     if (!hasMountedViewRef.current) {
       hasMountedViewRef.current = true;
+      return;
+    }
+
+    if (skipNextViewAnimationRef.current) {
+      skipNextViewAnimationRef.current = false;
+      nextViewAnimationDirectionRef.current = null;
+      setViewTransitionStyle({
+        opacity: 1,
+        transform: "translateX(0px)",
+        transition: "none",
+      },);
       return;
     }
 
@@ -2603,7 +2620,7 @@ export default function AppLayout() {
     closeGlobalSearch();
 
     if (result.kind === "page") {
-      const title = parsePageTitleFromPath(result.path,);
+      const title = parsePageTitleFromLinkTarget(result.relativePath,) ?? parsePageTitleFromPath(result.path,);
       if (title) {
         trackEvent("search_result_opened", {
           kind: result.kind,
@@ -3096,6 +3113,7 @@ export default function AppLayout() {
     currentPageRef.current = renamedPage;
     setActivePage(renamedPage,);
     setPagesRevision((value,) => value + 1);
+    skipNextViewAnimationRef.current = true;
     setViewState((current,) => ({
       ...current,
       history: current.history.map((view,) => (

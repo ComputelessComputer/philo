@@ -172,14 +172,38 @@ function decodePathTarget(target: string,): string {
   }
 }
 
-const INVALID_PAGE_TITLE_RE = /[\/\\\u0000-\u001F]+/g;
+const INVALID_PAGE_TITLE_SEGMENT_RE = /[\\\u0000-\u001F]+/g;
 
-export function sanitizePageTitle(title: string,): string {
-  return title
-    .replace(INVALID_PAGE_TITLE_RE, " ",)
+function sanitizePageTitleSegment(segment: string,): string {
+  return segment
+    .replace(INVALID_PAGE_TITLE_SEGMENT_RE, " ",)
     .replace(/\s+/g, " ",)
     .replace(/^\.+|\.+$/g, "",)
     .trim();
+}
+
+export function sanitizePageTitle(title: string,): string {
+  return title
+    .replace(/\\/g, "/",)
+    .split("/",)
+    .map((segment,) => sanitizePageTitleSegment(segment,))
+    .filter(Boolean,)
+    .join("/",);
+}
+
+export function getPageDisplayTitle(title: string,): string {
+  const normalizedTitle = sanitizePageTitle(title,);
+  return normalizedTitle.split("/",).pop() ?? normalizedTitle;
+}
+
+export function replacePageTitleBasename(currentTitle: string, nextTitle: string,): string {
+  const normalizedNextTitle = sanitizePageTitle(nextTitle,);
+  if (!normalizedNextTitle) return "";
+  if (normalizedNextTitle.includes("/",)) return normalizedNextTitle;
+
+  const currentSegments = sanitizePageTitle(currentTitle,).split("/",).filter(Boolean,);
+  const parentTitle = currentSegments.slice(0, -1,).join("/",);
+  return parentTitle ? `${parentTitle}/${normalizedNextTitle}` : normalizedNextTitle;
 }
 
 function joinNoteLinkSegments(parts: string[],): string {
@@ -291,7 +315,12 @@ export async function getPagePath(title: string,): Promise<string> {
   }
 
   const pagesDir = await getPagesDir();
-  return await join(pagesDir, `${normalizedTitle}.md`,);
+  const segments = normalizedTitle.split("/",);
+  const filename = segments.pop();
+  if (!filename) {
+    throw new Error("Page title is required.",);
+  }
+  return await join(pagesDir, ...segments, `${filename}.md`,);
 }
 
 export function parsePageTitleFromPath(path: string,): string | null {
@@ -315,7 +344,17 @@ export function buildPageMarkdownHref(title: string,): string {
     throw new Error("Page title is required.",);
   }
 
-  return `pages/${encodeURIComponent(normalizedTitle,)}.md`;
+  const segments = normalizedTitle.split("/",);
+  const filename = segments.pop();
+  if (!filename) {
+    throw new Error("Page title is required.",);
+  }
+
+  return [
+    "pages",
+    ...segments.map((segment,) => encodeURIComponent(segment,)),
+    `${encodeURIComponent(filename,)}.md`,
+  ].join("/",);
 }
 
 export function isExplicitPageLinkTarget(target: string,): boolean {
@@ -347,10 +386,14 @@ export function parsePageTitleFromLinkTarget(target: string,): string | null {
 
   const withoutExtension = stripMdExtension(decoded,);
   const withoutPagesPrefix = withoutExtension.replace(/^pages\//i, "",);
-  if (withoutPagesPrefix.includes("/",) || withoutPagesPrefix.includes("\\",)) {
+  const rawSegments = withoutPagesPrefix.split(/[\\/]+/,).map((segment,) => segment.trim()).filter(Boolean,);
+  if (rawSegments.some((segment,) => segment === "." || segment === "..")) {
     return null;
   }
-  const normalizedTitle = sanitizePageTitle(withoutPagesPrefix,);
+  const normalizedTitle = rawSegments
+    .map((segment,) => sanitizePageTitleSegment(segment,))
+    .filter(Boolean,)
+    .join("/",);
   return normalizedTitle || null;
 }
 

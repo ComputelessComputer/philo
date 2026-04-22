@@ -1,6 +1,6 @@
 import { invoke, } from "@tauri-apps/api/core";
-import { join, } from "@tauri-apps/api/path";
-import { exists, readDir, rename, } from "@tauri-apps/plugin-fs";
+import { dirname, join, } from "@tauri-apps/api/path";
+import { exists, mkdir, readDir, rename, } from "@tauri-apps/plugin-fs";
 import { EMPTY_DOC, json2md, md2json, parseJsonContent, } from "../lib/markdown";
 import {
   AttachedPage,
@@ -37,6 +37,7 @@ import {
   parseDateFromNoteLinkTarget,
   parsePageTitleFromLinkTarget,
   parsePageTitleFromPath,
+  replacePageTitleBasename,
   sanitizePageTitle,
 } from "./paths";
 import {
@@ -784,7 +785,15 @@ export async function loadPage(title: string,): Promise<PageNote | null> {
 }
 
 export async function loadPageByPath(path: string,): Promise<PageNote | null> {
-  const title = parsePageTitleFromPath(path,);
+  const pagesDir = await getPagesDir().catch(() => null);
+  const normalizedPath = path.replace(/\\/g, "/",);
+  const normalizedPagesDir = pagesDir?.replace(/\\/g, "/",).replace(/\/+$/, "",);
+  const relativePath = normalizedPagesDir && normalizedPath.startsWith(`${normalizedPagesDir}/`,)
+    ? normalizedPath.slice(normalizedPagesDir.length + 1,)
+    : null;
+  const title = relativePath
+    ? parsePageTitleFromLinkTarget(relativePath,)
+    : parsePageTitleFromPath(path,);
   if (!title) return null;
   return await loadPage(title,);
 }
@@ -799,7 +808,7 @@ export async function savePage(page: PageNote,): Promise<void> {
 
 export async function renamePage(page: PageNote, nextTitle: string,): Promise<PageNote> {
   const currentTitle = sanitizePageTitle(page.title,);
-  const normalizedNextTitle = sanitizePageTitle(nextTitle,);
+  const normalizedNextTitle = replacePageTitleBasename(currentTitle, nextTitle,);
   if (!normalizedNextTitle) {
     throw new Error("Page title is required.",);
   }
@@ -817,6 +826,10 @@ export async function renamePage(page: PageNote, nextTitle: string,): Promise<Pa
   }
 
   if (currentPath !== nextPath && await exists(currentPath,)) {
+    const nextDir = await dirname(nextPath,);
+    if (!await exists(nextDir,)) {
+      await mkdir(nextDir, { recursive: true, },);
+    }
     await rename(currentPath, nextPath,);
   }
 
@@ -856,7 +869,7 @@ export async function createAttachedPage({
 }: {
   title: string;
 },): Promise<PageNote> {
-  const normalizedTitle = sanitizePageTitle(title.replace(/\.md$/i, "",),);
+  const normalizedTitle = parsePageTitleFromLinkTarget(title,) ?? sanitizePageTitle(title.replace(/\.md$/i, "",),);
   if (!normalizedTitle) {
     throw new Error("Page title is required.",);
   }
