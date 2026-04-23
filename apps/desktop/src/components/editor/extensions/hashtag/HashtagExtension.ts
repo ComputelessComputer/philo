@@ -2,7 +2,7 @@ import { Extension, } from "@tiptap/core";
 import { Plugin, PluginKey, } from "@tiptap/pm/state";
 import { Decoration, DecorationSet, } from "@tiptap/pm/view";
 
-const HASHTAG_RE = /(^|[\s([{])([#@][a-zA-Z]\w*)\b/g;
+const HASHTAG_RE = /(^|[\s([{])(#[a-zA-Z]\w*)\b/g;
 const PRIORITY_TAGS = new Set(["#urgent", "#high", "#mid", "#low",],);
 
 export const HashtagExtension = Extension.create({
