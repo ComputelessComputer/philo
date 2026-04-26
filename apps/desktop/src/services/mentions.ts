@@ -569,14 +569,28 @@ async function getPageSuggestions(query: string,): Promise<MentionSuggestion[]> 
     limit: PAGE_SUGGESTION_LIMIT,
   },);
 
-  return dedupeSuggestions(
-    results
-      .map((result,) =>
-        parsePageTitleFromLinkTarget(result.relativePath,) ?? parsePageTitleFromLinkTarget(result.title,)
-      )
-      .filter((title,): title is string => Boolean(title,))
-      .map((title,) => buildPageSuggestion(title,)),
+  const titles = Array.from(
+    new Set(
+      results
+        .map((result,) =>
+          parsePageTitleFromLinkTarget(result.relativePath,) ?? parsePageTitleFromLinkTarget(result.title,)
+        )
+        .filter((title,): title is string => Boolean(title,)),
+    ),
   );
+  const existingTitles = await Promise.all(
+    titles.map(async (title,) => {
+      try {
+        return await exists(await getPagePath(title,),) ? title : null;
+      } catch {
+        return null;
+      }
+    },),
+  );
+
+  return existingTitles
+    .filter((title,): title is string => Boolean(title,))
+    .map((title,) => buildPageSuggestion(title,));
 }
 
 async function getCreatePageTitle(query: string,): Promise<string | null> {
