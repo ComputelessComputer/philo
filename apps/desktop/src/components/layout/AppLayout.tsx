@@ -115,7 +115,6 @@ import {
   type PageNote,
 } from "../../types/note";
 import { AiComposer, } from "../ai/AiComposer";
-import { stripMeetingPageDoc, } from "../editor/extensions/meeting/MeetingPageExtensions";
 import { clearWidgetEditSession as clearWidgetEditSessionStore, } from "../editor/extensions/widget/edit-session";
 import EditableNote, { type EditableNoteHandle, type EditableNoteSelection, } from "../journal/EditableNote";
 import { LibraryDrawer, } from "../library/LibraryDrawer";
@@ -2442,30 +2441,22 @@ export default function AppLayout() {
       console.warn("Microphone permission unavailable; continuing with system audio only.", error,);
     }
 
-    let page: PageNote | null = null;
     const startedAt = new Date().toISOString();
     const location = getMeetingLocationHint();
 
-    if (currentView.kind === "page") {
-      page = currentPageRef.current ?? await loadPage(currentView.title,);
-      if (!page) return;
-    } else {
-      const ensuredTodayNote = todayNoteRef.current ?? await getOrCreateDailyNote(today,);
-      if (!todayNoteRef.current) {
-        todayNoteRef.current = ensuredTodayNote;
-        setTodayNote(ensuredTodayNote,);
-      }
-      page = await createMeetingPage(startedAt, location,);
-      attachMeetingPageToTodayNote(page.title,);
-      setPagesRevision((value,) => value + 1);
-      openPageView(page.title,);
+    const ensuredTodayNote = todayNoteRef.current ?? await getOrCreateDailyNote(today,);
+    if (!todayNoteRef.current) {
+      todayNoteRef.current = ensuredTodayNote;
+      setTodayNote(ensuredTodayNote,);
     }
 
+    const page = await createMeetingPage(startedAt, location,);
+    attachMeetingPageToTodayNote(page.title,);
+    setPagesRevision((value,) => value + 1);
+    openPageView(page.title,);
+
     const preparedPage = buildMeetingStartPage(page, startedAt, location,);
-    const pageEditor = pageEditorRef.current?.editor;
-    const currentDoc = currentView.kind === "page" && pageEditor && !pageEditor.isDestroyed
-      ? stripMeetingPageDoc(preparedPage, pageEditor.getJSON() as JSONContent,)
-      : parseJsonContent(preparedPage.content,);
+    const currentDoc = parseJsonContent(preparedPage.content,);
     const splitDoc = splitMeetingCaptureDoc(currentDoc,);
 
     await persistPageUpdate(preparedPage,);
@@ -2595,7 +2586,6 @@ export default function AppLayout() {
     closeGlobalSearch,
     createMeetingPage,
     currentView.kind,
-    currentPageTitle,
     finalizeMeetingRecording,
     getListenerState,
     getMeetingLocationHint,
