@@ -149,10 +149,7 @@ function showFinderContextMenu(
   ];
 
   if (deleteAction) {
-    items.push(
-      { separator: true, },
-      deleteAction,
-    );
+    items.push(deleteAction,);
   }
 
   void showNativeContextMenu(items, event,);
@@ -376,6 +373,66 @@ function appendAttachedPageLink(doc: JSONContent, title: string,): JSONContent {
   return {
     type: "doc",
     content: [createPageLinkParagraph(title,), ...normalizeDocContent(doc,),],
+  };
+}
+
+function isPageMentionChip(node: JSONContent, title: string,): boolean {
+  if (node.type !== "mentionChip" || !node.attrs) return false;
+  if (node.attrs.kind !== "page" || typeof node.attrs.id !== "string") return false;
+  return parsePageTitleFromLinkTarget(node.attrs.id,) === title;
+}
+
+function removePageMentionChipsFromNode(
+  node: JSONContent,
+  title: string,
+): { node: JSONContent | null; changed: boolean; } {
+  if (isPageMentionChip(node, title,)) {
+    return { node: null, changed: true, };
+  }
+
+  if (!Array.isArray(node.content,)) {
+    return { node, changed: false, };
+  }
+
+  const nextContent: JSONContent[] = [];
+  let changed = false;
+
+  node.content.forEach((child,) => {
+    const result = removePageMentionChipsFromNode(child, title,);
+    changed ||= result.changed;
+    if (result.node) nextContent.push(result.node,);
+  },);
+
+  if (!changed) {
+    return { node, changed: false, };
+  }
+
+  if (node.type === "paragraph" && nextContent.length === 0) {
+    return { node: null, changed: true, };
+  }
+
+  return {
+    node: {
+      ...node,
+      content: nextContent,
+    },
+    changed: true,
+  };
+}
+
+function removePageMentionChips(doc: JSONContent, title: string,): { doc: JSONContent; changed: boolean; } {
+  const nextContent: JSONContent[] = [];
+  let changed = false;
+
+  normalizeDocContent(doc,).forEach((node,) => {
+    const result = removePageMentionChipsFromNode(node, title,);
+    changed ||= result.changed;
+    if (result.node) nextContent.push(result.node,);
+  },);
+
+  return {
+    doc: nextContent.length > 0 ? { type: "doc", content: nextContent, } : EMPTY_DOC,
+    changed,
   };
 }
 
@@ -1960,6 +2017,26 @@ export default function AppLayout() {
     replaceTodayNoteContent(appendAttachedPageLink(parseJsonContent(note.content,), title,),);
   }, [replaceTodayNoteContent,],);
 
+  const removePageFromTodayNote = useCallback((title: string,) => {
+    const editor = todayEditorRef.current?.editor;
+    if (editor && !editor.isDestroyed) {
+      const result = removePageMentionChips(editor.getJSON(), title,);
+      if (result.changed) {
+        editor.commands.setContent(result.doc, {
+          emitUpdate: true,
+        },);
+      }
+      return;
+    }
+
+    const note = todayNoteRef.current;
+    if (!note) return;
+    const result = removePageMentionChips(parseJsonContent(note.content,), title,);
+    if (result.changed) {
+      replaceTodayNoteContent(result.doc,);
+    }
+  }, [replaceTodayNoteContent,],);
+
   const clearMeetingListeners = useCallback(() => {
     const unlisteners = [...meetingListenerUnsubscribersRef.current,];
     meetingListenerUnsubscribersRef.current = [];
@@ -3126,6 +3203,7 @@ export default function AppLayout() {
 
     suppressWatcherUntilRef.current = Date.now() + LOCAL_SAVE_WATCH_SUPPRESSION_MS;
     await deletePage(normalizedTitle,);
+    removePageFromTodayNote(normalizedTitle,);
     currentPageRef.current = currentPageRef.current?.title === normalizedTitle ? null : currentPageRef.current;
     setActivePage((page,) => page?.title === normalizedTitle ? null : page);
     setPagesRevision((value,) => value + 1);
@@ -3150,7 +3228,7 @@ export default function AppLayout() {
       };
     },);
     scheduleDesktopSync();
-  }, [],);
+  }, [removePageFromTodayNote,],);
 
   const handleTodayCityChange = useCallback((city: string | null,) => {
     const note = todayNoteRef.current;

@@ -1196,14 +1196,12 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
               .catch(console.error,);
           },
         },
-        { separator: true, },
         {
           id: `open-page-${pageTitle}`,
           text: `Open ${label}`,
           action: () => onOpenPageRef.current?.(pageTitle,),
           disabled: !onOpenPageRef.current,
         },
-        { separator: true, },
         {
           id: `delete-page-${pageTitle}`,
           text: "Delete Note",

@@ -808,8 +808,13 @@ export async function savePage(page: PageNote,): Promise<void> {
 
 export async function deletePage(title: string,): Promise<void> {
   const path = await getPagePath(title,);
+  if (!await exists(path,)) {
+    return;
+  }
+
+  await remove(path,);
   if (await exists(path,)) {
-    await remove(path,);
+    throw new Error("Could not delete page file.",);
   }
 }
 
