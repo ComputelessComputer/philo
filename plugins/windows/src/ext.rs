@@ -77,12 +77,7 @@ impl AppWindow {
         #[cfg(target_os = "macos")]
         let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
 
-        if matches!(self, Self::Main) {
-            use tauri_plugin_analytics::{AnalyticsPayload, AnalyticsPluginExt};
-
-            let e = AnalyticsPayload::builder("show_main_window").build();
-            app.analytics().event_fire_and_forget(e);
-        }
+        let _ = app;
     }
 
     fn try_show_existing(

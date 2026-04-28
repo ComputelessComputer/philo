@@ -25,7 +25,6 @@ hypr-data = { path = "crates/data", package = "data" }
 hypr-aec = { path = "crates/aec", package = "aec" }
 hypr-afconvert = { path = "crates/afconvert", package = "afconvert" }
 hypr-am = { path = "crates/am", package = "am" }
-hypr-analytics = { path = "crates/analytics", package = "analytics" }
 hypr-audio = { path = "crates/audio", package = "audio" }
 hypr-audio-device = { path = "crates/audio-device", package = "audio-device" }
 hypr-audio-interface = { path = "crates/audio-interface", package = "audio-interface" }
@@ -60,7 +59,6 @@ hypr-whisper = { path = "crates/whisper", package = "whisper" }
 hypr-whisper-local-model = { path = "crates/whisper-local-model", package = "whisper-local-model" }
 hypr-ws-client = { path = "crates/ws-client", package = "ws-client" }
 hypr-ws-utils = { path = "crates/ws-utils", package = "ws-utils" }
-posthog-rs = "0.4.1"
 
 owhisper-client = { path = "crates/owhisper-client", package = "owhisper-client" }
 owhisper-interface = { path = "crates/owhisper-interface", package = "owhisper-interface" }
@@ -85,7 +83,6 @@ tauri-plugin-store = "2.4"
 tauri-plugin-updater = "2.10"
 tauri-plugin-window-state = "2.4"
 
-tauri-plugin-analytics = { path = "plugins/analytics" }
 tauri-plugin-fs-db = { path = "plugins/fs-db" }
 tauri-plugin-fs-sync = { path = "plugins/fs-sync" }
 tauri-plugin-hooks = { path = "plugins/hooks" }

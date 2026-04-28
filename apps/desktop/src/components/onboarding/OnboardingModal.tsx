@@ -2,7 +2,6 @@ import { invoke, } from "@tauri-apps/api/core";
 import { join, } from "@tauri-apps/api/path";
 import { open as openDialog, } from "@tauri-apps/plugin-dialog";
 import { useEffect, useMemo, useRef, useState, } from "react";
-import { trackEvent, } from "../../services/analytics";
 import { detectObsidianFolders, ensureObsidianVaultStructure, } from "../../services/obsidian";
 import { getJournalDir, initJournalScope, resetJournalDir, } from "../../services/paths";
 import { loadSettings, saveSettings, type Settings, } from "../../services/settings";
@@ -143,14 +142,6 @@ export function OnboardingModal({ open, onComplete, }: OnboardingModalProps,) {
       await saveSettings(nextSettings,);
       await resetJournalDir(journalDir,);
       await initJournalScope();
-      trackEvent("onboarding_completed", {
-        assets_folder_customized: nextAssetsFolder !== "assets",
-        daily_logs_folder_customized: nextDailyLogsFolder !== "Daily Notes",
-        detected_filename_pattern: Boolean(detectedFilenamePattern,),
-        detected_vault_selected: detectedVaults.has(nextVaultDir,),
-        excalidraw_folder_customized: nextExcalidrawFolder !== "Excalidraw",
-        vault_candidates_count: vaultCandidates.length,
-      },);
       onComplete();
     } catch (err) {
       const message = err instanceof Error
