@@ -26,7 +26,6 @@ use std::{env, fs, process::Command};
 use tauri::ipc::Channel;
 use tauri::menu::{MenuBuilder, MenuItemBuilder, PredefinedMenuItem, SubmenuBuilder};
 use tauri::{AppHandle, Emitter, Manager, State};
-use tauri_plugin_analytics::AnalyticsPluginExt;
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_dialog::{DialogExt, MessageDialogKind};
 use tauri_plugin_fs::FsExt;
@@ -438,13 +437,7 @@ fn write_google_oauth_response(
         .map_err(|e| e.to_string())
 }
 
-fn focus_main_window<R: tauri::Runtime>(app: &AppHandle<R>, source: &'static str) {
-    app.analytics().event_fire_and_forget(
-        tauri_plugin_analytics::AnalyticsPayload::builder("show_main_window")
-            .with("source", source)
-            .build(),
-    );
-
+fn focus_main_window<R: tauri::Runtime>(app: &AppHandle<R>, _source: &'static str) {
     if let Some(window) = app.get_webview_window("main") {
         let _ = window.unminimize();
         let _ = window.show();
@@ -3726,7 +3719,6 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_analytics::init())
         .plugin(tauri_plugin_permissions::init())
         .plugin(tauri_plugin_misc::init())
         .plugin(tauri_plugin_store::Builder::default().build())
@@ -3783,11 +3775,6 @@ pub fn run() {
         ])
         .setup(|app| {
             let app_handle = app.handle().clone();
-            app_handle.analytics().event_fire_and_forget(
-                tauri_plugin_analytics::AnalyticsPayload::builder("app_started")
-                    .with("debug", cfg!(debug_assertions))
-                    .build(),
-            );
 
             app.deep_link().on_open_url(move |event| {
                 let payload: Vec<String> = event

@@ -2,7 +2,6 @@ import { mergeAttributes, Node, } from "@tiptap/core";
 import type { JSONContent, } from "@tiptap/core";
 import { ReactNodeViewRenderer, } from "@tiptap/react";
 import { getAiConfigurationMessage, isAiKeyMissingError, } from "../../../../services/ai";
-import { trackEvent, } from "../../../../services/analytics";
 import { generateWidgetWithStorage, } from "../../../../services/generate";
 import {
   compactWidgetSpec,
@@ -262,11 +261,6 @@ export const WidgetExtension = Node.create({
               favorite: false,
               storageSchema,
               saved: false,
-            },);
-            trackEvent("widget_created", {
-              runtime: record.runtime,
-              source: "slash_command",
-              storage_enabled: Boolean(record.storageSchema,),
             },);
             await recordWidgetGitRevision(record, "create", null,);
             updateWidgetById(this.editor, widgetId, {

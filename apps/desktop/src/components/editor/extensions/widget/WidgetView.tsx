@@ -3,7 +3,6 @@ import type { NodeViewProps, } from "@tiptap/react";
 import { Archive, History, PencilLine, RefreshCw, Trash2, } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, } from "react";
 import { getAiConfigurationMessage, isAiKeyMissingError, } from "../../../../services/ai";
-import { trackEvent, } from "../../../../services/analytics";
 import { buildUnifiedDiff, } from "../../../../services/diff";
 import { generateWidgetWithStorage, } from "../../../../services/generate";
 import {
@@ -569,10 +568,6 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
       historyReason,
       sharedComponentId,
     },);
-    trackEvent("widget_update_previewed", {
-      reason: historyReason,
-      shared: Boolean(sharedComponentId,),
-    },);
     updateAttributes({ prompt: persistedPrompt, loading: false, error: "", },);
   }, [updateAttributes,],);
 
@@ -635,10 +630,6 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
           saved: true,
           error: "",
         },);
-        trackEvent("widget_updated", {
-          reason: historyReason,
-          shared: true,
-        },);
         return;
       }
 
@@ -687,16 +678,8 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
         loading: false,
         error: "",
       },);
-      trackEvent("widget_updated", {
-        reason: historyReason,
-        shared: false,
-      },);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : typeof err === "string" ? err : "Something went wrong.";
-      trackEvent("widget_generation_failed", {
-        reason: historyReason,
-        shared: isShared,
-      },);
       setPendingEditPreview(null,);
       updateAttributes({
         prompt: persistedPrompt,
@@ -791,10 +774,6 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
         },);
       }
 
-      trackEvent("widget_updated", {
-        reason: pendingEditPreview.historyReason,
-        shared: Boolean(pendingEditPreview.sharedComponentId,),
-      },);
       setPendingEditPreview(null,);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : typeof err === "string" ? err : "Something went wrong.";
@@ -861,9 +840,6 @@ export function WidgetView({ node, updateAttributes, deleteNode, selected, }: No
       if (item.componentId) {
         setManifest(await getSharedComponent(item.componentId,),);
       }
-      trackEvent("widget_saved_to_library", {
-        shared: Boolean(item.componentId,),
-      },);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : typeof err === "string" ? err : "Something went wrong.";
       updateAttributes({
