@@ -49,6 +49,7 @@ pub fn transcribe_stream(
     (audio_tx, stream, cancellation_token, handle)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn run_transcribe_worker(
     model: Arc<Model>,
     options: TranscribeOptions,

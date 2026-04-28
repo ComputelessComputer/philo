@@ -1,3 +1,5 @@
+#![allow(clippy::needless_return)]
+
 use hypr_supervisor::dynamic::DynamicSupervisorMsg;
 use ractor::{ActorCell, ActorRef};
 use std::collections::HashMap;

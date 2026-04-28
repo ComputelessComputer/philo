@@ -263,6 +263,7 @@ fn handle_volume_mute_event<S: EventSender>(sender: &S, addr: &ca::PropAddr) {
                     );
                 }
             } else if addr.scope == ca::PropScope::INPUT {
+                #[allow(clippy::collapsible_if)]
                 if let Ok(device) = ca::System::default_input_device() {
                     send_mute_update(
                         sender,

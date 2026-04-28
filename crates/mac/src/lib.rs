@@ -1,4 +1,5 @@
 #![allow(unreachable_patterns)]
+#![allow(clippy::needless_range_loop)]
 
 #[cfg(target_os = "macos")]
 pub fn is_builtin_display_inactive() -> bool {
