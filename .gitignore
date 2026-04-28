@@ -31,3 +31,6 @@ dist-ssr
 .expo/
 
 .env
+
+# Rust build output
+target/

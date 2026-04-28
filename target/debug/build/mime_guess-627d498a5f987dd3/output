@@ -1,1 +1,0 @@
-cargo:rustc-env=MIME_TYPES_GENERATED_PATH=/Users/johntopia/dev/fastrepl/philo/target/debug/build/mime_guess-627d498a5f987dd3/out/mime_types_generated.rs
