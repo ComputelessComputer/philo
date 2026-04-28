@@ -14,7 +14,6 @@ Default permissions for the path2 plugin
 <th>Description</th>
 </tr>
 
-
 <tr>
 <td>
 

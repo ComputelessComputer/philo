@@ -1106,7 +1106,6 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
       const stats = pendingEditStatsRef.current;
       if (!stats) return;
       pendingEditStatsRef.current = null;
-
     }, [],);
 
     const recordNoteEdit = useCallback((transaction: Transaction,) => {

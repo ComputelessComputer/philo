@@ -1,0 +1,7 @@
+cargo:rerun-if-changed=data/iso-639-1.tsv
+cargo:rerun-if-changed=templates/part_1._rs
+cargo:rerun-if-changed=data/iso-639-3.tsv
+cargo:rerun-if-changed=data/iso-639-3-macro-languages.tsv
+cargo:rerun-if-changed=templates/part_3._rs
+cargo:rerun-if-changed=data/iso-639-5.tsv
+cargo:rerun-if-changed=templates/part_5._rs

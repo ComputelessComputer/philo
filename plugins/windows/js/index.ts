@@ -1,4 +1,4 @@
-import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
+import { getCurrentWebviewWindow, } from "@tauri-apps/api/webviewWindow";
 
 export * from "./bindings.gen";
 
@@ -13,15 +13,15 @@ export const getCurrentWebviewWindowLabel = () => {
 
 export const init = () => {
   const allowDropAttribute = "[data-allow-file-drop='true']";
-  const shouldAllow = (event: DragEvent) => {
+  const shouldAllow = (event: DragEvent,) => {
     if (!(event.target instanceof Element)) {
       return false;
     }
-    return Boolean(event.target.closest(allowDropAttribute));
+    return Boolean(event.target.closest(allowDropAttribute,),);
   };
 
-  const preventUnlessAllowed = (event: DragEvent) => {
-    const allowed = shouldAllow(event);
+  const preventUnlessAllowed = (event: DragEvent,) => {
+    const allowed = shouldAllow(event,);
 
     if (event.type === "dragover" || event.type === "drop") {
       // Always prevent the browser's default "open file in this window"
@@ -43,8 +43,8 @@ export const init = () => {
     }
   };
 
-  document.addEventListener("dragover", preventUnlessAllowed);
-  document.addEventListener("drop", preventUnlessAllowed);
-  document.addEventListener("dragenter", preventUnlessAllowed);
-  document.addEventListener("dragleave", preventUnlessAllowed);
+  document.addEventListener("dragover", preventUnlessAllowed,);
+  document.addEventListener("drop", preventUnlessAllowed,);
+  document.addEventListener("dragenter", preventUnlessAllowed,);
+  document.addEventListener("dragleave", preventUnlessAllowed,);
 };

@@ -1,0 +1,11 @@
+/Users/johntopia/dev/fastrepl/philo/target/debug/deps/faster_hex-1b5e705763530909.d: /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/faster-hex-0.9.0/src/lib.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/faster-hex-0.9.0/src/decode.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/faster-hex-0.9.0/src/encode.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/faster-hex-0.9.0/src/error.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/faster-hex-0.9.0/src/serde.rs
+
+/Users/johntopia/dev/fastrepl/philo/target/debug/deps/libfaster_hex-1b5e705763530909.rlib: /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/faster-hex-0.9.0/src/lib.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/faster-hex-0.9.0/src/decode.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/faster-hex-0.9.0/src/encode.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/faster-hex-0.9.0/src/error.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/faster-hex-0.9.0/src/serde.rs
+
+/Users/johntopia/dev/fastrepl/philo/target/debug/deps/libfaster_hex-1b5e705763530909.rmeta: /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/faster-hex-0.9.0/src/lib.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/faster-hex-0.9.0/src/decode.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/faster-hex-0.9.0/src/encode.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/faster-hex-0.9.0/src/error.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/faster-hex-0.9.0/src/serde.rs
+
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/faster-hex-0.9.0/src/lib.rs:
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/faster-hex-0.9.0/src/decode.rs:
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/faster-hex-0.9.0/src/encode.rs:
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/faster-hex-0.9.0/src/error.rs:
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/faster-hex-0.9.0/src/serde.rs:

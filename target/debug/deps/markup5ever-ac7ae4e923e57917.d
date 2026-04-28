@@ -1,0 +1,10 @@
+/Users/johntopia/dev/fastrepl/philo/target/debug/deps/markup5ever-ac7ae4e923e57917.d: /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markup5ever-0.38.0/lib.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markup5ever-0.38.0/interface/mod.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markup5ever-0.38.0/interface/tree_builder.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markup5ever-0.38.0/serialize.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markup5ever-0.38.0/util/buffer_queue.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markup5ever-0.38.0/util/smallcharset.rs
+
+/Users/johntopia/dev/fastrepl/philo/target/debug/deps/libmarkup5ever-ac7ae4e923e57917.rmeta: /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markup5ever-0.38.0/lib.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markup5ever-0.38.0/interface/mod.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markup5ever-0.38.0/interface/tree_builder.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markup5ever-0.38.0/serialize.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markup5ever-0.38.0/util/buffer_queue.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markup5ever-0.38.0/util/smallcharset.rs
+
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markup5ever-0.38.0/lib.rs:
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markup5ever-0.38.0/interface/mod.rs:
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markup5ever-0.38.0/interface/tree_builder.rs:
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markup5ever-0.38.0/serialize.rs:
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markup5ever-0.38.0/util/buffer_queue.rs:
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/markup5ever-0.38.0/util/smallcharset.rs:

@@ -1,0 +1,3 @@
+cargo:rerun-if-changed=build.rs
+cargo:rustc-check-cfg=cfg(coverage_nightly)
+cargo:rustc-check-cfg=cfg(nightly)

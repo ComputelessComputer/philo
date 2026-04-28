@@ -1,0 +1,12 @@
+/Users/johntopia/dev/fastrepl/philo/target/debug/deps/tendril-9c78f88450cf5afb.d: /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/lib.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/fmt.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/stream.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/buf32.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/tendril.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/utf8_decode.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/util.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/futf.rs
+
+/Users/johntopia/dev/fastrepl/philo/target/debug/deps/libtendril-9c78f88450cf5afb.rmeta: /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/lib.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/fmt.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/stream.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/buf32.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/tendril.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/utf8_decode.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/util.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/futf.rs
+
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/lib.rs:
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/fmt.rs:
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/stream.rs:
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/buf32.rs:
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/tendril.rs:
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/utf8_decode.rs:
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/util.rs:
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/tendril-0.5.0/src/futf.rs:

@@ -1,0 +1,11 @@
+/Users/johntopia/dev/fastrepl/philo/target/debug/deps/gix_url-40d5e21d23fe2710.d: /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gix-url-0.30.0/src/lib.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gix-url-0.30.0/src/expand_path.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gix-url-0.30.0/src/scheme.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gix-url-0.30.0/src/impls.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gix-url-0.30.0/src/parse.rs
+
+/Users/johntopia/dev/fastrepl/philo/target/debug/deps/libgix_url-40d5e21d23fe2710.rlib: /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gix-url-0.30.0/src/lib.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gix-url-0.30.0/src/expand_path.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gix-url-0.30.0/src/scheme.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gix-url-0.30.0/src/impls.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gix-url-0.30.0/src/parse.rs
+
+/Users/johntopia/dev/fastrepl/philo/target/debug/deps/libgix_url-40d5e21d23fe2710.rmeta: /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gix-url-0.30.0/src/lib.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gix-url-0.30.0/src/expand_path.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gix-url-0.30.0/src/scheme.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gix-url-0.30.0/src/impls.rs /Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gix-url-0.30.0/src/parse.rs
+
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gix-url-0.30.0/src/lib.rs:
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gix-url-0.30.0/src/expand_path.rs:
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gix-url-0.30.0/src/scheme.rs:
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gix-url-0.30.0/src/impls.rs:
+/Users/johntopia/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/gix-url-0.30.0/src/parse.rs:

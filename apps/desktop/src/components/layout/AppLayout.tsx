@@ -2392,7 +2392,6 @@ export default function AppLayout() {
       console.error("Meeting recording stopped:", failureReason,);
     }
 
-
     if (!transcript) {
       setMeetingSummaryTargetTitle(null,);
       setMeetingSummaryError(null,);
@@ -3129,7 +3128,7 @@ export default function AppLayout() {
     return renamedPage;
   }, [],);
 
-  const handleDeletePage = useCallback(async (title: string, source: "context_menu" | "toolbar" = "context_menu",) => {
+  const handleDeletePage = useCallback(async (title: string,) => {
     const normalizedTitle = sanitizePageTitle(title,);
     if (!normalizedTitle) return;
     const displayTitle = getPageDisplayTitle(normalizedTitle,);
@@ -3578,7 +3577,7 @@ export default function AppLayout() {
             onClick={() => {
               if (currentView.kind === "page") {
                 if (currentPageTitle) {
-                  void handleDeletePage(currentPageTitle, "toolbar",);
+                  void handleDeletePage(currentPageTitle,);
                 }
                 return;
               }
