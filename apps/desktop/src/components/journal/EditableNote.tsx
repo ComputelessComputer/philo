@@ -20,7 +20,6 @@ import { useDebounceCallback, } from "usehooks-ts";
 import "../editor/Editor.css";
 import { showNativeContextMenu, } from "../../hooks/useNativeContextMenu";
 import { md2json, parseJsonContent, } from "../../lib/markdown";
-import { trackEvent, } from "../../services/analytics";
 import { openGoogleMentionChip, } from "../../services/google-open";
 import { resolveAssetUrl, saveImage, } from "../../services/images";
 import {
@@ -1107,16 +1106,6 @@ const EditableNote = forwardRef<EditableNoteHandle, EditableNoteProps>(
       const stats = pendingEditStatsRef.current;
       if (!stats) return;
       pendingEditStatsRef.current = null;
-
-      trackEvent("note_edited", {
-        character_activity: stats.charactersAdded + stats.charactersDeleted,
-        character_delta: stats.charactersAdded - stats.charactersDeleted,
-        characters_added: stats.charactersAdded,
-        characters_deleted: stats.charactersDeleted,
-        edit_date: stats.editDate,
-        note_date: stats.noteDate,
-        note_kind: stats.noteKind,
-      },);
     }, [],);
 
     const recordNoteEdit = useCallback((transaction: Transaction,) => {

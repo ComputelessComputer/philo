@@ -24,7 +24,6 @@ import { useCurrentCity, } from "../../hooks/useTimezoneCity";
 import { EMPTY_DOC, parseJsonContent, } from "../../lib/markdown";
 import { getAiConfigurationMessage, } from "../../services/ai";
 import { runAiSlashCommand, } from "../../services/ai-slash-commands";
-import { trackEvent, } from "../../services/analytics";
 import {
   AI_NOT_CONFIGURED,
   applyAssistantPendingChanges,
@@ -2211,13 +2210,6 @@ export default function AppLayout() {
         preserveTranscriptFormatting: true,
       },);
 
-      trackEvent("meeting_summarized", {
-        action_item_count: result.actionItems.length,
-        decision_count: result.decisions.length,
-        key_takeaway_count: result.keyTakeaways.length,
-        session_kind: result.sessionKind,
-        source: transcriptOverride ? "recording" : "manual",
-      },);
       setMeetingSummaryTargetTitle(null,);
       setMeetingSummaryError(null,);
       return updated;
@@ -2242,9 +2234,6 @@ export default function AppLayout() {
     setAiSelectionHighlight(null,);
     setAiError(null,);
     setGlobalSearchOpen(true,);
-    trackEvent("search_opened", {
-      source: currentView.kind,
-    },);
   }, [clearWidgetEditSession, currentView.kind,],);
 
   const closeGlobalSearch = useCallback(() => {
@@ -2361,7 +2350,6 @@ export default function AppLayout() {
   }, [closeGlobalSearch, currentView.kind, goHome, pastDates, today,],);
 
   const stopMeetingRecording = useCallback(async () => {
-    trackEvent("meeting_recording_stop_requested",);
     try {
       await stopListenerSession();
     } catch (error) {
@@ -2403,12 +2391,6 @@ export default function AppLayout() {
     if (failureReason) {
       console.error("Meeting recording stopped:", failureReason,);
     }
-
-    trackEvent("meeting_recording_stopped", {
-      failure: Boolean(failureReason,),
-      has_transcript: Boolean(transcript,),
-      transcript_block_count: transcriptBlocks.length,
-    },);
 
     if (!transcript) {
       setMeetingSummaryTargetTitle(null,);
@@ -2590,21 +2572,11 @@ export default function AppLayout() {
         setLiveMeetingTranscript(null,);
         setMeetingTranscriptModalOpen(false,);
         setMeetingRecordingError(message,);
-        trackEvent("meeting_recording_failed", {
-          source: currentView.kind === "page" ? "page" : "home",
-          system_audio_only: speakerOnlyRecording,
-        },);
         console.error("Could not start meeting recording:", message,);
         return;
       }
 
       setIsMeetingRecording(true,);
-      trackEvent("meeting_recording_started", {
-        language_count: sttConfig.spokenLanguages.length,
-        save_recordings: sttConfig.saveRecordings,
-        source: currentView.kind === "page" ? "page" : "home",
-        system_audio_only: speakerOnlyRecording,
-      },);
       if (speakerOnlyRecording) {
         setMeetingRecordingError("Microphone access unavailable. Recording system audio only.",);
       }
@@ -2615,10 +2587,6 @@ export default function AppLayout() {
       setLiveMeetingTranscript(null,);
       setMeetingTranscriptModalOpen(false,);
       setMeetingRecordingError(error instanceof Error ? error.message : "Could not start meeting recording.",);
-      trackEvent("meeting_recording_failed", {
-        source: currentView.kind === "page" ? "page" : "home",
-        system_audio_only: speakerOnlyRecording,
-      },);
       console.error("Could not start meeting recording:", error,);
     }
   }, [
@@ -2649,9 +2617,6 @@ export default function AppLayout() {
     if (result.kind === "page") {
       const title = parsePageTitleFromLinkTarget(result.relativePath,) ?? parsePageTitleFromPath(result.path,);
       if (title) {
-        trackEvent("search_result_opened", {
-          kind: result.kind,
-        },);
         openPageView(title,);
         return;
       }
@@ -2661,9 +2626,6 @@ export default function AppLayout() {
       const pattern = await getFilenamePattern();
       const date = parseDateFromNoteLinkTarget(result.relativePath, pattern,);
       if (date) {
-        trackEvent("search_result_opened", {
-          kind: result.kind,
-        },);
         navigateToDate(date,);
         return;
       }
@@ -2671,9 +2633,6 @@ export default function AppLayout() {
       console.error(error,);
     }
 
-    trackEvent("search_result_opened", {
-      kind: result.kind,
-    },);
     openPath(result.path,).catch(console.error,);
   }, [closeGlobalSearch, navigateToDate, openPageView,],);
 
@@ -3111,9 +3070,6 @@ export default function AppLayout() {
         if (!nextContent) return;
 
         handlePageSave({ ...page, content: nextContent, },);
-        trackEvent("tasks_triaged", {
-          surface: "page",
-        },);
         return;
       }
 
@@ -3124,9 +3080,6 @@ export default function AppLayout() {
       if (!nextContent) return;
 
       handleTodaySave({ ...note, content: nextContent, },);
-      trackEvent("tasks_triaged", {
-        surface: "daily_note",
-      },);
     } finally {
       setIsTaskTriaging(false,);
     }
@@ -3175,7 +3128,7 @@ export default function AppLayout() {
     return renamedPage;
   }, [],);
 
-  const handleDeletePage = useCallback(async (title: string, source: "context_menu" | "toolbar" = "context_menu",) => {
+  const handleDeletePage = useCallback(async (title: string,) => {
     const normalizedTitle = sanitizePageTitle(title,);
     if (!normalizedTitle) return;
     const displayTitle = getPageDisplayTitle(normalizedTitle,);
@@ -3207,9 +3160,6 @@ export default function AppLayout() {
       };
     },);
     scheduleDesktopSync();
-    trackEvent("page_deleted", {
-      source,
-    },);
   }, [],);
 
   const handleTodayCityChange = useCallback((city: string | null,) => {
@@ -3223,9 +3173,6 @@ export default function AppLayout() {
 
   const handleCreateAttachedPage = useCallback(async (input?: { open?: boolean; title?: string; },) => {
     const page = input?.title ? await createAttachedPage({ title: input.title, },) : await createUntitledAttachedPage();
-    trackEvent("page_created", {
-      source: "attached_page",
-    },);
     if (input?.open !== false) {
       setPagesRevision((value,) => value + 1);
       openPageView(page.title,);
@@ -3304,11 +3251,6 @@ export default function AppLayout() {
     };
 
     aiLastSubmittedPromptRef.current = normalizedPrompt;
-    trackEvent("message_sent", {
-      scope: aiScope,
-      selected_text: Boolean(aiSelectedText,),
-      slash_command: normalizedPrompt.startsWith("/",),
-    },);
     const controller = new AbortController();
     aiAbortControllerRef.current = controller;
     setAiPrompt("",);
@@ -3327,10 +3269,6 @@ export default function AppLayout() {
         setAiResult(slashCommandResult,);
         setAiLatestChatId(entry.id,);
         setAiActiveChatId(entry.id,);
-        trackEvent("message_completed", {
-          pending_change_count: slashCommandResult.pendingChanges.length,
-          slash_command: true,
-        },);
         return;
       }
 
@@ -3363,10 +3301,6 @@ export default function AppLayout() {
       setAiResult(result,);
       setAiLatestChatId(entry.id,);
       setAiActiveChatId(entry.id,);
-      trackEvent("message_completed", {
-        pending_change_count: result.pendingChanges.length,
-        slash_command: false,
-      },);
     } catch (error) {
       const hasDraftContent = !!latestResult
         && (
@@ -3394,10 +3328,6 @@ export default function AppLayout() {
       } else {
         setAiError(error instanceof Error ? error.message : "AI command failed.",);
       }
-      trackEvent("message_failed", {
-        aborted: error instanceof DOMException && error.name === "AbortError",
-        missing_configuration: error instanceof Error && error.message.startsWith(AI_NOT_CONFIGURED,),
-      },);
     } finally {
       if (aiAbortControllerRef.current === controller) {
         aiAbortControllerRef.current = null;
@@ -3428,7 +3358,6 @@ export default function AppLayout() {
 
     try {
       const appliedDates = await applyAssistantPendingChanges([change,],);
-      trackEvent("ai_change_applied",);
       if (appliedDates.includes(today,)) {
         const reloadedToday = await loadDailyNote(today,);
         if (reloadedToday) {
@@ -3460,7 +3389,6 @@ export default function AppLayout() {
       : { ...aiResult, pendingChanges, };
     setAiResult(nextResult,);
     syncLatestAiChatHistory(nextResult,);
-    trackEvent("ai_change_discarded",);
   }, [aiResult, syncLatestAiChatHistory,],);
 
   const handleSelectAiChat = useCallback((id: string,) => {
@@ -3649,7 +3577,7 @@ export default function AppLayout() {
             onClick={() => {
               if (currentView.kind === "page") {
                 if (currentPageTitle) {
-                  void handleDeletePage(currentPageTitle, "toolbar",);
+                  void handleDeletePage(currentPageTitle,);
                 }
                 return;
               }
