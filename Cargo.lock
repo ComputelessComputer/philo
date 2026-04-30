@@ -8470,7 +8470,7 @@ dependencies = [
 
 [[package]]
 name = "philo"
-version = "0.0.78"
+version = "0.0.79"
 dependencies = [
  "chrono",
  "git2",
